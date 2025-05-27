@@ -1,13 +1,24 @@
 {
-	"name": "tiny-mce-umbraco",
+	"name": "tinymce-umbraco",
 	"private": true,
-	"version": "16.0.0",
+	"version": "16.0.0--rc1",
 	"type": "module",
+	"description": "Extension library for the back-office Umbraco v16 TinyMCE Plugin.  Generally, this Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE) in version 16 and above. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
 	"scripts": {
 		"dev": "tsc && vite build --watch",
 		"build": "tsc && vite build",
 		"generate-client": "node scripts/generate-openapi.js https://localhost:44308/umbraco/swagger/tiny-mce/swagger.json"
 	},
+	"files": [ "dist" ],
+	"keywords": [
+		"umbraco",
+		"tinymce",
+		"rte"
+	],
+	"author": "ProWorks Corporation",
+	"license": "MIT",
 	"dependencies": {
 		"tinymce": "^6.8.5",
 		"tinymce-i18n": "^24.12.30"
@@ -18,7 +29,7 @@
 		"@rollup/plugin-json": "^6.1.0",
 		"@rollup/plugin-node-resolve": "^16.0.0",
 		"@rollup/plugin-replace": "^6.0.2",
-		"@umbraco-cms/backoffice": "^16.0.0-rc2",
+		"@umbraco-cms/backoffice": "^16.0.0-rc3",
 		"chalk": "^5.3.0",
 		"cross-env": "7.0.3",
 		"eslint": "^9.25.1",
