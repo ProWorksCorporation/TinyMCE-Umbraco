@@ -30,6 +30,14 @@
 		"pack:api": "npm pack",
 		"generate-client": "node scripts/generate-openapi.js https://localhost:44308/umbraco/swagger/tiny-mce/swagger.json"
 	},
+	"files": [ "dist" ],
+	"keywords": [
+		"umbraco",
+		"tinymce",
+		"rte"
+	],
+	"author": "ProWorks Corporation",
+	"license": "MIT",
 	"dependencies": {
 		"tinymce": "^6.8.5",
 		"tinymce-i18n": "^24.12.30"
