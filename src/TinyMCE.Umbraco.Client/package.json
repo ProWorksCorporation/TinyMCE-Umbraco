@@ -1,13 +1,43 @@
 {
-	"name": "tiny-mce-umbraco",
-	"private": true,
-	"version": "16.0.0",
+	"name": "@tiny-mce-umbraco/backoffice",
+	"version": "16.0.0-rc2.2",
+	"description": "This Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE) in version 16 and above. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).",
+	"keywords": [
+		"umbraco",
+		"tinymce",
+		"rte"
+	],
+	"author": "ProWorks Corporation",
+	"license": "MIT",
+	"publishConfig": {
+		"access": "public"
+	},
 	"type": "module",
+	"exports": {
+		".": null,
+		"./tiny-mce-umbraco": "./dist-cms/index.js",
+		"./external/tinymce": "./dist-cms/external/tinymce/index.js"
+	},
+	"types": "types/index.d.ts",
+	"files": [
+		"dist-cms",
+		"README.md"
+	],
 	"scripts": {
 		"dev": "tsc && vite build --watch",
 		"build": "tsc && vite build",
+		"build:api": "tsc -p tsconfig.api.json",
+		"pack:api": "npm pack",
 		"generate-client": "node scripts/generate-openapi.js https://localhost:44308/umbraco/swagger/tiny-mce/swagger.json"
 	},
+	"files": [ "dist" ],
+	"keywords": [
+		"umbraco",
+		"tinymce",
+		"rte"
+	],
+	"author": "ProWorks Corporation",
+	"license": "MIT",
 	"dependencies": {
 		"tinymce": "^6.8.5",
 		"tinymce-i18n": "^24.12.30"
@@ -18,7 +48,7 @@
 		"@rollup/plugin-json": "^6.1.0",
 		"@rollup/plugin-node-resolve": "^16.0.0",
 		"@rollup/plugin-replace": "^6.0.2",
-		"@umbraco-cms/backoffice": "^16.0.0-rc2",
+		"@umbraco-cms/backoffice": "^16.0.0-rc3",
 		"chalk": "^5.3.0",
 		"cross-env": "7.0.3",
 		"eslint": "^9.25.1",
@@ -31,5 +61,10 @@
 		"vite": "^6.2.2",
 		"vite-plugin-static-copy": "^2.2.0",
 		"vite-tsconfig-paths": "^5.1.4"
+	},
+	"peerDependencies": {
+		"@umbraco-cms/backoffice": "^16.0.0-rc3",
+		"tinymce": "^6.8.5",
+		"tinymce-i18n": "^24.12.30"
 	}
 }
