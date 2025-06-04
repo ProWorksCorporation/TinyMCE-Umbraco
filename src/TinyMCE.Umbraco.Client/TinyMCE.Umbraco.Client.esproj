@@ -6,4 +6,7 @@
     <StaticWebAssetSourceId>Umbraco.Community.Contentment</StaticWebAssetSourceId>
     <DebugAssetsDirectory>$(MSBuildProjectDirectory)\dist</DebugAssetsDirectory>
   </PropertyGroup>
+  <ItemGroup>
+    <TypeScriptConfiguration Include="tsconfig.api.json" />
+  </ItemGroup>
 </Project>

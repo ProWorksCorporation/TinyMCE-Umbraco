@@ -202,6 +202,10 @@ PublishScripts/
 *.nuget.props
 *.nuget.targets
 
+# npm configuration
+*.npmrc
+.npmrc
+
 # Microsoft Azure Build Output
 csx/
 *.build.csdef
@@ -360,3 +364,4 @@ src/.idea
 /src/TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE/*
 *.tsbuildinfo
 /src/TinyMCE.Umbraco.Client/dist/
+/src/TinyMCE.Umbraco.Client/dist-cms/
