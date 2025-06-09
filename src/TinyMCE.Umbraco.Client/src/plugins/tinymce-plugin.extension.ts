@@ -1,6 +1,6 @@
 import type { ManifestApi } from '@umbraco-cms/backoffice/extension-api';
 import type { RawEditorOptions } from '@umbraco-cms/backoffice/external/tinymce';
-import type { UmbTinyMcePluginBase } from '../components/input-tiny-mce/tiny-mce-plugin.js';
+import type { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
 
 export interface MetaTinyMcePlugin {
 	/**

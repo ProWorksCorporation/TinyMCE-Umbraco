@@ -14,8 +14,8 @@ import type {
 	UmbPropertyEditorConfigCollection,
 } from '@umbraco-cms/backoffice/property-editor';
 import { UmbChangeEvent } from '@umbraco-cms/backoffice/event';
-import { defaultFallbackConfig } from '../../components/input-tiny-mce/input-tiny-mce.defaults.js';
-import { defaultPremiumPluginsList } from '../../components/input-tiny-mce/input-tiny-mce.defaults.js';
+import { defaultFallbackConfig } from '@tiny-mce-umbraco/backoffice/core';
+import { defaultPremiumPluginsList } from '@tiny-mce-umbraco/backoffice/core';
 
 //const tinyIconSet = tinymce.IconManager.get('default');
 

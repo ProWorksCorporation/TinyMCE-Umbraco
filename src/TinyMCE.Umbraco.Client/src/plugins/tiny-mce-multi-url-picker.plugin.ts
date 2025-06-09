@@ -1,8 +1,8 @@
 import { umbOpenModal } from '@umbraco-cms/backoffice/modal';
 import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
-import { UmbTinyMcePluginBase } from '../components/input-tiny-mce/tiny-mce-plugin.js';
+import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
 import { UMB_LINK_PICKER_MODAL } from '@umbraco-cms/backoffice/multi-url-picker';
-import type { TinyMcePluginArguments } from '../components/input-tiny-mce/tiny-mce-plugin.js';
+import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
 import type {
 	UmbLinkPickerLink,
 	UmbLinkPickerLinkType,

@@ -1,9 +1,9 @@
 import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
-import { UmbTinyMcePluginBase } from '../components/input-tiny-mce/tiny-mce-plugin.js';
+import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
 import { UMB_BLOCK_RTE_DATA_CONTENT_KEY } from '@umbraco-cms/backoffice/rte';
 import { UMB_BLOCK_RTE_ENTRIES_CONTEXT, UMB_BLOCK_RTE_MANAGER_CONTEXT } from '@umbraco-cms/backoffice/block-rte';
 import type { Editor } from '@umbraco-cms/backoffice/external/tinymce';
-import type { TinyMcePluginArguments } from '../components/input-tiny-mce/tiny-mce-plugin.js';
+import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbBlockDataModel } from '@umbraco-cms/backoffice/block';
 import type { UmbBlockTypeBaseModel } from '@umbraco-cms/backoffice/block-type';
 import type { UmbBlockRteLayoutModel } from '@umbraco-cms/backoffice/block-rte';

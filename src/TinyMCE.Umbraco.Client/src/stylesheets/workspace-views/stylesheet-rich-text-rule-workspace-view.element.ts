@@ -1,4 +1,4 @@
-import { UmbStylesheetRuleManager } from '../stylesheet-rule-manager.js';
+import { UmbStylesheetRuleManager } from '@tiny-mce-umbraco/backoffice/core';
 import { css, customElement, html, state } from '@umbraco-cms/backoffice/external/lit';
 import { UmbLitElement } from '@umbraco-cms/backoffice/lit-element';
 import { UmbTextStyles } from '@umbraco-cms/backoffice/style';
