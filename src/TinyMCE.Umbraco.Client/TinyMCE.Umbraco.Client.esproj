@@ -7,6 +7,12 @@
     <DebugAssetsDirectory>$(MSBuildProjectDirectory)\dist</DebugAssetsDirectory>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="dist-cms\**" />
+    <None Remove="dist\**" />
+    <TypeScriptConfiguration Remove="dist-cms\**" />
+    <TypeScriptConfiguration Remove="dist\**" />
+  </ItemGroup>
+  <ItemGroup>
     <TypeScriptConfiguration Include="tsconfig.api.json" />
   </ItemGroup>
 </Project>

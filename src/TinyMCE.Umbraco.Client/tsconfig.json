@@ -27,8 +27,10 @@
 		"noImplicitReturns": true,
 
 		"paths": {
-			"@umbraco-cms/backoffice/tiny-mce": ["./src/index.ts"],
-			"@umbraco-cms/backoffice/external/tinymce": ["./src/external/tinymce/index.ts"]
+			"@umbraco-cms/backoffice/tiny-mce": [ "./src/index.ts" ],
+			"@umbraco-cms/backoffice/external/tinymce": [ "./src/external/tinymce/index.ts" ],
+			"@tiny-mce-umbraco/backoffice/core": [ "./src/index.js" ],
+			"@tiny-mce-umbraco/backoffice/external/tinymce": [ "./src/external/tinymce/index.js" ]
 		},
 
 		"types": ["@umbraco-cms/backoffice/extension-types"]

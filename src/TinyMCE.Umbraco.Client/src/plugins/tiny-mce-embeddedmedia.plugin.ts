@@ -1,5 +1,5 @@
-import { UmbTinyMcePluginBase } from '../components/input-tiny-mce/tiny-mce-plugin.js';
-import type { TinyMcePluginArguments } from '../components/input-tiny-mce/tiny-mce-plugin.js';
+import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
+import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
 import { umbOpenModal } from '@umbraco-cms/backoffice/modal';
 import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
 import { UMB_EMBEDDED_MEDIA_MODAL } from '@umbraco-cms/backoffice/embedded-media';

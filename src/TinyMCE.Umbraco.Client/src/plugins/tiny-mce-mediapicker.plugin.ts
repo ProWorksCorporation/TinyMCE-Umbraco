@@ -1,6 +1,6 @@
-import { sizeImageInEditor, uploadBlobImages } from '../utils/index.js';
-import { UmbTinyMcePluginBase } from '../components/input-tiny-mce/tiny-mce-plugin.js';
-import type { TinyMcePluginArguments } from '../components/input-tiny-mce/tiny-mce-plugin.js';
+import { sizeImageInEditor, uploadBlobImages } from '@tiny-mce-umbraco/backoffice/core';
+import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
+import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
 import { getGuidFromUdi } from '@umbraco-cms/backoffice/utils';
 import { UmbId } from '@umbraco-cms/backoffice/id';
 import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';

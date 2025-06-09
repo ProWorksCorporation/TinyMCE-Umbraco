@@ -14,7 +14,7 @@ import type {
 } from '@umbraco-cms/backoffice/property-editor';
 import { UmbChangeEvent } from '@umbraco-cms/backoffice/event';
 import { UMB_PROPERTY_DATASET_CONTEXT } from '@umbraco-cms/backoffice/property';
-import { defaultPremiumPluginsList } from '../../components/input-tiny-mce/input-tiny-mce.defaults.js';
+import { defaultPremiumPluginsList } from '@tiny-mce-umbraco/backoffice/core';
 
 const tinyIconSet = tinymce.IconManager.get('default');
 

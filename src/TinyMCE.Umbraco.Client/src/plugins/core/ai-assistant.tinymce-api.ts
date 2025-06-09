@@ -1,6 +1,6 @@
-import { UmbTinyMcePluginBase } from '../../components/input-tiny-mce/tiny-mce-plugin.js';
-import type { TinyMcePluginArguments } from '../../components/input-tiny-mce/tiny-mce-plugin.js';
-import type { Editor } from '../../external/tinymce/index.js';
+import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
+import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
+import type { Editor } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
 import { createAiRequest } from './ai-request-factory';
 

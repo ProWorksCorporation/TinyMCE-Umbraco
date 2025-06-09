@@ -365,3 +365,4 @@ src/.idea
 *.tsbuildinfo
 /src/TinyMCE.Umbraco.Client/dist/
 /src/TinyMCE.Umbraco.Client/dist-cms/
+/src/TinyMCE.Umbraco.Client/*.tgz

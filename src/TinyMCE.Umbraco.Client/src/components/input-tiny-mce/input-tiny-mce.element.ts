@@ -1,9 +1,9 @@
-import { availableLanguages } from './input-tiny-mce.languages.js';
-import { defaultFallbackConfig, defaultPremiumPluginsList } from './input-tiny-mce.defaults.js';
-import { pastePreProcessHandler } from './input-tiny-mce.handlers.js';
-import { uriAttributeSanitizer } from './input-tiny-mce.sanitizer.js';
-import { UmbStylesheetRuleManager } from '../../stylesheets/stylesheet-rule-manager.js';
-import type { UmbTinyMcePluginClass } from './tiny-mce-plugin.js';
+import { availableLanguages } from '@tiny-mce-umbraco/backoffice/core';
+import { defaultFallbackConfig, defaultPremiumPluginsList } from '@tiny-mce-umbraco/backoffice/core';
+import { pastePreProcessHandler } from '@tiny-mce-umbraco/backoffice/core';
+import { uriAttributeSanitizer } from '@tiny-mce-umbraco/backoffice/core';
+import { UmbStylesheetRuleManager } from '@tiny-mce-umbraco/backoffice/core';
+import type { UmbTinyMcePluginClass } from '@tiny-mce-umbraco/backoffice/core';
 import { css, customElement, html, property, query } from '@umbraco-cms/backoffice/external/lit';
 import { loadManifestApi } from '@umbraco-cms/backoffice/extension-api';
 import { getProcessedImageUrl, umbDeepMerge } from '@umbraco-cms/backoffice/utils';
@@ -15,8 +15,8 @@ import { UmbLitElement } from '@umbraco-cms/backoffice/lit-element';
 import { UmbStylesheetDetailRepository } from '@umbraco-cms/backoffice/stylesheet';
 import { UUIFormControlMixin } from '@umbraco-cms/backoffice/external/uui';
 //import type { ClassConstructor } from '@umbraco-cms/backoffice/extension-api';
-import type { EditorEvent, Editor, RawEditorOptions } from '../../external/tinymce/index.js';
-import type { ManifestTinyMcePlugin } from '../../plugins/tinymce-plugin.extension.js';
+import type { EditorEvent, Editor, RawEditorOptions } from '@tiny-mce-umbraco/backoffice/external/tinymce';
+import type { ManifestTinyMcePlugin } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
 
 import { TinyMceService } from '../../api/index.js';
