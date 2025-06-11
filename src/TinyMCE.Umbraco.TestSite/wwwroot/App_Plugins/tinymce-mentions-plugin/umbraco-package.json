@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../umbraco-package-schema.json",
+  "id": "TinyMCE.Umbraco.Mentions.Plugin.Configuration",
+  "name": "TinyMCE.Umbraco.Mentions.Plugin.Configuration",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "tinyMcePlugin",
+      "alias": "tinymce.umbraco.mentions.plugin.configuration",
+      "name": "TinyMCE Umbraco Mentions Plugin Configuration",
+      "js": "/App_Plugins/tinymce-mentions-plugin/tinymce-mentions-plugin.js",
+      "meta": {
+        "config": {
+          "plugins": [ "mentions" ]
+        }
+      }
+    }
+  ]
+}

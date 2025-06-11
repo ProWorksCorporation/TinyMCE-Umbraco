@@ -52,6 +52,13 @@ async function onResize(
 	e.target.setAttribute('data-mce-src', resizedPath);
 }
 
+function mergeArrays(arr1: string | string[] | undefined, arr2: string | string[] | undefined): string[] {
+	const a1 = Array.isArray(arr1) ? arr1 : arr1 ? [arr1] : [];
+	const a2 = Array.isArray(arr2) ? arr2 : arr2 ? [arr2] : [];
+
+	return Array.from(new Set([...a1, ...a2]));
+}
+
 @customElement('umb-input-tiny-mce')
 export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '') {
 	@property({ attribute: false })
@@ -338,12 +345,16 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		// Extend with additional configuration options
 		if (additionalConfig) {
+			const mergedPlugins = mergeArrays(additionalConfig.plugins, config.plugins);
 			config = umbDeepMerge(additionalConfig, config);
+			config.plugins = mergedPlugins;
 		}
 
 		if (appSettingsConfig) {
 			if (appSettingsConfig.richTextEditor) {
+				const mergedPlugins = mergeArrays(appSettingsConfig.richTextEditor.plugins, config.plugins);
 				config = umbDeepMerge(appSettingsConfig.richTextEditor.customConfig, config);
+				config.plugins = mergedPlugins;
 			}
 			if (appSettingsConfig.config) {
 				config = umbDeepMerge(appSettingsConfig.config.customConfig, config);
