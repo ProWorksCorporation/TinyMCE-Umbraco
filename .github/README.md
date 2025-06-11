@@ -25,9 +25,13 @@ In addition, you can install packages via the Visual Studio NuGet Package Manage
 
 If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
 
+### Looking for the v13 version?
+
+You can find the v13 version on [Nuget as TinyMCE.Umbraco.Premium](https://www.nuget.org/packages/tinymce.umbraco.premium/).  Also, the documentation is available as a Readme on the [v13/main branch here on Github](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/tree/v13/main).
+
 # Documentation
 
-To get started with the TinyMCE Umbraco property editor and use it with your projects, you will need to add some basic configuration and may choose to create a new Data Type for the TinyMCE Rich Text Editor.
+To get started with the TinyMCE Umbraco property editor and use it with your projects, you will need to add some basic configuration and need to create a new Data Type for the TinyMCE Rich Text Editor.  See the ["Usage / Setup"](#usage--setup) Section below for more information.
 
 ## Configuration
 
@@ -50,11 +54,11 @@ The details on each configuration value are described below:
 
 | Setting     | Values      |Default  | Note |
 | ----------- | ----------- |---------|------|
-| tinyMceUrl  | key string  | None    | The URL location of the TinyMCE library. This allows for specific cloud URL access or self-hosted options. |
-| tinyMceVersion  | key string  | 6    | The version of the TinyMCE library. |
+| tinyMceUrl  | url string  | None    | The URL location of the TinyMCE library. This allows for specific cloud URL access or self-hosted options. |
+| tinyMceVersion  | string  | 6    | The version of the TinyMCE library. |
 | apikey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
 | openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. |
-| pluginsToExclude | Array of TinyMCE plugins names to exclude | [] | This excludes these plugins from being selected or used by the TinyMCE Rich Text Editor |
+| pluginsToExclude | String array of TinyMCE plugins names to exclude | [] | This excludes these plugins from being selected or used by the TinyMCE Rich Text Editor |
 | customConfig | JSON TinyMCE Configuration | {} | See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. | 
 
 
@@ -76,7 +80,7 @@ The following plugins are available to add to the default RTE editor tools:
 
 #### Premium Plugins
 
-If the configuration has a valid Tiny apiKey set, then the following additional packages are available to the base Umbraco Rich Text Editor:
+If the configuration has a valid Tiny apiKey set in configuration, then the following additional packages are available to the base Umbraco Rich Text Editor:
 
 * Accessibility Checker (a11ychecker)
 * Advanced Typography (typography)
@@ -115,10 +119,25 @@ In order to use the TinyMCE Rich Text Editor, you will need to create at least o
 
 The TinyMCE Rich Text property editor adds a few new configuration options (from the v15 TinyMCE Property Editor) for each Data Type that you create:
 
-1. Plugin Selection: Similar to the Toolbar items, you can select which plugins are enabled / available for this Data Type.
+1. Plugin Selection: Similar to the Toolbar items, you can select which plugins are enabled / available for this Data Type via the back-office UI.
 2. CustomConfig: Each Data Type that implements this editor has its own TinyMCE Configuration JSON that can be used for a custom configuration specific to this Data Type.
 
 Both of these Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
+
+## Extending the Rich Text Editor
+
+If you would like to extend the TinyMCE for Umbraco CMS package, there is an [npm package](https://www.npmjs.com/package/@tiny-mce-umbraco/backoffice) avaliable to allow extentions and customization.  It can be installed for development by running this on the command line:
+
+    npm install --save-dev @tiny-mce-umbraco/backoffice
+
+Creating an extension to this package aligns with how [Umbraco CMS allowed custom package in version 15](https://docs.umbraco.com/umbraco-cms/fundamentals/backoffice/property-editors/built-in-umbraco-property-editors/rich-text-editor-tinymce/plugins).  
+
+The main difference is that the imports need to be from the @tiny-mce-umbraco/backoffice package reference like so:
+
+	import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
+	import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
+	import type { Editor } from '@tiny-mce-umbraco/backoffice/external/tinymce';
+
 
 
 # Support and More
@@ -147,6 +166,6 @@ The initial source code has been derived from [Umbraco CMS](https://github.com/u
 ## Acknowledgments
 
 Thanks to [TinyMCE](https://www.tiny.cloud/) and [Umbraco](https://umbraco.com/) for their support during the package development.
-Special thanks to [Lee Kelleher](https://github.com/leekelleher) and [Jacob Overgaard](https://github.com/iOvergaard) for their help getting started and for giving valuable feedback along the way.
+Special thanks to [Lee Kelleher](https://github.com/leekelleher) and [Jacob Overgaard](https://github.com/iOvergaard) for their contributions, help getting started, and for giving valuable feedback along the way.
 
 Also thanks to the [ProWorks](https://www.proworks.com) team for their encouragement, support, and contributions.
