@@ -1,12 +1,12 @@
 # TinyMCE Premium package for Umbraco CMS project
 
-This is an [Umbraco CMS](https://umbraco.com/) package that enables access to the paid features in the [TinyMCE](https://www.tiny.cloud/)-based Rich Text Editor (RTE) in version 12+ with a license. It also adds a new TinyMCE Premium property editor with additional settings, providing a more targeted configuration setup for RTE Data Types in Umbraco. Finally, it allows for additional settings that support JSON directly in the configuration for .NET (appsettings.config).
+This is an [Umbraco CMS](https://umbraco.com/) package that enables access to the paid features in the [TinyMCE](https://www.tiny.cloud/)-based Rich Text Editor (RTE) in version 12+ with a license. It also adds a new TinyMCE Premium property editor with additional settings, providing a more targeted configuration setup for RTE Data Types in Umbraco. Finally, it allows for additional settings that support JSON directly in the configuration for .NET (`appsettings.json`).
 
 The TinyMCE Umbraco Premium package Works with Umbraco Versions 12, and 13
 
 ## Releases
 
-Available via the [Releases page](https://github.com/ProWorksCorporation/TinyMCE-Umbraco-Premium/releases)
+Available via the [Releases page](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/releases)
 
 ## Installation:
 
@@ -21,7 +21,7 @@ To install from the [Nuget Package Repository](https://www.nuget.org/packages/ti
 
     dotnet add package tinymce.umbraco.premium
 
-In addtion, you can install packages via the Visual Studio Nuget Package Manager.  This can be found in the Tools menu of Visual Studio.
+In addtion, you can install packages via the Visual Studio NuGet Package Manager.  This can be found in the Tools menu of Visual Studio.
 
 # Documentation
 
@@ -29,8 +29,9 @@ To get started with the TinyMCE Umbraco Premium property editor and use it with 
 
 ## Configuration
 
-The following options are available for configuration in the appsettings.config or through other environment level configuration settings (web.config, Azure environment variables, etc).  This is using standard .Net configuration and you can learn more about [.Net Configuration here](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-8.0).
+The following options are available for configuration in the `appsettings.json` or through other environment level configuration settings (`web.config`, Azure environment variables, etc).  This is using standard .Net configuration and you can learn more about [.Net Configuration here](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-8.0).
 
+```json
     {
         "TinyMceConfig": {
             "apikey": "STRING",
@@ -39,6 +40,7 @@ The following options are available for configuration in the appsettings.config 
             "customConfig": {JSON}
         }
     }
+```
 
 The details on each configuration value are described below:
 
@@ -159,7 +161,7 @@ Both of these new Data Type configuration options are managed via the Data Type 
 
 If you have questions about TinyMCE plugins, please contact TinyMCE Support directly.
 
-If something specific to the Property Editors in this package or the Configuration isn't working as you would expect, please submit a question via the [Github Issues](https://github.com/ProWorksCorporation/TinyMCE-Umbraco-Premium/issues) for this project.  We will do our best to monitor and respond, but please be patient with us.
+If something specific to the Property Editors in this package or the Configuration isn't working as you would expect, please submit a question via the [GitHhub Issues](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues) for this project.  We will do our best to monitor and respond, but please be patient with us.
 
 In addition, you may find that the community is very helpful and you can ask questions of them on the [Umbraco Forums](https://our.umbraco.com/) or the [Umbraco Discord Server](https://community.umbraco.com/get-involved/community-discord-server/).
 

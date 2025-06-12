@@ -195,6 +195,9 @@
             vm.containerHeight = "auto";
             vm.containerOverflow = "inherit"
 
+            // Add client validation for the markup part.
+            unsubscribe.push($scope.$watch(() => vm.model?.value?.markup, validate));
+
             //queue file loading
             tinyMceAssets.forEach(function (tinyJsAsset) {
                 assetPromises.push(assetsService.loadJs(tinyJsAsset, $scope));
@@ -334,7 +337,7 @@
                             toolbar: editorConfig.toolbar,
                             model: vm.model,
                             getValue: function () {
-                                return vm.model.value.markup;
+                                return vm.model.value.markup ?? "";
                             },
                             setValue: function (newVal) {
                                 vm.model.value.markup = newVal;
@@ -354,7 +357,7 @@
 
                     // Readonly mode
                     baseLineConfigObj.toolbar = vm.readonly ? false : baseLineConfigObj.toolbar;
-                    baseLineConfigObj.readonly = vm.readonly ? 1 : baseLineConfigObj.readonly;
+                    baseLineConfigObj.readonly = vm.readonly ? true : baseLineConfigObj.readonly;
 
                     // We need to wait for DOM to have rendered before we can find the element by ID.
                     $timeout(function () {
@@ -415,6 +418,18 @@
             }
         }
 
+        function validate() {
+            var isValid = !vm.model.validation.mandatory || (
+                vm.model.value != null
+                && vm.model.value.markup != null
+                && vm.model.value.markup != ""
+            );
+            vm.propertyForm.$setValidity("required", isValid);
+            if (vm.umbProperty) {
+                vm.umbProperty.setPropertyError(vm.model.validation.mandatoryMessage || "Value cannot be empty");
+            }
+        };
+
         // Called when we save the value, the server may return an updated data and our value is re-synced
         // we need to deal with that here so that our model values are all in sync so we basically re-initialize.
         function onServerValueChanged(newVal, oldVal) {
@@ -425,9 +440,11 @@
             // But I'm not sure it's needed, as this does not trigger the RTE
             if (modelObject) {
                 modelObject.update(vm.model.value.blocks, $scope);
-                vm.tinyMceEditor.fire('updateBlocks');
+                if (vm.tinyMceEditor) {
+                    vm.tinyMceEditor.fire('updateBlocks');
+                }
+                onLoaded();
             }
-            onLoaded();
         }
 
         function ensurePropertyValue(newVal) {

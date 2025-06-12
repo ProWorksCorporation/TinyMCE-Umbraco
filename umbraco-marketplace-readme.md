@@ -6,6 +6,6 @@ The TinyMCE Umbraco Premium package Works with Umbraco Versions 12, and 13
 * v12.x Supports Umbraco CMS version 12+
 * v13.x Supports Umbraco CMS version 13+
 
-You can find Documentation on how to setup, configure, and customize the TinyMCE Premium editor in the [Github repository](https://github.com/ProWorksCorporation/TinyMCE-Umbraco-Premium)
+You can find Documentation on how to setup, configure, and customize the TinyMCE Premium editor in the [Github repository](https://github.com/ProWorksCorporation/TinyMCE-Umbraco)
 
 For support requests about TinyMCE Premium, please [contact Tiny support](https://support.tiny.cloud/)

@@ -9,7 +9,7 @@
     <PackageId>umbraco.cms.demo</PackageId>
     <Product>Umbraco.Cms.Demo</Product>
     <Title>TinyMCE.Umbraco.Premium Umbraco.Cms.Demo</Title>
-    <Version>13.2.6</Version>
+    <Version>13.8.1</Version>
     <Description></Description>
     <PackageTags></PackageTags>
     <Authors>ProWorks Corporation</Authors>
@@ -17,13 +17,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Umbraco.Cms" Version="13.5.1" />
+    <PackageReference Include="Umbraco.Cms" Version="13.8.1" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Opt-in to app-local ICU to ensure consistent globalization APIs across different platforms -->
     <PackageReference Include="Microsoft.ICU.ICU4C.Runtime" Version="72.1.0.3" />
-    <PackageReference Include="uSync" Version="13.2.5" />
+    <PackageReference Include="Umbraco.Cms.Core" Version="13.8.1" />
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="13.8.1" />
+    <PackageReference Include="uSync" Version="13.2.7" />
     <ProjectReference Include="..\TinyMCE.Umbraco.Premium\TinyMCE.Umbraco.Premium.csproj" />
     <RuntimeHostConfigurationOption Include="System.Globalization.AppLocalIcu" Value="72.1.0.3" Condition="$(RuntimeIdentifier.StartsWith('linux')) or $(RuntimeIdentifier.StartsWith('win')) or ('$(RuntimeIdentifier)' == '' and !$([MSBuild]::IsOSPlatform('osx')))" />
   </ItemGroup>

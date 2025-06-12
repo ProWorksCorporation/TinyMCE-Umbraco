@@ -1,7 +1,7 @@
 {
   "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
   "AddOnPackagesRequiredForUmbracoCloud": [],
-  "AlternateCategory": "Developer Tools",
+  "AlternateCategory": "Artificial Intelligence",
   "AuthorDetails": {
     "Name": "Jason Prothero",
     "Description": "Jason has been a long time Umbraco Community contributor and is the President or ProWorks Corporation, an Umbraco Gold Partner.",
@@ -12,10 +12,10 @@
   },
   "Category": "Editor Tools",
   "Description": "Access all the paid features and plugins that TinyMCE offers such as the Accessibility Checker, AI Assistant, Templating, and more.",
-  "DiscussionForumUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco-Premium/issues",
-  "DocumentationUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco-Premium",
+  "DiscussionForumUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
+  "DocumentationUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco",
   "LicenseTypes": [ "Free" ],
-  "IssueTrackerUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco-Premium/issues",
+  "IssueTrackerUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
   "IsSubPackageOf": "",
   "PackageType": "Package",
   "LookingForContributors": true,
