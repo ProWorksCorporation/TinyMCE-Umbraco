@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.1738743">
+  <PropertyGroup>
+    <StartupCommand>npm run watch</StartupCommand>
+    <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <StaticWebAssetSourceId>Umbraco.Community.Contentment</StaticWebAssetSourceId>
+    <DebugAssetsDirectory>$(MSBuildProjectDirectory)\dist</DebugAssetsDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="dist-cms\**" />
+    <None Remove="dist\**" />
+    <TypeScriptConfiguration Remove="dist-cms\**" />
+    <TypeScriptConfiguration Remove="dist\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <TypeScriptConfiguration Include="tsconfig.api.json" />
+  </ItemGroup>
+</Project>
