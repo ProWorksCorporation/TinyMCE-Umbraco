@@ -8,6 +8,8 @@ This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE
 
 It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (`appsettings.json`).
 
+<img alt="TinyMCE in the Umbraco CMS backoffice" src="../docs/screenshots/TinyMCE-editor.png">
+
 ## Releases
 
 Available via the [Releases page](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/releases)
@@ -37,14 +39,51 @@ To get started with the TinyMCE Umbraco property editor and use it with your pro
 
 The following options are available for configuration in the `appsettings.json` or through other environment level configuration settings (`web.config`, Azure environment variables, etc).  This is using standard .NET configuration and you can learn more about [.NET Configuration here](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-8.0).
 
+### Umbraco CMS RichTextEditor Configuration Retained
+
+The traditional Umbraco CMS TinyMCE Configuration settings continue to function as expected.  The Umbraco Documentation has a good example of the configuration options and how they can be set here: [Rich text editor settings](https://docs.umbraco.com/umbraco-cms/13.latest/reference/configuration/richtexteditorsettings).
+
+```json
+{
+	"Umbraco": {
+		"CMS": {
+			"RichTextEditor": {
+				"Commands": "RichTextEditorCommand ARRAY"
+				"Plugins": ["STRING ARRAY"],
+				"CloudApiKey": "STRING",
+				"ValidElements": "STRING",
+				"InvalidElements": "STRING",
+				"CustomConfig": {JSON KEY/VALUES}
+			}
+		}
+	}
+}
+```
+
+The details on each configuration value are described below:
+
+| Setting     | Values      |Default  | Note |
+| ----------- | ----------- |---------|------|
+| Commands   | RichTextEditorCommand  | None    | A list of RichTextEditorCommand objects that contain and alias (STRING), name (STRING), and mode ("Insert", "Selection", or "All"). These commands are the buttons you find at the top of the editor, such as bold, italic, and so on. |
+| Plugins  | String array of TinyMCE plugins names to include  | None   | Add plugins to the list of available plugins in the TinyMCE Rich Text Editor DataType. See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for a list of plugins. |
+| CloudApiKey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
+| ValidElements | string |  [See defaults](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/blob/main/docs/defaults.md) | Specifies the list of HTML tags available to the TinyMCE Rich Text Editor. See the [default list of ValidElements](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/blob/main/docs/defaults.md) for more information. |
+| InvalidElements | String | None | Specifies invalid HTML tags. These tags will not be allowed. |
+| CustomConfig | JSON key/value pairs | {} | Simple key/value pairs for configuration of the TinyMCE Editor and Plugins. See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. This is here to support easy migration and upgrades. **It is recommended to use the customConfig element below for a richer configuration experience.** | 
+
+
+### New Configuration Options:
+
+This package adds addition enhanced configuration options that carry over from the v13 TinyMCE Umbraco Premium package:
+
 ```json
 {
 	"TinyMceConfig": {
-		"tinyMceUrl": STRING,
-		"tinyMceVersion": STRING
+		"tinyMceUrl": "STRING",
+		"tinyMceVersion": "STRING"
 		"apikey": "STRING",
 		"openAiApikey": "STRING",
-		"pluginsToExclude": ["STRING LIST"],
+		"pluginsToExclude": ["STRING ARRAY"],
 		"customConfig": {JSON}
 	}
 }
@@ -59,7 +98,7 @@ The details on each configuration value are described below:
 | apikey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
 | openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. |
 | pluginsToExclude | String array of TinyMCE plugins names to exclude | [] | This excludes these plugins from being selected or used by the TinyMCE Rich Text Editor |
-| customConfig | JSON TinyMCE Configuration | {} | See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. | 
+| customConfig | JSON TinyMCE Configuration | {} | See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. **NOTE:** this is JSON and can contain nested elements unlike the key/values in the RichTextEditor configuration above. | 
 
 
 ## Data Types
@@ -68,7 +107,7 @@ The details on each configuration value are described below:
 
 #### Open Source Plugins
 
-The following plugins are available to add to the default RTE editor tools:
+The following open source TinyMCE plugins are available to add to the TinyMCE Umbraco RTE editor tools via the DataType configuration:
 
 * Accordion (accordion)
 * Code Sample (codesample)
@@ -80,7 +119,7 @@ The following plugins are available to add to the default RTE editor tools:
 
 #### Premium Plugins
 
-If the configuration has a valid Tiny apiKey set in configuration, then the following additional packages are available to the base Umbraco Rich Text Editor:
+If the `appsettings.json` configuration has a valid Tiny apiKey set in configuration, then the following additional packages are available to the TinyMCe Umbraco Rich Text Editor:
 
 * Accessibility Checker (a11ychecker)
 * Advanced Typography (typography)
@@ -97,6 +136,8 @@ If the configuration has a valid Tiny apiKey set in configuration, then the foll
 
 Most of these have a Command / Toolbar associated with them and are disabled by default.  To enable them, go to the Data Type in the Settings section of Umbraco to edit the toolbars available.
 
+<img alt="TinyMCE in the Umbraco CMS backoffice using AI" src="../docs/screenshots/TinyMCE-editor-mergetags.png">
+
 #### Additional Premium Plugins
 
 This package can be used to access some of the additional TinyMCE packages that may require more configuration to be used effectively.  
@@ -112,12 +153,14 @@ In addition to the packages listed above, below are the additions TinyMCE Packag
 * PowerPaste (powerpaste)
 * Spelling Autocorrect (autocorrect)
 
-#### Usage / Setup
+<img alt="TinyMCE in the Umbraco CMS backoffice using AI" src="../docs/screenshots/TinyMCE-editor-ai1.png">
+
+### Usage / Setup
 In order to use the TinyMCE Rich Text Editor, you will need to create at least one Umbraco Data Type that uses this property editor.  Learn more about Umbraco Data Types and how to create them in the [Umbraco Documentation here](https://docs.umbraco.com/umbraco-cms/fundamentals/data/data-types).
 
 #### Additional Features
 
-The TinyMCE Rich Text property editor adds a few new configuration options (from the v15 TinyMCE Property Editor) for each Data Type that you create:
+The TinyMCE Rich Text property editor adds a few new configuration options (from the v15 Umbraco TinyMCE Property Editor) for each Data Type that you create:
 
 1. Plugin Selection: Similar to the Toolbar items, you can select which plugins are enabled / available for this Data Type via the back-office UI.
 2. CustomConfig: Each Data Type that implements this editor has its own TinyMCE Configuration JSON that can be used for a custom configuration specific to this Data Type.
