@@ -1,0 +1,21 @@
+{
+	"id": "TinyMCE.Umbraco",
+	"name": "TinyMCE for Umbraco CMS",
+	"version": "16.0.0",
+	"allowPackageTelemetry": true,
+	"extensions": [
+		{
+			"name": "TinyMCE Umbraco Bundle",
+			"alias": "TinyMCE.Umbraco.Bundle",
+			"type": "bundle",
+			"js": "/App_Plugins/TinyMCE/manifests.js"
+		}
+	],
+	"importmap": {
+		"imports": {
+			"@umbraco-cms/backoffice/external/tinymce": "/App_Plugins/TinyMCE/tinymce.js",
+			"@tiny-mce-umbraco/backoffice/external/tinymce": "/App_Plugins/TinyMCE/tinymce.js",
+			"@tiny-mce-umbraco/backoffice/core": "/App_Plugins/TinyMCE/index.js"
+		}
+	}
+}
