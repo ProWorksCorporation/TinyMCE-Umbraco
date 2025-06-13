@@ -29,7 +29,7 @@ If you are upgrading from Umbraco version 15, install this package before beginn
 
 ### Looking for the v13 version?
 
-You can find the v13 version on [Nuget as TinyMCE.Umbraco.Premium](https://www.nuget.org/packages/tinymce.umbraco.premium/).  Also, the documentation is available as a Readme on the [v13/main branch here on Github](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/tree/v13/main).
+You can find the v13 version on [NuGet as TinyMCE.Umbraco.Premium](https://www.nuget.org/packages/tinymce.umbraco.premium/).  Also, the documentation is available as a Readme on the [v13/main branch here on Github](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/tree/v13/main).
 
 # Documentation
 
@@ -39,7 +39,7 @@ To get started with the TinyMCE Umbraco property editor and use it with your pro
 
 The following options are available for configuration in the `appsettings.json` or through other environment level configuration settings (`web.config`, Azure environment variables, etc).  This is using standard .NET configuration and you can learn more about [.NET Configuration here](https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/?view=aspnetcore-8.0).
 
-### Umbraco CMS RichTextEditor Configuration Retained
+### Umbraco CMS RichTextEditor configuration retained
 
 The traditional Umbraco CMS TinyMCE Configuration settings continue to function as expected.  The Umbraco Documentation has a good example of the configuration options and how they can be set here: [Rich text editor settings](https://docs.umbraco.com/umbraco-cms/13.latest/reference/configuration/richtexteditorsettings).
 
@@ -209,6 +209,7 @@ The initial source code has been derived from [Umbraco CMS](https://github.com/u
 ## Acknowledgments
 
 Thanks to [TinyMCE](https://www.tiny.cloud/) and [Umbraco](https://umbraco.com/) for their support during the package development.
+
 Special thanks to [Lee Kelleher](https://github.com/leekelleher) and [Jacob Overgaard](https://github.com/iOvergaard) for their contributions, help getting started, and for giving valuable feedback along the way.
 
 Also thanks to the [ProWorks](https://www.proworks.com) team for their encouragement, support, and contributions.
