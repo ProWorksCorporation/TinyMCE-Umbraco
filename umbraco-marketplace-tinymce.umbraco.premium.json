@@ -1,0 +1,61 @@
+{
+  "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
+  "AddOnPackagesRequiredForUmbracoCloud": [],
+  "AlternateCategory": "Artificial Intelligence",
+  "AuthorDetails": {
+    "Name": "ProWorks Corporation",
+    "Description": "ProWorks Corporation is an Umbraco Platinum Partner and Contributing Partner with a long-standing commitment to the Umbraco community. As a web design and development agency, ProWorks helps bridge the gap between marketing and IT teams, and delivers creative solutions to complex challenges.",
+    "Url": "https://www.proworks.com/",
+    "ImageUrl": "https://github.com/ProWorksCorporation.png",
+    "Contributors": [],
+    "SyncContributorsFromRepository": false
+  },
+  "Category": "Editor Tools",
+  "Description": "Access all the paid features and plugins that TinyMCE offers such as the Accessibility Checker, AI Assistant, Templating, and more.",
+  "DiscussionForumUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
+  "DocumentationUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco",
+  "LicenseTypes": ["Free"],
+  "IssueTrackerUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
+  "IsSubPackageOf": "",
+  "PackageType": "Package",
+  "Title": "TinyMCE Premium",
+  "LookingForContributors": true,
+  "LookingForMaintainer": false,
+  "PackagesByAuthor": [],
+  "RelatedPackages": [],
+  "Screenshots": [
+    {
+      "ImageUrl": "https://www.proworks.com/media/gejlaa3o/createnewdatatype-tiny.png",
+      "Caption": "TinyMCE Premium Property Editor"
+    },
+    {
+      "ImageUrl": "https://www.proworks.com/media/msgnyacf/aiassistant_content_2.png",
+      "Caption": "AI Assistant"
+    },
+    {
+      "ImageUrl": "https://www.proworks.com/media/spihem3m/customconfig_templates.png",
+      "Caption": "Advanced Templates"
+    }
+  ],
+  "Tags": [
+    "backoffice",
+    "rich text editor",
+    "tinymce",
+    "editorial experience",
+    "property editor",
+  ],
+  "VersionSpecificPackageIds": [
+    {
+      "UmbracoMajorVersion": 12,
+      "PackageId": "tinymce.umbraco.premium"
+    },
+    {
+      "UmbracoMajorVersion": 13,
+      "PackageId": "tinymce.umbraco.premium"
+    {
+      "UmbracoMajorVersion": 16,
+      "PackageId": "tinymce.umbraco"
+    }
+  ],
+  "VideoUrl": ""
+}
