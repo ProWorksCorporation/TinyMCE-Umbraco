@@ -13,7 +13,7 @@
   "Category": "Editor Tools",
   "Description": "Access all the paid features and plugins that TinyMCE offers such as the Accessibility Checker, AI Assistant, Templating, and more.",
   "DiscussionForumUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
-  "DocumentationUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco",
+  "DocumentationUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/tree/v13/main",
   "LicenseTypes": ["Free"],
   "IssueTrackerUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
   "IsSubPackageOf": "",
@@ -45,14 +45,6 @@
     "property editor"
   ],
   "VersionSpecificPackageIds": [
-    {
-      "UmbracoMajorVersion": 12,
-      "PackageId": "tinymce.umbraco.premium"
-    },
-    {
-      "UmbracoMajorVersion": 13,
-      "PackageId": "tinymce.umbraco.premium"
-    },
     {
       "UmbracoMajorVersion": 16,
       "PackageId": "tinymce.umbraco"
