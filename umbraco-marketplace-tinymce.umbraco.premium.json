@@ -1,5 +1,6 @@
 {
   "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
+  "AddOnPackagesRequiredForUmbracoCloud": [],
   "AlternateCategory": "Artificial Intelligence",
   "AuthorDetails": {
     "Name": "ProWorks Corporation",
@@ -10,14 +11,14 @@
     "SyncContributorsFromRepository": false
   },
   "Category": "Editor Tools",
-  "Description": "This Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE) in version 16 and above. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).",
+  "Description": "Access all the paid features and plugins that TinyMCE offers such as the Accessibility Checker, AI Assistant, Templating, and more.",
   "DiscussionForumUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
   "DocumentationUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco",
   "LicenseTypes": ["Free"],
   "IssueTrackerUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
   "IsSubPackageOf": "",
   "PackageType": "Package",
-  "Title": "TinyMCE for Umbraco CMS",
+  "Title": "TinyMCE Umbraco Premium",
   "LookingForContributors": true,
   "LookingForMaintainer": false,
   "PackagesByAuthor": [],
@@ -25,7 +26,7 @@
   "Screenshots": [
     {
       "ImageUrl": "https://www.proworks.com/media/gejlaa3o/createnewdatatype-tiny.png",
-      "Caption": "TinyMCE Property Editor"
+      "Caption": "TinyMCE Premium Property Editor"
     },
     {
       "ImageUrl": "https://www.proworks.com/media/msgnyacf/aiassistant_content_2.png",
