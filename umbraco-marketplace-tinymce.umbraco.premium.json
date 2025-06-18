@@ -18,7 +18,7 @@
   "IssueTrackerUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
   "IsSubPackageOf": "",
   "PackageType": "Package",
-  "Title": "TinyMCE Premium",
+  "Title": "TinyMCE Umbraco Premium",
   "LookingForContributors": true,
   "LookingForMaintainer": false,
   "PackagesByAuthor": [],
@@ -42,7 +42,7 @@
     "rich text editor",
     "tinymce",
     "editorial experience",
-    "property editor",
+    "property editor"
   ],
   "VersionSpecificPackageIds": [
     {
@@ -52,6 +52,7 @@
     {
       "UmbracoMajorVersion": 13,
       "PackageId": "tinymce.umbraco.premium"
+    },
     {
       "UmbracoMajorVersion": 16,
       "PackageId": "tinymce.umbraco"
