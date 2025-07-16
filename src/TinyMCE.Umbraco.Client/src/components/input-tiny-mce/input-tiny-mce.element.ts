@@ -355,6 +355,13 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 				const mergedPlugins = mergeArrays(appSettingsConfig.richTextEditor.plugins, config.plugins);
 				config = umbDeepMerge(appSettingsConfig.richTextEditor.customConfig, config);
 				config.plugins = mergedPlugins;
+
+				if (appSettingsConfig.richTextEditor.validElements.length > 0) {
+					config.valid_elements = appSettingsConfig.richTextEditor.validElements;
+				}
+				if (appSettingsConfig.richTextEditor.invalidElements.length > 0) {
+					config.invalid_elements = appSettingsConfig.richTextEditor.invalidElements;
+				}
 			}
 			if (appSettingsConfig.config) {
 				config = umbDeepMerge(appSettingsConfig.config.customConfig, config);
