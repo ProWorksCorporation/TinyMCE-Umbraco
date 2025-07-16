@@ -11,7 +11,7 @@
     "SyncContributorsFromRepository": false
   },
   "Category": "Editor Tools",
-  "Description": "Access all the paid features and plugins that TinyMCE offers such as the Accessibility Checker, AI Assistant, Templating, and more.",
+  "Description": "Access all the paid features and plugins that TinyMCE offers such as the Accessibility Checker, AI Assistant, Templating, and more. For Umbraco 12 and 13.",
   "DiscussionForumUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
   "DocumentationUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/tree/v13/main",
   "LicenseTypes": ["Free"],
