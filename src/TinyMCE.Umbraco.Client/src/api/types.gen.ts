@@ -32,18 +32,20 @@ export type RichTextEditorSettings = {
     cloudApiKey?: string | null;
 };
 
-export type TinyMceConfigResponseModel = {
-    richTextEditor?: RichTextEditorSettings | null;
-    config?: TinyMceSettings | null;
-};
-
-export type TinyMceSettings = {
-		apikey: string;
-		tinyMceVersion: string;
-		tinyMceUrl: string;
+export type TinyMceConfig = {
+    apikey: string;
+    tinyMceVersion: string;
+    tinyMceUrl: string;
     openAiApikey: string;
     pluginsToExclude: Array<string>;
-    customConfig: {};
+    customConfig: {
+        [key: string]: unknown;
+    };
+};
+
+export type TinyMceConfigResponseModel = {
+    richTextEditor?: RichTextEditorSettings | null;
+    config?: TinyMceConfig | null;
 };
 
 export type GetConfigData = {
