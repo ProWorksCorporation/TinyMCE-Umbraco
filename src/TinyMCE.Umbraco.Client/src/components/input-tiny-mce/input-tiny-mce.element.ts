@@ -290,7 +290,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		// Exclude plugins explicitly excluded by configuration
 		if (Array.isArray(configurationOptions.plugins)) {
-			configurationOptions.plugins = configurationOptions.plugins.filter((item) => !excludeList.includes(item));
+			configurationOptions.plugins = configurationOptions.plugins.filter((item: string) => !excludeList.includes(item));
 		}
 
 		// set the configured toolbar if any, otherwise false
@@ -327,7 +327,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 			relative_urls: false,
 			resize: false,
 			statusbar: false,
-			setup: (editor) => this.#editorSetup(editor),
+			setup: (editor: Editor) => this.#editorSetup(editor),
 			target: this._editorElement,
 			paste_data_images: false,
 			language: this.#getLanguage(),
