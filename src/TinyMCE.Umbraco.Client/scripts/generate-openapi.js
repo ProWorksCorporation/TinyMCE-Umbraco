@@ -43,7 +43,9 @@ fetch(swaggerUrl).then(async (response) => {
       },
       {
         name: '@hey-api/sdk',
-        asClass: true
+				asClass: true,
+				classNameBuilder: (name) => `${name}Service`,
+				responseStyle: 'fields',
       }
     ],
   });
