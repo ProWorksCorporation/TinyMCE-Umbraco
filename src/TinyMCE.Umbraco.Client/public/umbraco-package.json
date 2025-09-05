@@ -9,21 +9,21 @@
 			"alias": "TinyMCE.Lib",
 			"type": "bundle",
 			"weight": 1,
-			"js": "/App_Plugins/TinyMCE/tinymce-lib-manifests.js"
+			"js": "/App_Plugins/TinyMCE.Umbraco/tinymce-lib-manifests.js"
 		},
 		{
 			"name": "TinyMCE Umbraco Bundle",
 			"alias": "TinyMCE.Umbraco.Bundle",
 			"type": "bundle",
 			"weight": -1,
-			"js": "/App_Plugins/TinyMCE/manifests.js"
+			"js": "/App_Plugins/TinyMCE.Umbraco/manifests.js"
 		}
 	],
 	"importmap": {
 		"imports": {
-			"@umbraco-cms/backoffice/external/tinymce": "/App_Plugins/TinyMCE/tinymce.js",
-			"@tiny-mce-umbraco/backoffice/external/tinymce": "/App_Plugins/TinyMCE/tinymce.js",
-			"@tiny-mce-umbraco/backoffice/core": "/App_Plugins/TinyMCE/index.js"
+			"@umbraco-cms/backoffice/external/tinymce": "/App_Plugins/TinyMCE.Umbraco/tinymce.js",
+			"@tiny-mce-umbraco/backoffice/external/tinymce": "/App_Plugins/TinyMCE.Umbraco/tinymce.js",
+			"@tiny-mce-umbraco/backoffice/core": "/App_Plugins/TinyMCE.Umbraco/index.js"
 		}
 	}
 }

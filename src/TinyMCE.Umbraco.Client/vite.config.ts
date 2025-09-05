@@ -24,7 +24,7 @@ export default defineConfig({
 			entry: ['src/index.ts', 'src/tinymce.ts', 'src/manifests.ts', 'src/tinymce-lib-manifests.ts'],
 			formats: ['es'],
 		},
-		outDir: '../TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE',
+		outDir: '../TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE.Umbraco',
 		emptyOutDir: true,
 		sourcemap: true,
 		rollupOptions: {
