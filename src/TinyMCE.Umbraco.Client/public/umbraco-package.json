@@ -5,9 +5,17 @@
 	"allowPackageTelemetry": true,
 	"extensions": [
 		{
+			"name": "TinyMCE Library",
+			"alias": "TinyMCE.Lib",
+			"type": "bundle",
+			"weight": 1,
+			"js": "/App_Plugins/TinyMCE/tinymce-lib-manifests.js"
+		},
+		{
 			"name": "TinyMCE Umbraco Bundle",
 			"alias": "TinyMCE.Umbraco.Bundle",
 			"type": "bundle",
+			"weight": -1,
 			"js": "/App_Plugins/TinyMCE/manifests.js"
 		}
 	],

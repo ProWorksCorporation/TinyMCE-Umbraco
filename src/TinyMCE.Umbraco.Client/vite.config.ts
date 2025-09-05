@@ -12,7 +12,7 @@ export const plugins: PluginOption[] = [
 			{
 				src: 'node_modules/tinymce-i18n/langs6/*',
 				dest: 'lib/langs',
-			},
+			}
 		],
 	}),
 	viteTSConfigPaths(),
@@ -21,7 +21,7 @@ export const plugins: PluginOption[] = [
 export default defineConfig({
 	build: {
 		lib: {
-			entry: ['src/index.ts', 'src/tinymce.ts', 'src/manifests.ts'],
+			entry: ['src/index.ts', 'src/tinymce.ts', 'src/manifests.ts', 'src/tinymce-lib-manifests.ts'],
 			formats: ['es'],
 		},
 		outDir: '../TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE',
