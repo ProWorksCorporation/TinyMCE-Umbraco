@@ -84,6 +84,12 @@ This package adds addition enhanced configuration options that carry over from t
 		"apikey": "STRING",
 		"openAiApikey": "STRING",
 		"pluginsToExclude": ["STRING ARRAY"],
+		"openAiApiConfig": {
+			"model": "STRING",
+			"developerMessage": "STRING",
+			"maxCompletionTokens":  NUMBER,
+			"temperature": NUMBER
+		}
 		"customConfig": {JSON}
 	}
 }
@@ -98,8 +104,16 @@ The details on each configuration value are described below:
 | apikey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
 | openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. |
 | pluginsToExclude | String array of TinyMCE plugins names to exclude | [] | This excludes these plugins from being selected or used by the TinyMCE Rich Text Editor |
+| openAiApiConfig | Configuration for the OpenAI API | SEE BELOW | This configuration allows for the selection of the OpenAI model and other API configuration. See [OpenAI documentation](https://platform.openai.com/docs/api-reference/chat/create) for more details on the settings. |
 | customConfig | JSON TinyMCE Configuration | {} | See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. **NOTE:** this is JSON and can contain nested elements unlike the key/values in the RichTextEditor configuration above. | 
 
+The **openAiApiConfig** supported configuration properties are described below:
+| Setting     | Values      |Default  | Note |
+| ----------- | ----------- |---------|------|
+| model  | string  | "gpt-5"    | Name of the OpenAI model to use.  See the [OpenAI Model Guide](https://platform.openai.com/docs/models) for more information on each model. |
+| developerMessage  | string  | ""    | Developer-provided instructions that the model should follow, regardless of messages sent by the user. |
+| maxCompletionTokens  | number  | 800    | An upper bound for the number of tokens that can be generated for a completion, including visible output tokens and reasoning tokens. |
+| temperature  | number  | 1.0    | What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. NOTE: gpt-5 doesn't support customization of temperature. |
 
 ## Data Types
 
