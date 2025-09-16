@@ -5,6 +5,15 @@ export async function createAiRequest(): Promise<(request: any, respondWith: any
 	const response = await TinyMceService.getConfig({ client: umbHttpClient });
 
 	const apiKey = response.data?.config?.openAiApikey || '';
+	const model = response.data?.config?.openAiApiConfig?.model || 'gpt-5';
+	const temp = response.data?.config?.openAiApiConfig?.temperature || 1.0;
+	const maxtokens = response.data?.config?.openAiApiConfig?.maxCompletionTokens || 800;
+	const devmessage = response.data?.config?.openAiApiConfig?.developerMessage || '';
+
+	let devmessageArray = [];
+	if (devmessage) {
+		devmessageArray.push({ role: 'developer', content: devmessage })
+	}
 
 	return (request: any, respondWith: any) => {
 		const openAiOptions = {
@@ -14,10 +23,10 @@ export async function createAiRequest(): Promise<(request: any, respondWith: any
 				Authorization: `Bearer ${apiKey}`,
 			},
 			body: JSON.stringify({
-				model: 'gpt-4o',
-				temperature: 0.7,
-				max_tokens: 800,
-				messages: [{ role: 'user', content: request.prompt }],
+				model: model,
+				temperature: temp,
+				max_completion_tokens: maxtokens,
+				messages: [{ role: 'user', content: request.prompt }, ...devmessageArray],
 			}),
 		};
 
