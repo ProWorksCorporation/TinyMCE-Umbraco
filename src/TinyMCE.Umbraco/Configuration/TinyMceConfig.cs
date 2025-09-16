@@ -12,5 +12,7 @@ public class TinyMceConfig
 
     public string[] pluginsToExclude { get; set; } = [];
 
+    public OpenAiApiConfig OpenAiApiConfig { get; set; } = new OpenAiApiConfig();
+
     public Dictionary<string, object> customConfig { get; set; } = new Dictionary<string, object>();
 }
