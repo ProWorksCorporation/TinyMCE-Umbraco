@@ -1,8 +1,8 @@
-# Hosting TinyMCE On Premises
-These are instructions for hosting the TinyMCE files on premises instead of referencing them through the TinyMCE CDN which is the default behavior. 
+# Hosting TinyMCE 7 or 8 Via Cloud CDN
+These are instructions for loading TinyMCE version 7 or 8 via the TinyMCE cloud CDN instead of referencing TinyMCE version 6 through the TinyMCE.Umbraco package which is the default behavior.
 
 ## Explanation
-The loading of the TinyMCE files happens within an extension with an alias of `TinyMCE.Lib`. This extension can be swapped out with your own extension using the `overwrites` property. In this way, you can load in your own on premises TinyMCE files and prevent Umbraco.TinyMCE from loading the files from the cloud itself.
+The loading of the TinyMCE files happens within an extension with an alias of `TinyMCE.Lib`. This extension can be swapped out with your own extension using the `overwrites` property. In this way, you can load the TinyMCE files from the cloud itself and prevent loading the version included in the TinyMCE.Umbraco package.
 
 ## Licensing
 See TinyMCE's licensing documentation here:
@@ -11,8 +11,6 @@ See TinyMCE's licensing documentation here:
 
 ## Steps
 1. Create a new folder in your Umbraco project in the App_Plugins directory like `/wwwroot/App_Plugins/TinyMCE.OnPrem`
-1. Download the self hosted TinyMCE files from [TinyMCE Account Downloads](https://www.tiny.cloud/my-account/downloads/)
-1. Extract the self hosted TinyMCE files and find the `tinymce` folder within. Copy that folder to your Umbraco site at `wwwroot/App_Plugins/TinyMCE.OnPrem/`
 1. Create the following files in the `wwwroot/App_Plugins/TinyMCE.OnPrem` directory
     - `umbraco-package.json`
         ```
@@ -36,18 +34,15 @@ See TinyMCE's licensing documentation here:
 
     - `manifests.js`
         ```
-        import "./tinymce8/tinymce.js";
-        import "./tinymce8/icons/default/icons.js";
+        import "https://cdn.tiny.cloud/1/no-api-key/tinymce/8/tinymce.min.js";
+        import "https://cdn.tiny.cloud/1/no-api-key/tinymce/8/icons/default/icons.min.js";
         ```
-2. Update the configuration in your appsettings.json with the following:
+2. Replace `no-api-key` in the import URLs above with your Cloud API key.
+3. Update the configuration in your appsettings.json with the following:
     ```
     "TinyMceConfig": {
         "tinyMceVersion": "8",
-        "tinyMceUrl": "/App_Plugins/TinyMCE/tinymce8/",
-        "apikey": "on-prem",
-        "customConfig": {
-            license_key": "<license_key>"
-        }
+        "apikey": "<api-key>"
     }
     ```
 

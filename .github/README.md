@@ -10,6 +10,8 @@ It also supports the use of TinyMCE Premium plugins with a valid subscription. A
 
 <img alt="TinyMCE in the Umbraco CMS backoffice" src="../docs/screenshots/TinyMCE-editor.png">
 
+If you would like to update TinyMCE to version 7 or 8, please read the "Updating TinyMCE To Version 7 or 8" section below.
+
 ## Releases
 
 Available via the [Releases page](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/releases)
@@ -195,6 +197,15 @@ The main difference is that the imports need to be from the @tiny-mce-umbraco/ba
 	import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
 	import type { Editor } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 
+## Updating TinyMCE To Version 7 or 8
+
+The TinyMCE.Umbraco package allows for changing out the TinyMCE that is loaded by the package to a newer open source version, newer TinyMCE Cloud version, or a licensed on-premise installation.
+
+For more information read the guides appropriate to your situation:
+
+ - [Install Open Source GPLv2+ versions of TinyMCE](/docs/README_opensource_onpremise.md)
+ - [Install Licensed on-premise versions of TinyMCE](/docs/README_onpremises.md)
+ - [Reference Cloud CDN versions of TinyMCE](/docs/README_cloud_cdn.md)
 
 
 # Support and More
