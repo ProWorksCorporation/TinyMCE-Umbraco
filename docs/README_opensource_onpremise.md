@@ -1,8 +1,8 @@
-# Hosting TinyMCE On Premises
-These are instructions for hosting the TinyMCE files on premises instead of referencing them through the TinyMCE CDN which is the default behavior. 
+# Hosting TinyMCE GPLv2+ On Premises
+These are instructions for hosting the version 7 or 8 GPLv2+ Open Source licensed TinyMCE files on premises instead of referencing TinyMCE version 6 through the TinyMCE.Umbraco package which is the default behavior.
 
 ## Explanation
-The loading of the TinyMCE files happens within an extension with an alias of `TinyMCE.Lib`. This extension can be swapped out with your own extension using the `overwrites` property. In this way, you can load in your own on premises TinyMCE files and prevent Umbraco.TinyMCE from loading the files from the cloud itself.
+The loading of the TinyMCE files happens within an extension with an alias of `TinyMCE.Lib`. This extension can be swapped out with your own extension using the `overwrites` property. In this way, you can load in your own on premises TinyMCE files and prevent Umbraco.TinyMCE from loading the files from the package.
 
 ## Licensing
 See TinyMCE's licensing documentation here:
@@ -11,8 +11,8 @@ See TinyMCE's licensing documentation here:
 
 ## Steps
 1. Create a new folder in your Umbraco project in the App_Plugins directory like `/wwwroot/App_Plugins/TinyMCE.OnPrem`
-1. Download the self hosted TinyMCE files from [TinyMCE Account Downloads](https://www.tiny.cloud/my-account/downloads/)
-1. Extract the self hosted TinyMCE files and find the `tinymce` folder within. Copy that folder to your Umbraco site at `wwwroot/App_Plugins/TinyMCE.OnPrem/`
+1. Download the Open Source TinyMCE files from the Tiny.cloud website: [Get TinyMCE](https://www.tiny.cloud/get-tiny/)
+1. Extract the TinyMCE files and find the `tinymce` folder within. Copy that folder to your Umbraco site at `wwwroot/App_Plugins/TinyMCE.OnPrem/`. *Note: it may be easiest to pull the `tinymce` folder nested under the `js` folder out into the `TinyMCE.OnPrem` folder.*
 1. Create the following files in the `wwwroot/App_Plugins/TinyMCE.OnPrem` directory
     - `umbraco-package.json`
         ```
@@ -46,7 +46,7 @@ See TinyMCE's licensing documentation here:
         "tinyMceUrl": "/App_Plugins/TinyMCE/tinymce8/",
         "apikey": "on-prem",
         "customConfig": {
-            license_key": "<license_key>"
+            license_key": "gpl"
         }
     }
     ```
