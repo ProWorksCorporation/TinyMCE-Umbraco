@@ -1,7 +1,7 @@
 {
 	"id": "TinyMCE.Umbraco",
 	"name": "TinyMCE for Umbraco CMS",
-	"version": "16.3.4",
+	"version": "17.0.0-rc1",
 	"allowPackageTelemetry": true,
 	"extensions": [
 		{
