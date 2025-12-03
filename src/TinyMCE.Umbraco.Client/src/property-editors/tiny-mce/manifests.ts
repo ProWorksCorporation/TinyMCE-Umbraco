@@ -5,7 +5,7 @@ export const manifests: Array<UmbExtensionManifest> = [
 	{
 		type: 'propertyEditorUi',
 		alias: UMB_BLOCK_RTE_PROPERTY_EDITOR_UI_ALIAS,
-		name: 'Rich Text Editor Property Editor UI',
+		name: 'Rich Text Editor [TinyMCE] Property Editor UI',
 		element: () => import('./property-editor-ui-tiny-mce.element.js'),
 		meta: {
 			label: 'Rich Text Editor [TinyMCE]',
