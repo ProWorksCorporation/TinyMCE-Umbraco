@@ -48,6 +48,10 @@
     {
       "UmbracoMajorVersion": 16,
       "PackageId": "tinymce.umbraco"
+    },
+    {
+      "UmbracoMajorVersion": 17,
+      "PackageId": "tinymce.umbraco"
     }
   ],
   "VideoUrl": ""
