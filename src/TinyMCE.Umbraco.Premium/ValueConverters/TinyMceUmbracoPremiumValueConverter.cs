@@ -34,7 +34,7 @@ namespace TinyMCE.Umbraco.Premium.ValueConverters
 	///		
 	///		Extends Umbraco-CMS\src\Umbraco.Infrastructure\PropertyEditors\ValueConverters\RteMacroRenderingValueConverter.cs
 	/// </summary>
-	public class TinyMceUmbracoPremiumValueConverter : RteMacroRenderingValueConverter, IDeliveryApiPropertyValueConverter
+	public class TinyMceUmbracoPremiumValueConverter : RteMacroRenderingValueConverter, IDeliveryApiPropertyValueConverter, IDisposable
 	{
 		private readonly HtmlImageSourceParser _imageSourceParser;
 		private readonly HtmlLocalLinkParser _linkParser;
@@ -172,8 +172,13 @@ namespace TinyMCE.Umbraco.Premium.ValueConverters
 
 					var richTextBlockModel = RichTextBlockModel.Empty;
 
-					///////
-					// Pulled from BlockPropertyValueCreatorBase.CreateBlockModel()
+                    ///////
+                    // Pulled from BlockPropertyValueCreatorBase.CreateBlockModel()
+                    // NOTE: Added this null check and check for any references to avoid errors when there are no blocks.
+                    //       The layout below throws a null reference exception if there are no references.
+                    if (converted == null || !converted.References.Any()) {
+						return intermediateValue;
+                    }
 					IEnumerable<RichTextBlockLayoutItem>? layout = converted.Layout?.ToObject<IEnumerable<RichTextBlockLayoutItem>>();
 					if (layout is null)
 					{
