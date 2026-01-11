@@ -13,38 +13,72 @@ internal sealed class TinyMceComposer : IComposer
 {
     public void Compose(IUmbracoBuilder builder)
     {
-        builder
-            .Services
-                .AddSingleton<IOperationIdHandler, TinyMceOperationIdHandler>()
-                .ConfigureOptions<TinyMceConfigureSwaggerGenOptions>()
-                .Configure<RichTextEditorSettings>(builder.Config.GetSection("Umbraco:CMS:RichTextEditor"))
-                .Configure<TinyMceConfig>(options =>
-                {
-                    builder.Config.GetSection("TinyMceConfig").Bind(options);
+        // NOTE: The following line prevents the TinyMCE to Tiptap RTE migration in Umbraco v16+.
+        // https://github.com/umbraco/Umbraco-CMS/pull/18843
+        // CRITICAL: This must be called FIRST before any other configuration that might fail,
+        // otherwise the migration prevention won't be applied if the composer throws an exception.
+        builder.Services.Configure<TinyMceToTiptapMigrationSettings>(settings => settings.DisableMigration = true);
 
-                    var tinyMceCustomConfigurationSection = builder.Config.GetSection("TinyMceConfig:customConfig");
-                    var customConfigKeys = new Dictionary<string, object>();
-                    foreach (var child in tinyMceCustomConfigurationSection.GetChildren())
+        try
+        {
+            builder
+                .Services
+                    .AddSingleton<IOperationIdHandler, TinyMceOperationIdHandler>()
+                    .ConfigureOptions<TinyMceConfigureSwaggerGenOptions>()
+                    .Configure<RichTextEditorSettings>(builder.Config.GetSection("Umbraco:CMS:RichTextEditor"))
+                    .Configure<TinyMceConfig>(options =>
                     {
-                        dynamic obj = ConfigurationBinder.BindToExpandoObject(child);
-                        dynamic customConfigObj = ((IDictionary<string, object>)obj.TinyMceConfig.customConfig).First().Value;
-                        //string valueAsText = System.Text.Json.JsonSerializer.Serialize(customConfigObj);
-                        //if (customConfigObj is string)
-                        //{   // Added this because the Serialize call above encodes double-quotes in strings
-                        //    valueAsText = customConfigObj;
-                        //}
-                        //customConfigKeys.Add(child.Key, valueAsText);
-                        customConfigKeys.Add(child.Key, customConfigObj);
-                    }
+                        // Bind all simple properties first
+                        builder.Config.GetSection("TinyMceConfig").Bind(options);
 
-                    options.customConfig = customConfigKeys;
-                })
-                //.AddTransient<IConfigureOptions<TinyMceConfig>, TinyMceConfigPostConfigure>()
+                        // Handle customConfig section separately with proper error handling
+                        var tinyMceCustomConfigurationSection = builder.Config.GetSection("TinyMceConfig:customConfig");
+                        var customConfigKeys = new Dictionary<string, object>();
 
-                // NOTE: The follow line prevents the TinyMCE to Tiptap RTE migration in Umbraco v16.
-                // https://github.com/umbraco/Umbraco-CMS/pull/18843
-                .Configure<TinyMceToTiptapMigrationSettings>(settings => settings.DisableMigration = true)
-        ;
+                        if (tinyMceCustomConfigurationSection.Exists())
+                        {
+                            foreach (var child in tinyMceCustomConfigurationSection.GetChildren())
+                            {
+                                try
+                                {
+                                    // Bind the entire child section (including its path) to an ExpandoObject
+                                    var childObj = ConfigurationBinder.BindToExpandoObject(child);
+                                    var childDict = childObj as IDictionary<string, object>;
+
+                                    if (childDict != null && childDict.ContainsKey("TinyMceConfig"))
+                                    {
+                                        // Navigate down the path: TinyMceConfig -> customConfig -> <child.Key>
+                                        var tinyMceConfigDict = childDict["TinyMceConfig"] as IDictionary<string, object>;
+                                        if (tinyMceConfigDict != null && tinyMceConfigDict.ContainsKey("customConfig"))
+                                        {
+                                            var customConfigDict = tinyMceConfigDict["customConfig"] as IDictionary<string, object>;
+                                            if (customConfigDict != null && customConfigDict.ContainsKey(child.Key))
+                                            {
+                                                customConfigKeys.Add(child.Key, customConfigDict[child.Key]);
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    // Log the error but don't fail the entire composer
+                                    // This allows the package to still function even if one config key is malformed
+                                    System.Diagnostics.Debug.WriteLine($"Error binding customConfig key '{child.Key}': {ex.Message}");
+                                }
+                            }
+                        }
+
+                        options.customConfig = customConfigKeys;
+                    });
+                    //.AddTransient<IConfigureOptions<TinyMceConfig>, TinyMceConfigPostConfigure>()
+        }
+        catch (Exception ex)
+        {
+            // Log the error but allow Umbraco to continue starting up
+            // This ensures the TipTap migration prevention is still applied
+            System.Diagnostics.Debug.WriteLine($"Error in TinyMceComposer configuration: {ex.Message}");
+            throw; // Re-throw to allow debugging but TipTap prevention is already set
+        }
     }
 }
 
@@ -73,7 +107,13 @@ internal static class ConfigurationBinder
                     parent.Add(path[i], new ExpandoObject());
                 }
 
-                parent = parent[path[i]] as IDictionary<string, object>;
+                var nextParent = parent[path[i]] as IDictionary<string, object>;
+                if (nextParent == null)
+                {
+                    // Path structure is invalid, skip this configuration value
+                    return result;
+                }
+                parent = nextParent;
             }
 
             if (kvp.Value == null)
@@ -91,7 +131,7 @@ internal static class ConfigurationBinder
         return result;
     }
 
-    private static void ContinueArray(ExpandoObject parent, string key, object input)
+    private static void ContinueArray(ExpandoObject? parent, string key, object? input)
     {
         if (input == null)
             return;
@@ -104,8 +144,6 @@ internal static class ConfigurationBinder
                 var dict = item as IDictionary<string, object>;
                 if (dict != null)
                 {
-                    var keys = dict.Keys.ToArray();
-
                     foreach (var childKey in dict.Keys.ToList())
                     {
                         ReplaceWithArray(item as ExpandoObject, childKey, dict[childKey] as ExpandoObject);
@@ -115,12 +153,15 @@ internal static class ConfigurationBinder
         }
     }
 
-    private static void ReplaceWithArray(ExpandoObject parent, string key, ExpandoObject input)
+    private static void ReplaceWithArray(ExpandoObject? parent, string? key, ExpandoObject? input)
     {
         if (input == null)
             return;
 
         var dict = input as IDictionary<string, object>;
+        if (dict == null)
+            return;
+
         var keys = dict.Keys.ToArray();
 
         // it's an array if all keys are integers
@@ -133,12 +174,15 @@ internal static class ConfigurationBinder
             }
 
             var parentDict = parent as IDictionary<string, object>;
-            parentDict.Remove(key);
-            parentDict.Add(key, array);
-
-            foreach (var childKey in parentDict.Keys.ToList())
+            if (parentDict != null && key != null)
             {
-                ContinueArray(parent, childKey, parentDict[childKey]);
+                parentDict.Remove(key);
+                parentDict.Add(key, array);
+
+                foreach (var childKey in parentDict.Keys.ToList())
+                {
+                    ContinueArray(parent, childKey, parentDict[childKey]);
+                }
             }
         }
         else
