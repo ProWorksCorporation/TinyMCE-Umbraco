@@ -19,6 +19,10 @@ public sealed class TinyMceConfigApiController : TinyMceManagementApiControllerB
     {
         _richTextEditorSettings = richTextEditorSettings.Value;
         _tinyMceConfig = tinyMceConfig.Value;
+
+        // Ensure dictionaries are at least empty maps to prevent null refs
+        _richTextEditorSettings.CustomConfig ??= new Dictionary<string, object>();
+        _tinyMceConfig.customConfig ??= new Dictionary<string, object>();
     }
 
     [HttpGet("config", Name = "GetConfig")]
@@ -27,6 +31,10 @@ public sealed class TinyMceConfigApiController : TinyMceManagementApiControllerB
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public IActionResult GetConfig()
     {
+        // true and false boolean
+        RichTextEditorSettings.NormalizeBooleanCustomConfig(_richTextEditorSettings.CustomConfig);
+        RichTextEditorSettings.NormalizeBooleanCustomConfig(_tinyMceConfig.customConfig);
+
         var result = new TinyMceConfigResponseModel
         {
             RichTextEditor = this._richTextEditorSettings,

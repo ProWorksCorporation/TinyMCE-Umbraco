@@ -114,8 +114,8 @@ public class RichTextEditorSettings
         },
     };
 
-    private static readonly IDictionary<string, string> _default_custom_config =
-        new Dictionary<string, string> { ["entity_encoding"] = "raw" };
+    private static readonly IDictionary<string, object> _default_custom_config =
+        new Dictionary<string, object> { ["entity_encoding"] = "raw" };
 
     /// <summary>
     ///     HTML RichText Editor TinyMCE Commands.
@@ -130,7 +130,34 @@ public class RichTextEditorSettings
     /// <summary>
     ///     HTML RichText Editor TinyMCE Custom Config.
     /// </summary>
-    public IDictionary<string, string> CustomConfig { get; set; } = _default_custom_config;
+    public IDictionary<string, object> CustomConfig { get; set; } = _default_custom_config;
+    private static readonly string[] BooleanTinyKeys = new[]
+       {
+        "table_advtab", "table_row_advtab", "table_cell_advtab",
+    };
+
+    public static void NormalizeBooleanCustomConfig(IDictionary<string, object> bag)
+    {
+        foreach (var key in BooleanTinyKeys)
+        {
+            if (bag.TryGetValue(key, out var raw) && raw is string s)
+            {
+                // Accept: false/true, "false"/"true", "False"/"True", "0"/"1"
+                if (bool.TryParse(s, out var parsed))
+                {
+                    bag[key] = parsed;
+                }
+                else if (s == "0")
+                {
+                    bag[key] = false;
+                }
+                else if (s == "1")
+                {
+                    bag[key] = true;
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// </summary>
