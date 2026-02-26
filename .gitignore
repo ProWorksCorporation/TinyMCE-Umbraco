@@ -359,6 +359,9 @@ MigrationBackup/
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
 
+# Claude Code
+.claude/settings.local.json
+
 # Rider
 src/.idea
 /src/TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE.Umbraco/*
