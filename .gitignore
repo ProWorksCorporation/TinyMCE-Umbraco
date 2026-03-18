@@ -362,6 +362,8 @@ MigrationBackup/
 # Claude Code
 .claude/settings.local.json
 
+issues/
+
 # Rider
 src/.idea
 /src/TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE.Umbraco/*
