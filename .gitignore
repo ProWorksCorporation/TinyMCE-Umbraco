@@ -369,6 +369,7 @@ MigrationBackup/
 .specify/
 specs/
 tinymce-*.md
+issues/
 
 # Rider
 src/.idea
