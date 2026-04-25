@@ -59,6 +59,26 @@ function mergeArrays(arr1: string | string[] | undefined, arr2: string | string[
 	return Array.from(new Set([...a1, ...a2]));
 }
 
+// Some config paths (e.g. Umbraco:CMS:RichTextEditor:CustomConfig) can only store scalar string
+// values via the .NET config binder. Complex TinyMCE options like style_formats were historically
+// stored as JSON strings in Umbraco v13. This function parses those JSON strings back into real
+// objects/arrays so TinyMCE receives the correct types.
+function parseJsonStringValues(config: Record<string, unknown>): Record<string, unknown> {
+	const result: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(config)) {
+		if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
+			try {
+				result[key] = JSON.parse(value);
+			} catch {
+				result[key] = value;
+			}
+		} else {
+			result[key] = value;
+		}
+	}
+	return result;
+}
+
 @customElement('umb-input-tiny-mce')
 export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '') {
 	@property({ attribute: false })
@@ -355,7 +375,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		if (appSettingsConfig) {
 			if (appSettingsConfig.richTextEditor) {
 				const mergedPlugins = mergeArrays(appSettingsConfig.richTextEditor.plugins, config.plugins);
-				config = umbDeepMerge(appSettingsConfig.richTextEditor.customConfig, config);
+				config = umbDeepMerge(parseJsonStringValues(appSettingsConfig.richTextEditor.customConfig), config);
 				config.plugins = mergedPlugins;
 
 				if (appSettingsConfig.richTextEditor.validElements.length > 0) {
