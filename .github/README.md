@@ -82,16 +82,17 @@ This package adds addition enhanced configuration options that carry over from t
 {
 	"TinyMceConfig": {
 		"tinyMceUrl": "STRING",
-		"tinyMceVersion": "STRING"
+		"tinyMceVersion": "STRING",
 		"apikey": "STRING",
 		"openAiApikey": "STRING",
+		"sanitizeTinyMce": true,
 		"pluginsToExclude": ["STRING ARRAY"],
 		"openAiApiConfig": {
 			"model": "STRING",
 			"developerMessage": "STRING",
 			"maxCompletionTokens":  NUMBER,
 			"temperature": NUMBER
-		}
+		},
 		"customConfig": {JSON}
 	}
 }
@@ -105,6 +106,7 @@ The details on each configuration value are described below:
 | tinyMceVersion  | string  | 6    | The version of the TinyMCE library. |
 | apikey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
 | openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. |
+| sanitizeTinyMce | boolean | true | When `true`, the editor strips any `on*` event attributes (e.g. `onclick`, `onload`) from content on load to prevent XSS. Set to `false` if you need to preserve these attributes (for example, when using `<button onclick="...">` elements in your content). |
 | pluginsToExclude | String array of TinyMCE plugins names to exclude | [] | This excludes these plugins from being selected or used by the TinyMCE Rich Text Editor |
 | openAiApiConfig | Configuration for the OpenAI API | SEE BELOW | This configuration allows for the selection of the OpenAI model and other API configuration. See [OpenAI documentation](https://platform.openai.com/docs/api-reference/chat/create) for more details on the settings. |
 | customConfig | JSON TinyMCE Configuration | {} | See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. **NOTE:** this is JSON and can contain nested elements unlike the key/values in the RichTextEditor configuration above. | 

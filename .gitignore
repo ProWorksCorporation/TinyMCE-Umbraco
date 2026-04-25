@@ -203,6 +203,9 @@ PublishScripts/
 *.nuget.targets
 
 # npm configuration
+# NOTE: .npmrc is ignored, so audit-level=high must be set another way.
+# When addressing CL-007 (ESLint setup), also add `npm audit --audit-level=high`
+# directly to the CI workflow rather than relying on .npmrc for enforcement.
 *.npmrc
 .npmrc
 
@@ -365,6 +368,12 @@ MigrationBackup/
 /docs/superpowers/**
 /issues/**
 /docs/specs/**
+
+# Specify (AI-assisted dev tooling — commit when stable)
+.specify/
+specs/
+tinymce-*.md
+issues/
 
 # Rider
 src/.idea

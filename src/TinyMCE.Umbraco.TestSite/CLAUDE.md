@@ -58,6 +58,10 @@ The test site demonstrates advanced TinyMCE configuration (appsettings.json:46):
 }
 ```
 
+**`sanitizeTinyMce`** (commented out, defaults to `true`):
+- When `true`, strips `on*` event attributes from content on load to prevent XSS
+- Set to `false` to preserve button `onclick` and similar attributes in stored content
+
 **OpenAI Configuration**:
 - Model: `gpt-5`
 - Developer message for AI assistant context
@@ -65,6 +69,7 @@ The test site demonstrates advanced TinyMCE configuration (appsettings.json:46):
 
 **Custom Config Examples**:
 - Spell checker ignore list
+- `style_formats` as a JSON-encoded string (for legacy `Umbraco:CMS:RichTextEditor:CustomConfig` compatibility — automatically parsed at runtime)
 - Advanced templates (`advtemplate_templates`) with quick reply templates
 - Merge tags configuration with custom prefix/suffix (`%%`)
 - Merge tag list with Customer, Vendor, and Company categories

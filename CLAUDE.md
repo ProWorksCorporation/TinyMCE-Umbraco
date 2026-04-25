@@ -84,7 +84,7 @@ npm run pack:api
 **Configuration System**: The package uses a dual configuration system to support both legacy Umbraco settings and new enhanced settings:
 
 - **Umbraco:CMS:RichTextEditor** - Legacy TinyMCE configuration (Commands, Plugins, ValidElements, etc.) maintained for compatibility
-- **TinyMceConfig** - Enhanced configuration with features like `tinyMceUrl`, `tinyMceVersion`, `apikey`, `openAiApikey`, `pluginsToExclude`, and nested `customConfig` JSON
+- **TinyMceConfig** - Enhanced configuration with features like `tinyMceUrl`, `tinyMceVersion`, `apikey`, `openAiApikey`, `sanitizeTinyMce`, `pluginsToExclude`, and nested `customConfig` JSON
 
 The `TinyMceComposer` src/TinyMCE.Umbraco/Composing/TinyMceComposer.cs:14 is responsible for:
 - Registering services and configuration bindings
