@@ -75,9 +75,8 @@ internal sealed class TinyMceComposer : IComposer
         catch (Exception ex)
         {
             // Log the error but allow Umbraco to continue starting up
-            // This ensures the TipTap migration prevention is still applied
+            // DisableMigration is already set above, so TipTap migration is prevented even if this fails
             System.Diagnostics.Debug.WriteLine($"Error in TinyMceComposer configuration: {ex.Message}");
-            throw; // Re-throw to allow debugging but TipTap prevention is already set
         }
     }
 }

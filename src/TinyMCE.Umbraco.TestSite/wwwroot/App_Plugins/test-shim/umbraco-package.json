@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../umbraco-package-schema.json",
+  "id": "TinyMCE.Umbraco.TestShim.Plugin.Configuration",
+  "name": "TinyMCE.Umbraco.TestShim.Plugin.Configuration",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "tinyMcePlugin",
+      "alias": "tinymce.umbraco.testshim.plugin.configuration",
+      "name": "TinyMCE Umbraco TestShim Plugin Configuration",
+      "js": "/App_Plugins/test-shim/test-shim.js",
+      "meta": {
+        "config": {
+          "plugins": [ "testshim" ]
+        }
+      }
+    }
+  ]
+}
