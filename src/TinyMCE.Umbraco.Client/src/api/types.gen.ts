@@ -50,6 +50,7 @@ export type TinyMceConfig = {
     openAiApikey: string;
     pluginsToExclude: Array<string>;
     openAiApiConfig: OpenAiApiConfig;
+    sanitizeTinyMce: boolean;
     customConfig: {
         [key: string]: unknown;
     };

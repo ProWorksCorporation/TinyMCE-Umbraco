@@ -1,0 +1,5 @@
+{
+  "javascript": [
+    "/App_Plugins/test-shim/test-shim.js"
+  ]
+}

@@ -1,7 +1,7 @@
 {
 	"id": "TinyMCE.Umbraco",
 	"name": "TinyMCE for Umbraco CMS",
-	"version": "17.2.0",
+	"version": "17.3.4",
 	"allowPackageTelemetry": true,
 	"extensions": [
 		{
@@ -21,6 +21,7 @@
 	],
 	"importmap": {
 		"imports": {
+			"@umbraco-cms/backoffice/tiny-mce": "/App_Plugins/TinyMCE.Umbraco/tinymce.js",
 			"@umbraco-cms/backoffice/external/tinymce": "/App_Plugins/TinyMCE.Umbraco/tinymce.js",
 			"@tiny-mce-umbraco/backoffice/external/tinymce": "/App_Plugins/TinyMCE.Umbraco/tinymce.js",
 			"@tiny-mce-umbraco/backoffice/core": "/App_Plugins/TinyMCE.Umbraco/index.js"
