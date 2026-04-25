@@ -361,8 +361,10 @@ MigrationBackup/
 
 # Claude Code
 .claude/settings.local.json
+.playwright-mcp/**
 /docs/superpowers/**
 /issues/**
+/docs/specs/**
 
 # Rider
 src/.idea
