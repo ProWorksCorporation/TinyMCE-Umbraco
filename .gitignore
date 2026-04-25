@@ -365,6 +365,7 @@ MigrationBackup/
 # Claude Code
 .claude/settings.local.json
 /docs/superpowers/**
+/issues/**
 
 # Specify (AI-assisted dev tooling — commit when stable)
 .specify/
