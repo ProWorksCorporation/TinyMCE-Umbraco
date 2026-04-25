@@ -14,5 +14,7 @@ public class TinyMceConfig
 
     public OpenAiApiConfig OpenAiApiConfig { get; set; } = new OpenAiApiConfig();
 
+    public bool sanitizeTinyMce { get; set; } = true;
+
     public Dictionary<string, object> customConfig { get; set; } = new Dictionary<string, object>();
 }

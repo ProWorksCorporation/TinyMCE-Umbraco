@@ -87,6 +87,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	//#plugins: Array<ClassConstructor<UmbTinyMcePluginBase> | undefined> = [];
 	#plugins: Array<UmbTinyMcePluginClass | undefined> = [];
 	#editorRef?: Editor | null = null;
+	#sanitizeTinyMce = true;
 	readonly #stylesheetRepository = new UmbStylesheetDetailRepository(this);
 	readonly #umbStylesheetRuleManager = new UmbStylesheetRuleManager();
 
@@ -263,6 +264,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		let url = '';
 		let excludeList: string[] = [];
 		if (appSettingsConfig) {
+			this.#sanitizeTinyMce = appSettingsConfig.config?.sanitizeTinyMce ?? true;
 			// @ts-ignore
 			apiKey = appSettingsConfig.richTextEditor?.cloudApiKey || 'no-origin';
 			if (appSettingsConfig.config?.apikey) {
@@ -471,6 +473,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		});
 
 		editor.on('SetContent', () => {
+			if (!this.#sanitizeTinyMce) return;
 			/**
 			 * Prevent injecting arbitrary JavaScript execution in on-attributes.
 			 *
