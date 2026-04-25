@@ -191,13 +191,96 @@ If you would like to extend the TinyMCE for Umbraco CMS package, there is an [np
 
     npm install --save-dev @tiny-mce-umbraco/backoffice
 
-Creating an extension to this package aligns with how [Umbraco CMS allowed custom package in version 15](https://docs.umbraco.com/umbraco-cms/fundamentals/backoffice/property-editors/built-in-umbraco-property-editors/rich-text-editor-tinymce/plugins).  
+Creating an extension to this package aligns with how [Umbraco CMS allowed custom packages in version 15](https://docs.umbraco.com/umbraco-cms/fundamentals/backoffice/property-editors/built-in-umbraco-property-editors/rich-text-editor-tinymce/plugins).  
 
 The main difference is that the imports need to be from the @tiny-mce-umbraco/backoffice package reference like so:
 
 	import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
 	import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
 	import type { Editor } from '@tiny-mce-umbraco/backoffice/external/tinymce';
+
+### Plugin Class
+
+Create a TypeScript file that exports a default class extending `UmbTinyMcePluginBase`:
+
+```typescript
+import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
+import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
+import type { Editor } from '@tiny-mce-umbraco/backoffice/external/tinymce';
+
+export default class MyCustomPlugin extends UmbTinyMcePluginBase {
+    readonly #editor: Editor;
+
+    constructor(args: TinyMcePluginArguments) {
+        super(args);
+        this.#editor = args.editor;
+    }
+
+    // Called before the editor initializes — use this to modify the TinyMCE config
+    static override async extendEditorConfig(config: Record<string, unknown>): Promise<void> {
+        config.myPlugin_option = 'value';
+    }
+
+    // Called after the editor has been created
+    override async init(): Promise<void> {
+        this.#editor.ui.registry.addButton('myButton', {
+            text: 'My Button',
+            onAction: () => this.#editor.insertContent('<p>Hello!</p>'),
+        });
+    }
+}
+```
+
+The built JS file must use **default export**. Umbraco loads the default export as the plugin class.
+
+### Umbraco Package Manifest
+
+Create an `umbraco-package.json` in your plugin's `App_Plugins` folder:
+
+```json
+{
+  "$schema": "../../umbraco-package-schema.json",
+  "id": "My.TinyMCE.Plugin",
+  "name": "My TinyMCE Plugin",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "tinyMcePlugin",
+      "alias": "my.tinymce.plugin",
+      "name": "My TinyMCE Plugin",
+      "js": "/App_Plugins/my-tinymce-plugin/my-plugin.js",
+      "meta": {
+        "config": {
+          "plugins": ["myTinyMcePluginName"]
+        }
+      }
+    }
+  ]
+}
+```
+
+The `meta.config` object is merged into the TinyMCE initialisation config for every editor instance. Use `meta.config.plugins` to load a TinyMCE plugin by name (e.g. a premium plugin like `"mentions"`). If `meta.config` is not needed, it can be omitted.
+
+> **Note:** `umbraco-package.json` is the correct manifest format for Umbraco v16+. The older `package.manifest` file format is not used for `tinyMcePlugin` extensions.
+
+### Vite Configuration
+
+**Important:** You must mark `@tiny-mce-umbraco` as external in your Vite build configuration alongside `@umbraco`. Without this, the package gets bundled into your extension a second time, causing a duplicate custom element registration error in the browser console (`"Failed to execute 'define' on 'CustomElementRegistry': the name 'umb-stylesheet-rule-input' has already been used with this registry"`).
+
+```typescript
+// vite.config.ts
+export default defineConfig({
+  build: {
+    rollupOptions: {
+      external: [/^@umbraco/, /^@tiny-mce-umbraco/],
+    },
+  },
+});
+```
+
+### Working Example
+
+A complete working plugin using this pattern — a TinyMCE Mentions configuration — is included in the [test site](../src/TinyMCE.Umbraco.TestSite/wwwroot/App_Plugins/tinymce-mentions-plugin/).
 
 ## Updating TinyMCE To Version 7 or 8
 
