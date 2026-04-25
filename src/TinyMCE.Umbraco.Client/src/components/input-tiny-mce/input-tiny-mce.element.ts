@@ -100,8 +100,10 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	public set readonly(value) {
 		this.#readonly = value;
 		const editor = this.getEditor();
-		const mode = value ? 'readonly' : 'design';
-		editor?.mode.set(mode);
+		// editor.removed is true when TinyMCE has been destroyed; mode.set() throws on a destroyed editor
+		if (editor && !editor.removed) {
+			editor.mode.set(value ? 'readonly' : 'design');
+		}
 	}
 	#readonly = false;
 

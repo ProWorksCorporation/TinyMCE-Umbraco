@@ -3,6 +3,13 @@ import { UMB_BLOCK_RTE_PROPERTY_EDITOR_SCHEMA_ALIAS } from '@umbraco-cms/backoff
 
 export const manifests: Array<UmbExtensionManifest> = [
 	{
+		type: 'propertyContext',
+		kind: 'clipboard',
+		alias: 'TinyMCE.PropertyContext.Clipboard',
+		name: 'TinyMCE Clipboard Property Context',
+		forPropertyEditorUis: [UMB_BLOCK_RTE_PROPERTY_EDITOR_UI_ALIAS],
+	},
+	{
 		type: 'propertyEditorUi',
 		alias: UMB_BLOCK_RTE_PROPERTY_EDITOR_UI_ALIAS,
 		name: 'Rich Text Editor [TinyMCE] Property Editor UI',

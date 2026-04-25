@@ -361,6 +361,7 @@ MigrationBackup/
 
 # Claude Code
 .claude/settings.local.json
+/docs/superpowers/**
 
 # Rider
 src/.idea
