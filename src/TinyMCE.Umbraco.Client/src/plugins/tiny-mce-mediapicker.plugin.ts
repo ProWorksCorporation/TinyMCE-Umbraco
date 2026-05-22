@@ -1,7 +1,7 @@
 import { sizeImageInEditor, uploadBlobImages } from '@tiny-mce-umbraco/backoffice/core';
 import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
 import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
-import { getGuidFromUdi } from '@umbraco-cms/backoffice/utils';
+import { getGuidFromUdi, splitStringToArray } from '@umbraco-cms/backoffice/utils';
 import { UmbId } from '@umbraco-cms/backoffice/id';
 import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
 import { UmbTemporaryFileRepository } from '@umbraco-cms/backoffice/temporary-file';
@@ -29,6 +29,10 @@ interface MediaPickerResultData {
 export default class UmbTinyMceMediaPickerPlugin extends UmbTinyMcePluginBase {
 	#modalManager?: typeof UMB_MODAL_MANAGER_CONTEXT.TYPE;
 	readonly #temporaryFileRepository;
+
+	get #allowedMediaTypeIds(): Array<string> {
+		return splitStringToArray(this.configuration?.getValueByAlias<string>('allowedMediaTypes'));
+	}
 
 	constructor(args: TinyMcePluginArguments) {
 		super(args);
@@ -128,10 +132,12 @@ export default class UmbTinyMceMediaPickerPlugin extends UmbTinyMcePluginBase {
 		}
 		*/
 
+		const allowedIds = this.#allowedMediaTypeIds;
 		const modalHandler = this.#modalManager?.open(this, UMB_MEDIA_PICKER_MODAL, {
 			data: {
 				multiple: false,
 				//startNodeIsVirtual,
+				pickableFilter: allowedIds.length ? (item) => allowedIds.includes(item.mediaType.unique) : undefined,
 			},
 			value: {
 				selection: currentTarget.udi ? [getGuidFromUdi(currentTarget.udi)] : [],
