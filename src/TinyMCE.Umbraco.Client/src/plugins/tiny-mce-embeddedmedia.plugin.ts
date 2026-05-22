@@ -1,14 +1,20 @@
 import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
 import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
-import { umbOpenModal } from '@umbraco-cms/backoffice/modal';
+import { UMB_MODAL_MANAGER_CONTEXT } from '@umbraco-cms/backoffice/modal';
 import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
 import { UMB_EMBEDDED_MEDIA_MODAL } from '@umbraco-cms/backoffice/embedded-media';
 import type { UmbEmbeddedMediaModalData, UmbEmbeddedMediaModalValue } from '@umbraco-cms/backoffice/embedded-media';
 
 export default class UmbTinyMceEmbeddedMediaPlugin extends UmbTinyMcePluginBase {
+	#modalManager?: typeof UMB_MODAL_MANAGER_CONTEXT.TYPE;
+
 	constructor(args: TinyMcePluginArguments) {
 		super(args);
 		const localize = new UmbLocalizationController(args.host);
+
+		this.consumeContext(UMB_MODAL_MANAGER_CONTEXT, (instance) => {
+			this.#modalManager = instance;
+		});
 
 		this.editor.ui.registry.addToggleButton('umbembeddialog', {
 			icon: 'embed',
@@ -24,8 +30,6 @@ export default class UmbTinyMceEmbeddedMediaPlugin extends UmbTinyMcePluginBase 
 	}
 
 	#onAction() {
-		// Get the selected element
-		// Check nodename is a DIV and the claslist contains 'umb-embed-holder'
 		const selectedElm = this.editor.selection.getNode();
 
 		let modify: UmbEmbeddedMediaModalData = {
@@ -34,7 +38,6 @@ export default class UmbTinyMceEmbeddedMediaPlugin extends UmbTinyMcePluginBase 
 		};
 
 		if (selectedElm.nodeName.toUpperCase() === 'DIV' && selectedElm.classList.contains('umb-embed-holder')) {
-			// See if we can go and get the attributes
 			const url = this.editor.dom.getAttrib(selectedElm, 'data-embed-url');
 			const embedWidth = this.editor.dom.getAttrib(selectedElm, 'data-embed-width');
 			const embedHeight = this.editor.dom.getAttrib(selectedElm, 'data-embed-height');
@@ -52,37 +55,37 @@ export default class UmbTinyMceEmbeddedMediaPlugin extends UmbTinyMcePluginBase 
 	}
 
 	#insertInEditor(embed: UmbEmbeddedMediaModalValue, activeElement: HTMLElement) {
-		// Wrap HTML preview content here in a DIV with non-editable class of .mceNonEditable
-		// This turns it into a selectable/cutable block to move about
+		const attrs: Record<string, string> = {
+			class: 'mceNonEditable umb-embed-holder',
+			'data-embed-url': embed.url ?? '',
+			'data-embed-height': String(embed.height ?? 240),
+			'data-embed-width': String(embed.width ?? 360),
+			'data-embed-constrain': String(embed.constrain ?? false),
+			contenteditable: 'false',
+		};
+		const html = this.editor.dom.createHTML('div', attrs, embed.markup);
 
-		const wrapper = this.editor.dom.create(
-			'div',
-			{
-				class: 'mceNonEditable umb-embed-holder',
-				'data-embed-url': embed.url ?? '',
-				'data-embed-height': embed.height!,
-				'data-embed-width': embed.width!,
-				'data-embed-constrain': embed.constrain ?? false,
-				contenteditable: false,
-			},
-			embed.markup
-		);
-
-		// Only replace if activeElement is an Embed element.
 		if (activeElement?.nodeName.toUpperCase() === 'DIV' && activeElement.classList.contains('umb-embed-holder')) {
-			activeElement.replaceWith(wrapper); // directly replaces the html node
-		} else {
-			this.editor.selection.setNode(wrapper);
+			this.editor.selection.select(activeElement);
 		}
+
+		this.editor.selection.setContent(html);
 	}
 
 	async #showModal(selectedElm: HTMLElement, embeddedMediaModalData: UmbEmbeddedMediaModalData) {
-		const result = await umbOpenModal(this, UMB_EMBEDDED_MEDIA_MODAL, { data: embeddedMediaModalData }).catch(
-			() => undefined
-		);
+		const bookmark = this.editor.selection.getBookmark(2, true);
 
+		const modalHandler = this.#modalManager?.open(this, UMB_EMBEDDED_MEDIA_MODAL, {
+			data: embeddedMediaModalData,
+		});
+
+		if (!modalHandler) return;
+
+		const result = await modalHandler.onSubmit().catch(() => undefined);
 		if (!result) return;
 
+		this.editor.focus();
+		this.editor.selection.moveToBookmark(bookmark);
 		this.#insertInEditor(result, selectedElm);
 		this.editor.dispatch('Change');
 	}
