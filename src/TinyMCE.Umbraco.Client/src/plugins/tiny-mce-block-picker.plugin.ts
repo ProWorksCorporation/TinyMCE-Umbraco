@@ -13,6 +13,7 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 	readonly #editor: Editor;
 	#blocks?: Array<UmbBlockTypeBaseModel>;
 	#entriesContext?: typeof UMB_BLOCK_RTE_ENTRIES_CONTEXT.TYPE;
+	#managerContext?: typeof UMB_BLOCK_RTE_MANAGER_CONTEXT.TYPE;
 
 	constructor(args: TinyMcePluginArguments) {
 		super(args);
@@ -33,6 +34,8 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 		});
 
 		this.consumeContext(UMB_BLOCK_RTE_MANAGER_CONTEXT, (context) => {
+			this.#managerContext = context;
+
 			this.observe(
 				context?.blockTypes,
 				(blockTypes) => {
@@ -47,6 +50,14 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 					this.#updateBlocks(contents, context?.getLayouts());
 				},
 				'contents'
+			);
+
+			this.observe(
+				context?.pendingDeletions,
+				(pendingDeletions) => {
+					this.#processPendingDeletions(pendingDeletions);
+				},
+				'pendingDeletions'
 			);
 		});
 		this.consumeContext(UMB_BLOCK_RTE_ENTRIES_CONTEXT, (context) => {
@@ -88,6 +99,23 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 		if (createPath) {
 			window.history.pushState({}, '', createPath);
 		}
+	}
+
+	#processPendingDeletions(pendingDeletions: Array<string> | undefined) {
+		if (!pendingDeletions?.length) return;
+		const editor = this.#editor;
+		if (!editor?.dom) return;
+
+		pendingDeletions.forEach((contentKey) => {
+			const blockEls = editor.dom.select(
+				`umb-rte-block[${UMB_BLOCK_RTE_DATA_CONTENT_KEY}="${contentKey}"], umb-rte-block-inline[${UMB_BLOCK_RTE_DATA_CONTENT_KEY}="${contentKey}"]`
+			);
+			blockEls.forEach((el) => el.remove());
+			this.#managerContext?.clearPendingDeletion(contentKey);
+		});
+
+		editor.setDirty(true);
+		editor.dispatch('Change');
 	}
 
 	#updateBlocks(blocks?: UmbBlockDataModel[], layouts?: Array<UmbBlockRteLayoutModel>) {

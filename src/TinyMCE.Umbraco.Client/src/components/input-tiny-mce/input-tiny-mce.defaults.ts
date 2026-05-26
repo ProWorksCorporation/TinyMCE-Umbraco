@@ -2,6 +2,7 @@ import { UMB_CONTEXT_REQUEST_EVENT_TYPE, type UmbContextRequestEvent } from '@um
 //import { UmbContextProxyController } from '@umbraco-cms/backoffice/context-proxy';
 import type { RawEditorOptions } from '@umbraco-cms/backoffice/external/tinymce';
 import { UUIIconRequestEvent } from '@umbraco-cms/backoffice/external/uui';
+import { umbLocalizationManager } from '@umbraco-cms/backoffice/localization-api';
 
 export const UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH = '@umbraco-cms/backoffice/block-rte';
 
@@ -154,6 +155,39 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			// Change the history!
 			window.history.pushState(null, '', path);
 		});
+
+		// Sync block editor localization keys into the iframe's module-scope umbLocalizationManager.
+		// The iframe has a completely separate module scope (and thus a separate umbLocalizationManager
+		// instance) from the outer document. Without this, requestDelete() in UmbBlockEntryContext
+		// falls back to returning raw keys because the iframe's manager has no registered translations.
+		const locSetsToSync: Array<Record<string, string>> = [];
+		const BLOCK_LOC_KEYS = ['blockEditor_confirmDeleteBlockTitle', 'blockEditor_confirmDeleteBlockMessage'];
+		umbLocalizationManager.localizations.forEach((locSet, code) => {
+			const locSetAny = locSet as unknown as Record<string, string>;
+			const entry: Record<string, string> = {
+				$code: code,
+				$dir: locSetAny['$dir'] ?? 'ltr',
+			};
+			let hasKey = false;
+			for (const key of BLOCK_LOC_KEYS) {
+				const val = locSetAny[key];
+				if (typeof val === 'string') {
+					entry[key] = val;
+					hasKey = true;
+				}
+			}
+			if (hasKey) locSetsToSync.push(entry);
+		});
+
+		if (locSetsToSync.length > 0) {
+			const locScript = document.createElement('script');
+			locScript.setAttribute('type', 'module');
+			locScript.text = `
+				import { umbLocalizationManager } from "@umbraco-cms/backoffice/localization-api";
+				${JSON.stringify(locSetsToSync)}.forEach(s => umbLocalizationManager.registerLocalization(s));
+			`;
+			editor.dom.doc.head.appendChild(locScript);
+		}
 
 		// Load backoffice JS so we can get the umb-rte-block component registered inside the iframe [NL]
 		const script = document.createElement('script');
