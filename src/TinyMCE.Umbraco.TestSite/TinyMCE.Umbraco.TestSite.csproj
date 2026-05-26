@@ -7,18 +7,18 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Umbraco.Cms" Version="17.3.4" />
+    <PackageReference Include="Umbraco.Cms" Version="17.4.1" />
   </ItemGroup>
 
   <ItemGroup>
     <!-- Opt-in to app-local ICU to ensure consistent globalization APIs across different platforms -->
     <PackageReference Include="Microsoft.ICU.ICU4C.Runtime" Version="72.1.0.3" />
-    <PackageReference Include="Umbraco.Cms.Api.Common" Version="17.3.4" />
-    <PackageReference Include="Umbraco.Cms.Api.Management" Version="17.3.4" />
-    <PackageReference Include="Umbraco.Cms.DevelopmentMode.Backoffice" Version="17.3.4" />
-    <PackageReference Include="Umbraco.Cms.Web.Common" Version="17.3.4" />
-    <PackageReference Include="Umbraco.Cms.Web.Website" Version="17.3.4" />
-    <PackageReference Include="uSync" Version="17.0.4" />
+    <PackageReference Include="Umbraco.Cms.Api.Common" Version="17.4.1" />
+    <PackageReference Include="Umbraco.Cms.Api.Management" Version="17.4.1" />
+    <PackageReference Include="Umbraco.Cms.DevelopmentMode.Backoffice" Version="17.4.1" />
+    <PackageReference Include="Umbraco.Cms.Web.Common" Version="17.4.1" />
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="17.4.1" />
+    <PackageReference Include="uSync" Version="17.3.2" />
     <RuntimeHostConfigurationOption Include="System.Globalization.AppLocalIcu" Value="72.1.0.3" Condition="$(RuntimeIdentifier.StartsWith('linux')) or $(RuntimeIdentifier.StartsWith('win')) or ('$(RuntimeIdentifier)' == '' and !$([MSBuild]::IsOSPlatform('osx')))" />
   </ItemGroup>
 

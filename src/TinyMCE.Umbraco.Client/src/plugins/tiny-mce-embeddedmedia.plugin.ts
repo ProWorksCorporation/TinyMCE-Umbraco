@@ -31,6 +31,7 @@ export default class UmbTinyMceEmbeddedMediaPlugin extends UmbTinyMcePluginBase 
 		let modify: UmbEmbeddedMediaModalData = {
 			width: 360,
 			height: 240,
+			constrain: true
 		};
 
 		if (selectedElm.nodeName.toUpperCase() === 'DIV' && selectedElm.classList.contains('umb-embed-holder')) {
