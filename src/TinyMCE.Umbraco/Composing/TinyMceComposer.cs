@@ -86,6 +86,15 @@ internal sealed class TinyMceComposer : IComposer
 /// </summary>
 internal static class ConfigurationBinder
 {
+    private static object CoerceValue(string value)
+    {
+        if (bool.TryParse(value, out var b)) return b;
+        if (long.TryParse(value, out var l)) return l;
+        if (double.TryParse(value, System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var d)) return d;
+        return value;
+    }
+
     public static ExpandoObject BindToExpandoObject(IConfiguration config)
     {
         var result = new ExpandoObject();
@@ -121,7 +130,7 @@ internal static class ConfigurationBinder
             // add the value to the parent
             // note: in case of an array, key will be an integer and will be dealt with later
             var key = path[i];
-            parent.Add(key, kvp.Value);
+            parent.Add(key, CoerceValue(kvp.Value));
         }
 
         // at this stage, all arrays are seen as dictionaries with integer keys
