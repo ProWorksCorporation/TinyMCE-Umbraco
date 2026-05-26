@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the **TinyMCE.Umbra
 
 ## Project Overview
 
-This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 17.1.0 with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
+This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 17.4.1 with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
 
 ## Running the Test Site
 
@@ -93,10 +93,10 @@ TinyMCE.Umbraco.TestSite/
 
 ## Dependencies
 
-- `Umbraco.Cms` 17.1.0 - Main Umbraco CMS package
+- `Umbraco.Cms` 17.4.1 - Main Umbraco CMS package
 - Umbraco API packages (Common, Management, Website)
-- `Umbraco.Cms.DevelopmentMode.Backoffice` 17.1.0 - Development tools
-- `uSync` 17.0.1 - Content synchronization
+- `Umbraco.Cms.DevelopmentMode.Backoffice` 17.4.1 - Development tools
+- `uSync` 17.3.2 - Content synchronization
 - Project reference to `../TinyMCE.Umbraco/TinyMCE.Umbraco.csproj`
 
 ## Program.cs
