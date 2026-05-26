@@ -184,6 +184,15 @@ npm run generate-client https://localhost:44308/umbraco/swagger/tiny-mce/swagger
 
 This generates code in `src/api/` that provides type-safe API calls.
 
+## TinyMCE iframe Module Scope
+
+**CRITICAL**: TinyMCE renders its content area inside an **iframe**. ES modules are per-realm, so the iframe gets its own `umbLocalizationManager` singleton — completely separate from the outer document's instance. The `umb-rte-block` and `umb-rte-block-inline` custom elements (block editor entries) live inside this iframe.
+
+Consequences:
+- Any localization keys needed by code running inside the iframe (e.g. `UmbBlockEntryContext.requestDelete()`) must be explicitly synced into the iframe's `umbLocalizationManager`.
+- The sync happens in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`, which injects a small module script into `editor.dom.doc.head` that calls `registerLocalization()` for each locale.
+- If you add new features inside `umb-rte-block` that depend on localization, add the required keys to `BLOCK_LOC_KEYS` in that function.
+
 ## Working with Components
 
 All components use Lit web components with Umbraco's extension system:
