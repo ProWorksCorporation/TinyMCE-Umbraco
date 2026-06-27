@@ -1,6 +1,7 @@
 import { UMB_CONTEXT_REQUEST_EVENT_TYPE, type UmbContextRequestEvent } from '@umbraco-cms/backoffice/context-api';
 //import { UmbContextProxyController } from '@umbraco-cms/backoffice/context-proxy';
 import type { RawEditorOptions } from '@umbraco-cms/backoffice/external/tinymce';
+import { umbExtensionsRegistry } from '@umbraco-cms/backoffice/extension-registry';
 import { UUIIconRequestEvent } from '@umbraco-cms/backoffice/external/uui';
 import { umbLocalizationManager } from '@umbraco-cms/backoffice/localization-api';
 
@@ -189,13 +190,46 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			editor.dom.doc.head.appendChild(locScript);
 		}
 
-		// Load backoffice JS so we can get the umb-rte-block component registered inside the iframe [NL]
-		const script = document.createElement('script');
-		script.type = 'text/javascript';
-		script.setAttribute('type', 'module');
+		// Expose the outer extension registry on the outer window so the injected module
+		// script below can sync blockAction manifests into the iframe's per-realm instance.
+		// umb-block-action-list reads umbExtensionsRegistry as a module-level singleton
+		// (not via context), so the context proxy alone cannot bridge it across realms.
+		(window as Window & { _umbOuterExtReg?: typeof umbExtensionsRegistry })._umbOuterExtReg = umbExtensionsRegistry;
 
-		script.text = `import "@umbraco-cms/backoffice/extension-registry";`;
-		script.text = `import "${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}";`;
+		// Load backoffice JS so we can get the umb-rte-block component registered inside the iframe.
+		// Also:
+		// 1. Import @umbraco-cms/backoffice/block to register the blockAction kind definition
+		//    and the <umb-block-action> custom element in the iframe's realm. These are NOT
+		//    transitively imported by block-rte, but umb-block-action-list needs them to
+		//    instantiate block action extensions (kind: 'default').
+		// 2. Sync blockAction manifests from the outer registry into the iframe's registry.
+		//    Umbraco registers manifests via umbraco-package.json (not module imports), so they
+		//    only exist in the outer registry — we must copy them into the iframe's per-realm
+		//    umbExtensionsRegistry so umb-block-action-list can discover them.
+		const script = document.createElement('script');
+		script.setAttribute('type', 'module');
+		script.text = `
+			import { umbExtensionsRegistry } from "@umbraco-cms/backoffice/extension-registry";
+			import { UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST } from "@umbraco-cms/backoffice/block";
+			import "${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}";
+
+			// Register the blockAction default kind definition in the inner realm's registry.
+			// UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST is imported here (inner realm), so its
+			// element factory — element: () => import('./block-action.element.js') — captures
+			// the inner realm's module URL. When the extension system later calls that factory,
+			// block-action.element.js is loaded in the inner realm, registering <umb-block-action>
+			// in the inner customElements registry.
+			umbExtensionsRegistry.registerMany([UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST]);
+
+			// Sync blockAction manifests from the outer registry into the inner realm's registry.
+			// Umbraco registers these via umbraco-package.json at backoffice startup; they only
+			// exist in the outer registry and must be copied so umb-block-action-list can discover them.
+			const outerReg = window.parent?._umbOuterExtReg;
+			if (outerReg) {
+				const blockActions = outerReg.getByType('blockAction') ?? [];
+				if (blockActions.length) umbExtensionsRegistry.registerMany(blockActions);
+			}
+		`;
 		editor.dom.doc.head.appendChild(script);
 	},
 

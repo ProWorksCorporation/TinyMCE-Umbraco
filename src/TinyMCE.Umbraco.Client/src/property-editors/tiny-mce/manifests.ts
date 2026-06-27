@@ -20,6 +20,7 @@ export const manifests: Array<UmbExtensionManifest> = [
 			icon: 'icon-tinymce',
 			group: 'richContent',
 			supportsReadOnly: true,
+			keywords: ['content', 'article', 'body', 'html', 'wysiwyg', 'richtext', 'rte', 'tinymce', 'editor', 'formatted', 'paragraph'],
 			settings: {
 				properties: [
 					{
