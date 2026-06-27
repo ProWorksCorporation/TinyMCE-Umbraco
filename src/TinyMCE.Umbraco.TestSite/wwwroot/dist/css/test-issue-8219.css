@@ -1,0 +1,26 @@
+/*
+ * Test stylesheet for issue #8219
+ *
+ * Demonstrates that content_css under Umbraco:CMS:RichTextEditor:CustomConfig
+ * can reference CSS files outside the standard wwwroot/css/ folder.
+ *
+ * This file lives at wwwroot/dist/css/test-issue-8219.css and is referenced
+ * in appsettings.json as:
+ *
+ *   "RichTextEditor": {
+ *     "CustomConfig": {
+ *       "content_css": "/dist/css/test-issue-8219.css"
+ *     }
+ *   }
+ *
+ * If loaded correctly, blockquotes in the editor will have a visible
+ * left border and background color.
+ */
+
+blockquote {
+    border-left: 4px solid #0077cc;
+    background-color: #f0f7ff;
+    margin: 1em 0;
+    padding: 0.5em 1em;
+    color: #333;
+}
