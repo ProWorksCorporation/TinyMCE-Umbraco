@@ -186,12 +186,23 @@ This generates code in `src/api/` that provides type-safe API calls.
 
 ## TinyMCE iframe Module Scope
 
-**CRITICAL**: TinyMCE renders its content area inside an **iframe**. ES modules are per-realm, so the iframe gets its own `umbLocalizationManager` singleton — completely separate from the outer document's instance. The `umb-rte-block` and `umb-rte-block-inline` custom elements (block editor entries) live inside this iframe.
+**CRITICAL**: TinyMCE renders its content area inside an **iframe**. ES modules are per-realm, so the iframe gets its own module-level singletons — completely separate from the outer document's instances. The `umb-rte-block` and `umb-rte-block-inline` custom elements (block editor entries) live inside this iframe.
 
-Consequences:
-- Any localization keys needed by code running inside the iframe (e.g. `UmbBlockEntryContext.requestDelete()`) must be explicitly synced into the iframe's `umbLocalizationManager`.
-- The sync happens in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`, which injects a small module script into `editor.dom.doc.head` that calls `registerLocalization()` for each locale.
+Two per-realm singletons are currently bridged in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`:
+
+**1. `umbLocalizationManager`** (localization keys):
+- Any localization keys needed by code running inside the iframe must be explicitly synced into the iframe's `umbLocalizationManager`.
+- The sync reads from the outer `umbLocalizationManager.localizations` and injects a module script that calls `registerLocalization()` for each locale's relevant keys.
 - If you add new features inside `umb-rte-block` that depend on localization, add the required keys to `BLOCK_LOC_KEYS` in that function.
+
+**2. `umbExtensionsRegistry`** (extension manifests for block actions):
+- `umb-block-action-list` (new in Umbraco 17.5.0) reads `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
+- Two things are required in the injected module script:
+  1. Import `UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST` from `@umbraco-cms/backoffice/block` **in the inner realm** and register it into the inner registry. Because the import runs in the inner realm, the manifest's `element` factory (`() => import('./block-action.element.js')`) captures the inner realm's module URL — so when the extension system later calls it, `<umb-block-action>` is lazily registered in the inner `customElements`.
+  2. The outer `umbExtensionsRegistry` reference is exposed on `window._umbOuterExtReg`, then read via `window.parent._umbOuterExtReg` in the injected script. The `blockAction` manifests (registered by Umbraco's package loader, not by module import) are copied into the inner registry so `umb-block-action-list` can discover them.
+- If new Umbraco versions introduce other per-realm singletons that components inside the iframe need, apply the same pattern: expose on `window`, read via `window.parent` in the injected script.
+
+**Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
 
 ## Working with Components
 
