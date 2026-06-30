@@ -35,7 +35,6 @@ fetch(swaggerUrl).then(async (response) => {
     input: swaggerUrl,
     output: 'src/api',
     plugins: [
-      ...defaultPlugins,
       '@hey-api/client-fetch',
       {
         name: '@hey-api/typescript',
@@ -43,9 +42,11 @@ fetch(swaggerUrl).then(async (response) => {
       },
       {
         name: '@hey-api/sdk',
-				asClass: true,
-				classNameBuilder: (name) => `${name}Service`,
-				responseStyle: 'fields',
+        operations: {
+          strategy: 'byTags',
+          containerName: (info) => `${info.name}Service`,
+        },
+        responseStyle: 'fields',
       }
     ],
   });
