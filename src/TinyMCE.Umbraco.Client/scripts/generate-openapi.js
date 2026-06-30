@@ -44,7 +44,7 @@ fetch(swaggerUrl).then(async (response) => {
         name: '@hey-api/sdk',
         operations: {
           strategy: 'byTags',
-          containerName: (info) => `${info.name}Service`,
+          containerName: (info) => info.name ? `${info.name}Service` : 'TinyMceService',
         },
         responseStyle: 'fields',
       }

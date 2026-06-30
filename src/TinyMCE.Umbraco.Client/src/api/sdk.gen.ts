@@ -18,7 +18,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
     meta?: Record<string, unknown>;
 };
 
-export class UndefinedService {
+export class TinyMceService {
     public static getConfig<ThrowOnError extends boolean = false>(options?: Options<GetConfigData, ThrowOnError>) {
         return (options?.client ?? client).get<GetConfigResponses, GetConfigErrors, ThrowOnError>({
             security: [{ scheme: 'bearer', type: 'http' }],
