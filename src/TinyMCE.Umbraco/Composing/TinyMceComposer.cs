@@ -1,8 +1,8 @@
 using System.Dynamic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using TinyMCE.Umbraco.Api.Management;
 using Umbraco.Cms.Api.Common.OpenApi;
+using Umbraco.Cms.Api.Management.OpenApi;
 using Umbraco.Cms.Core.Composing;
 using Umbraco.Cms.Core.Configuration.Models;
 using Umbraco.Cms.Core.DependencyInjection;
@@ -21,10 +21,14 @@ internal sealed class TinyMceComposer : IComposer
 
         try
         {
+            builder.AddBackOfficeOpenApiDocument(
+                Constants.ProjectAlias,
+                doc => doc
+                    .WithTitle($"{Constants.ProjectName} Management API")
+                    .ConfigureOpenApiOptions(opts => opts.AddBackofficeSecurityRequirements()));
+
             builder
                 .Services
-                    .AddSingleton<IOperationIdHandler, TinyMceOperationIdHandler>()
-                    .ConfigureOptions<TinyMceConfigureSwaggerGenOptions>()
                     .Configure<RichTextEditorSettings>(builder.Config.GetSection("Umbraco:CMS:RichTextEditor"))
                     .Configure<TinyMceConfig>(options =>
                     {

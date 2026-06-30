@@ -54,10 +54,10 @@ Both are registered and bound in TinyMceComposer.cs:14 using `IOptions<T>` patte
 ### API Controllers
 
 **TinyMceConfigApiController** (Api/Management/Controllers/TinyMceConfigApiController.cs:11):
-- Exposes GET `/umbraco/tiny-mce/api/v1/config` endpoint
+- Exposes GET `/umbraco/management/api/v1/tiny-mce/config` endpoint
 - Returns `TinyMceConfigResponseModel` containing both configuration objects
 - Uses ASP.NET Core API versioning (v1.0)
-- Grouped under "TinyMCE" in Swagger UI
+- Grouped under "TinyMCE" in OpenAPI UI (`/umbraco/openapi/`)
 - Authenticated via Umbraco's backoffice auth
 
 **Base Controller**: All controllers inherit from `TinyMceManagementApiControllerBase` which applies:
@@ -82,10 +82,10 @@ This line is essential for the package to work correctly. Without it, Umbraco wi
 
 ## Dependencies
 
-- `Umbraco.Cms.Web.Website` 17.1.0
-- `Umbraco.Cms.Web.Common` 17.1.0
-- `Umbraco.Cms.Api.Common` 17.1.0
-- `Umbraco.Cms.Api.Management` 17.1.0
+- `Umbraco.Cms.Web.Website` 18.0.0
+- `Umbraco.Cms.Web.Common` 18.0.0
+- `Umbraco.Cms.Api.Common` 18.0.0
+- `Umbraco.Cms.Api.Management` 18.0.0
 - Project reference to `TinyMCE.Umbraco.Client.esproj` (for asset compilation)
 
 ## Build Output
