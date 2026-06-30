@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Umbraco.Cms.Api.Common.Attributes;
 using Umbraco.Cms.Api.Common.Filters;
@@ -13,4 +14,5 @@ namespace TinyMCE.Umbraco.Api.Management;
 [TinyMceVersionedApiBackOfficeRoute("/")]
 [JsonOptionsName(UmbConstants.JsonOptionsNames.BackOffice)]
 [MapToApi(Constants.ProjectAlias)]
+[Tags("TinyMce")]
 public abstract class TinyMceManagementApiControllerBase : ManagementApiControllerBase { }

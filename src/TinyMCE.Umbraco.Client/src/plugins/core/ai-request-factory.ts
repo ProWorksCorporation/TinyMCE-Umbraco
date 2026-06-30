@@ -1,8 +1,8 @@
-import { umbHttpClient } from '@umbraco-cms/backoffice/http-client';
+import { client } from '../../api/client.gen.js';
 import { TinyMceService } from '../../api/index.js';
 
 export async function createAiRequest(): Promise<(request: any, respondWith: any) => void> {
-	const response = await TinyMceService.getConfig({ client: umbHttpClient });
+	const response = await TinyMceService.getConfig({ client });
 
 	const apiKey = response.data?.config?.openAiApikey || '';
 	const model = response.data?.config?.openAiApiConfig?.model || 'gpt-5';
