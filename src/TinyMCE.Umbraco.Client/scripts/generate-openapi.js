@@ -9,7 +9,7 @@ const swaggerUrl = process.argv[2];
 if (swaggerUrl === undefined) {
   console.error(chalk.red(`ERROR: Missing URL to OpenAPI spec`));
   console.error(`Please provide the URL to the OpenAPI spec as the first argument found in ${chalk.yellow('package.json')}`);
-  console.error(`Example: node generate-openapi.js ${chalk.yellow('https://localhost:44331/umbraco/swagger/REPLACE_ME/swagger.json')}`);
+  console.error(`Example: node generate-openapi.js ${chalk.yellow('https://localhost:44331/umbraco/openapi/REPLACE_ME.json')}`);
   process.exit();
 }
 
