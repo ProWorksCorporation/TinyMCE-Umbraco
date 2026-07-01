@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the **TinyMCE.Umbra
 
 ## Project Overview
 
-This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 17.5.0 with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
+This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 18.0.0 with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
 
 ## Running the Test Site
 
@@ -93,10 +93,10 @@ TinyMCE.Umbraco.TestSite/
 
 ## Dependencies
 
-- `Umbraco.Cms` 17.5.0 - Main Umbraco CMS package
+- `Umbraco.Cms` 18.0.0 - Main Umbraco CMS package
 - Umbraco API packages (Common, Management, Website)
-- `Umbraco.Cms.DevelopmentMode.Backoffice` 17.5.0 - Development tools
-- `uSync` 17.3.5 - Content synchronization
+- `Umbraco.Cms.DevelopmentMode.Backoffice` 18.0.0 - Development tools
+- `uSync` 18.0.0 - Content synchronization
 - Project reference to `../TinyMCE.Umbraco/TinyMCE.Umbraco.csproj`
 
 ## Program.cs
@@ -212,10 +212,10 @@ The nested JSON structure supports complex configurations as demonstrated in the
 
 ### API Debugging
 
-The Swagger UI is available at:
-- `https://localhost:44308/umbraco/swagger/`
+The OpenAPI UI is available at:
+- `https://localhost:44308/umbraco/openapi/`
 
-TinyMCE endpoints are under the "TinyMCE" group.
+TinyMCE endpoints are under the "TinyMCE" group (document selector: `tiny-mce`).
 
 ## Common Issues
 

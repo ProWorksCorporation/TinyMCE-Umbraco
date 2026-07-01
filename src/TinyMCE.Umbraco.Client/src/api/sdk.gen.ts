@@ -4,7 +4,7 @@ import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
 import type { GetConfigData, GetConfigErrors, GetConfigResponses } from './types.gen';
 
-export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
+export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
      * You can provide a client instance returned by `createClient()` instead of
      * individual options. This might be also useful if you want to implement a
@@ -21,12 +21,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 export class TinyMceService {
     public static getConfig<ThrowOnError extends boolean = false>(options?: Options<GetConfigData, ThrowOnError>) {
         return (options?.client ?? client).get<GetConfigResponses, GetConfigErrors, ThrowOnError>({
-            security: [
-                {
-                    scheme: 'bearer',
-                    type: 'http'
-                }
-            ],
+            security: [{ scheme: 'bearer', type: 'http' }],
             url: '/umbraco/management/api/v1/tiny-mce/config',
             ...options
         });

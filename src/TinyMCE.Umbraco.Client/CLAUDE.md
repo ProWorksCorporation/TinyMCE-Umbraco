@@ -129,7 +129,7 @@ The `onInit` function:
 3. Configures the OpenAPI client with base URL and credentials
 4. Adds request interceptor to inject Bearer token on every API call
 
-This enables authenticated API calls to `/umbraco/tiny-mce/api/v1/config`.
+This enables authenticated API calls to `/umbraco/management/api/v1/tiny-mce/config`.
 
 ## Custom TinyMCE Plugins
 
@@ -179,7 +179,7 @@ The main property editor is `Umbraco.TinyMCE` (defined in Constants.cs in the C#
 The `generate-client` script uses `@hey-api/openapi-ts` to generate TypeScript client from the Swagger endpoint:
 
 ```bash
-npm run generate-client https://localhost:44308/umbraco/swagger/tiny-mce/swagger.json
+npm run generate-client https://localhost:44308/umbraco/openapi/tiny-mce.json
 ```
 
 This generates code in `src/api/` that provides type-safe API calls.
@@ -196,7 +196,7 @@ Two per-realm singletons are currently bridged in `init_instance_callback` in `s
 - If you add new features inside `umb-rte-block` that depend on localization, add the required keys to `BLOCK_LOC_KEYS` in that function.
 
 **2. `umbExtensionsRegistry`** (extension manifests for block actions):
-- `umb-block-action-list` (new in Umbraco 17.5.0) reads `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
+- `umb-block-action-list` reads `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
 - Two things are required in the injected module script:
   1. Import `UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST` from `@umbraco-cms/backoffice/block` **in the inner realm** and register it into the inner registry. Because the import runs in the inner realm, the manifest's `element` factory (`() => import('./block-action.element.js')`) captures the inner realm's module URL — so when the extension system later calls it, `<umb-block-action>` is lazily registered in the inner `customElements`.
   2. The outer `umbExtensionsRegistry` reference is exposed on `window._umbOuterExtReg`, then read via `window.parent._umbOuterExtReg` in the injected script. The `blockAction` manifests (registered by Umbraco's package loader, not by module import) are copied into the inner registry so `umb-block-action-list` can discover them.
@@ -237,7 +237,7 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 - `tinymce-i18n` ^24.12.30 - Localization files
 
 **Peer Dependencies**:
-- `@umbraco-cms/backoffice` ^17.1.0
+- `@umbraco-cms/backoffice` ^18.0.0
 - `tinymce` and `tinymce-i18n` (ensures version compatibility)
 
 **Dev Dependencies**: Vite, TypeScript, Rollup plugins, OpenAPI generator, etc.
