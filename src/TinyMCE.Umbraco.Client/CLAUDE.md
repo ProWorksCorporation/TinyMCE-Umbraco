@@ -237,7 +237,7 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 - `tinymce-i18n` ^24.12.30 - Localization files
 
 **Peer Dependencies**:
-- `@umbraco-cms/backoffice` ^17.1.0
+- `@umbraco-cms/backoffice` ^18.0.0
 - `tinymce` and `tinymce-i18n` (ensures version compatibility)
 
 **Dev Dependencies**: Vite, TypeScript, Rollup plugins, OpenAPI generator, etc.
