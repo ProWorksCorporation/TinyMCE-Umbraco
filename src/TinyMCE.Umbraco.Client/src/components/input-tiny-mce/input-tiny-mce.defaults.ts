@@ -213,6 +213,12 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			import { UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST } from "@umbraco-cms/backoffice/block";
 			import "${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}";
 
+			// Define <umb-icon> (and the other core components) in the inner realm. The outer
+			// document gets these lazily through the extension registry, so block-rte's import
+			// graph never pulls them in here. Without this import every block icon inside the
+			// editor stays an un-upgraded 0x0 element while <uui-icon> right next to it works.
+			import "@umbraco-cms/backoffice/components";
+
 			// Register the blockAction default kind definition in the inner realm's registry.
 			// UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST is imported here (inner realm), so its
 			// element factory — element: () => import('./block-action.element.js') — captures
@@ -221,6 +227,29 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			// in the inner customElements registry.
 			umbExtensionsRegistry.registerMany([UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST]);
 
+			// Define the ufm-* component elements (ufm-label-value, ufm-localize, ufm-content-name,
+			// ufm-link) in the inner realm. Same story as umb-icon: the outer document loads them
+			// lazily via ufmComponent manifests, so any {=alias} / {umbValue:} / {#term} block label
+			// renders an element that never upgrades and shows nothing. The ufm package's
+			// umbraco-package.js is a stable URL and its manifests' api() closures resolve their
+			// hashed chunks relative to whichever realm imports the module — this one.
+			try {
+				const ufmPkg = await import("/umbraco/backoffice/packages/ufm/umbraco-package.js");
+				const loaded = new Set();
+				for (const manifest of (ufmPkg.manifests ?? []).filter((m) => m.type === "ufmComponent")) {
+					if (loaded.has(manifest.alias)) continue;
+					loaded.add(manifest.alias);
+					try {
+						await manifest.api?.();
+					} catch {
+						// A single component failing to load should not break the rest.
+					}
+				}
+			} catch {
+				// If the ufm package is ever restructured, block labels degrade back to empty
+				// rather than breaking the editor.
+			}
+
 			// Sync blockAction manifests from the outer registry into the inner realm's registry.
 			// Umbraco registers these via umbraco-package.json at backoffice startup; they only
 			// exist in the outer registry and must be copied so umb-block-action-list can discover them.
@@ -228,6 +257,14 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			if (outerReg) {
 				const blockActions = outerReg.getByType('blockAction') ?? [];
 				if (blockActions.length) umbExtensionsRegistry.registerMany(blockActions);
+
+				// The blockActions synced above are gated by 'condition' extensions (Delete needs
+				// not-read-only, Edit Content needs showContentEdit). Those manifests also exist
+				// only in the outer registry; without them the conditions never resolve, the
+				// actions never become permitted, and Copy — the only unconditioned core action —
+				// is the only button that renders on a block.
+				const conditions = outerReg.getByType('condition') ?? [];
+				if (conditions.length) umbExtensionsRegistry.registerMany(conditions);
 			}
 		`;
 		editor.dom.doc.head.appendChild(script);
