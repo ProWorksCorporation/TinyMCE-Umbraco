@@ -227,7 +227,36 @@ Two per-realm singletons are currently bridged in `init_instance_callback` in `s
 - Two things are required in the injected module script:
   1. Import `UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST` from `@umbraco-cms/backoffice/block` **in the inner realm** and register it into the inner registry. Because the import runs in the inner realm, the manifest's `element` factory (`() => import('./block-action.element.js')`) captures the inner realm's module URL — so when the extension system later calls it, `<umb-block-action>` is lazily registered in the inner `customElements`.
   2. The outer `umbExtensionsRegistry` reference is exposed on `window._umbOuterExtReg`, then read via `window.parent._umbOuterExtReg` in the injected script. The `blockAction` manifests (registered by Umbraco's package loader, not by module import) are copied into the inner registry so `umb-block-action-list` can discover them.
+  3. **The `condition` extensions those actions name must be copied too.** A `blockAction` manifest
+     declares its `conditions` by alias, and the extension system resolves each alias against the
+     registry the action was registered in. Copy the actions without the conditions and every
+     *conditional* action stays permanently un-initialized, with no error: `delete`, `edit-content`,
+     `edit-settings` and `expose-content` all have conditions and silently vanish, while
+     `copy-to-clipboard` (the only one with none) renders — so the action bar looks present but
+     nearly empty. Derive the aliases from the copied manifests
+     (`blockActions.flatMap(a => (a.conditions ?? []).map(c => c.alias))`) rather than hard-coding
+     them, so an action that gains a condition in a later Umbraco version needs no change here.
+- **Custom elements that Umbraco's components render must be *defined* in the inner realm.** Element
+  registration is per-realm just like module singletons, and an undefined custom element is inert
+  rather than an error: lit property bindings (`.name=${...}`) still set their expandos, so the element
+  looks correctly configured in DevTools while rendering nothing. `umb-ref-rte-block` renders
+  `<umb-icon>` for the block's element-type icon, and `block-rte` does **not** pull it in transitively,
+  so the injected script imports `@umbraco-cms/backoffice/components` — the whole barrel, because the
+  export map exposes no narrower path (`./icon` is the icon *registry*, and the deep
+  `packages/core/components/icon` path is not exported, so it cannot resolve through the importmap).
+  Note this is unrelated to the `UUIIconRequestEvent` proxy below, which works correctly: `uui-icon`
+  *is* defined in the inner realm, and the action-bar icons resolve through that proxy fine. A blank
+  icon means a missing element definition, not a failed icon request.
 - If new Umbraco versions introduce other per-realm singletons that components inside the iframe need, apply the same pattern: expose on `window`, read via `window.parent` in the injected script.
+
+**Upgrade checklist for this section.** Every failure mode here is silent — blank UI, missing chrome,
+or English text, never an exception — so none of it surfaces without deliberate checking. On each
+Umbraco minor, for anything rendered inside the editor:
+1. New `localize.term(` calls in Umbraco's `block-rte`/`block` packages → add keys to `BLOCK_LOC_KEYS`.
+2. New or changed `conditions` on `blockAction` manifests → confirmed covered by the alias-derived copy.
+3. New custom elements rendered by block components → confirm they are defined in the inner realm.
+4. Test with a **non-English** backoffice. An English-only pass cannot distinguish a working
+   localization bridge from a broken one.
 
 **Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
 

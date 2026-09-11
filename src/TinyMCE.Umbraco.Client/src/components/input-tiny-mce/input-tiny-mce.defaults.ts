@@ -262,6 +262,13 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			import { umbExtensionsRegistry } from "@umbraco-cms/backoffice/extension-registry";
 			import { UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST } from "@umbraco-cms/backoffice/block";
 			import "${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}";
+			// Defines <umb-icon>, which umb-ref-rte-block renders for the block's element-type icon.
+			// block-rte does not pull it in transitively, so without this it stays an un-upgraded
+			// unknown element: the .name property binding still lands, but nothing ever renders.
+			// The existing UUIIconRequestEvent proxy is not involved — uui-icon is already defined
+			// in this realm, and the action-bar icons resolve through that proxy correctly.
+			// This is the whole components barrel because the export map exposes no narrower path.
+			import "@umbraco-cms/backoffice/components";
 
 			// Register the blockAction default kind definition in the inner realm's registry.
 			// UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST is imported here (inner realm), so its
@@ -278,6 +285,21 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			if (outerReg) {
 				const blockActions = outerReg.getByType('blockAction') ?? [];
 				if (blockActions.length) umbExtensionsRegistry.registerMany(blockActions);
+
+				// Block actions declare their \`conditions\` by alias, and the extension system resolves
+				// each alias against the registry the action was registered in. Copying the actions
+				// without the condition manifests they name leaves every conditional action permanently
+				// un-initialized — delete, edit content, edit settings and expose content all have
+				// conditions, copy-to-clipboard does not, which is why it was the only one that rendered.
+				// Derived from the copied manifests rather than hard-coded, so an action that gains a
+				// new condition in a future Umbraco version is covered without another fix here.
+				const conditionAliases = new Set(
+					blockActions.flatMap((a) => (a.conditions ?? []).map((c) => c.alias)),
+				);
+				const conditions = (outerReg.getByType('condition') ?? []).filter((c) =>
+					conditionAliases.has(c.alias),
+				);
+				if (conditions.length) umbExtensionsRegistry.registerMany(conditions);
 			}
 		`;
 		editor.dom.doc.head.appendChild(script);
