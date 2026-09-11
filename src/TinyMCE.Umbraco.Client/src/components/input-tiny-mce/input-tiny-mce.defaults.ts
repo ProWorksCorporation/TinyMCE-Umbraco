@@ -162,7 +162,25 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		// instance) from the outer document. Without this, requestDelete() in UmbBlockEntryContext
 		// falls back to returning raw keys because the iframe's manager has no registered translations.
 		const locSetsToSync: Array<Record<string, string>> = [];
-		const BLOCK_LOC_KEYS = ['blockEditor_confirmDeleteBlockTitle', 'blockEditor_confirmDeleteBlockMessage'];
+		// Keys needed by components that render INSIDE the TinyMCE iframe. The iframe has its own
+		// per-realm umbLocalizationManager, so anything not copied across renders blank there.
+		// The unsupported-block pair is read by Umbraco 17.6's <umb-unsupported-rte-block>.
+		const BLOCK_LOC_KEYS = [
+			// Rendered by the block components themselves.
+			'blockEditor_confirmDeleteBlockTitle',
+			'blockEditor_confirmDeleteBlockMessage',
+			'blockEditor_unsupportedBlockName',
+			'blockEditor_unsupportedBlockDescription',
+			// Labels declared by Umbraco's `blockAction` manifests, which `umb-block-action-list`
+			// renders inside the iframe. Enumerated from
+			// `packages/block/block/action/common/*/manifests.ts` — kept complete deliberately, so a
+			// newly reachable action does not show a raw `#key` the way copy-to-clipboard did.
+			'clipboard_labelForCopyToClipboard',
+			'general_delete',
+			'general_edit',
+			'general_settings',
+			'actions_create',
+		];
 		umbLocalizationManager.localizations.forEach((locSet, code) => {
 			const locSetAny = locSet as unknown as Record<string, string>;
 			const entry: Record<string, string> = {
@@ -180,11 +198,43 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			if (hasKey) locSetsToSync.push(entry);
 		});
 
+		// The active language must cross the realm boundary too, not just the dictionaries.
+		// Without this the iframe resolves every term through UmbLocalizationController's
+		// primary -> secondary -> `en` fallback chain, so the synced Danish set sits in the
+		// iframe's map unused and the placeholder renders in English.
+		//
+		// This must go through `umbLocalizationRegistry.loadLanguage()`, not a direct write to
+		// `umbLocalizationManager.documentLanguage`. The registry is a module side-effect
+		// (`export const umbLocalizationRegistry = new UmbLocalizationRegistry(...)`), and the
+		// block script below imports `@umbraco-cms/backoffice/block-rte`, whose module graph pulls
+		// the localization package into the iframe realm. Constructing the registry there emits
+		// its `UMB_DEFAULT_LOCALIZATION_CULTURE` bootstrap value synchronously, whose `tap` stamps
+		// `'en'` onto the manager — overwriting a direct assignment. Both scripts are dynamically
+		// inserted and therefore `async` with no guaranteed order, and the block script's larger
+		// graph reliably lands last. Importing the registry here instead means it is constructed
+		// before this script's body runs, so `loadLanguage()` always wins regardless of order.
+		// Nothing inside the iframe ever calls `loadLanguage()` otherwise — that is driven by
+		// `<umb-app>` and the current-user context, neither of which exists in this realm.
+		const outerLang = umbLocalizationManager.documentLanguage;
+		const outerDir = umbLocalizationManager.documentDirection;
+
 		if (locSetsToSync.length > 0) {
 			const locScript = document.createElement('script');
 			locScript.setAttribute('type', 'module');
 			locScript.text = `
 				import { umbLocalizationManager } from "@umbraco-cms/backoffice/localization-api";
+				import { umbLocalizationRegistry } from "@umbraco-cms/backoffice/localization";
+
+				// Sets documentLanguage via the registry's synchronous \`tap\`. The load that
+				// follows finds no localization extensions in this realm's registry, so the
+				// pipeline stops at its own length guard and never writes the language again.
+				umbLocalizationRegistry.loadLanguage(${JSON.stringify(outerLang)});
+				// Direction is only set by #setBrowserLanguage, which that stalled pipeline never
+				// reaches, so carry it across by hand — it matters for an RTL backoffice.
+				umbLocalizationManager.documentDirection = ${JSON.stringify(outerDir)};
+				// Register last: registerLocalization's keysChanged pass is what re-renders any
+				// consumer that connected before this script ran, and setting the language
+				// notifies nobody on its own.
 				${JSON.stringify(locSetsToSync)}.forEach(s => umbLocalizationManager.registerLocalization(s));
 			`;
 			editor.dom.doc.head.appendChild(locScript);

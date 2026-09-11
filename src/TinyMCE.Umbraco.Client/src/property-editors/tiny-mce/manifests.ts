@@ -18,7 +18,7 @@ export const manifests: Array<UmbExtensionManifest> = [
 			label: 'Rich Text Editor [TinyMCE]',
 			propertyEditorSchemaAlias: UMB_BLOCK_RTE_PROPERTY_EDITOR_SCHEMA_ALIAS,
 			icon: 'icon-tinymce',
-			group: 'richContent',
+			group: '#propertyEditorUIGroups_richContent',
 			supportsReadOnly: true,
 			keywords: ['content', 'article', 'body', 'html', 'wysiwyg', 'richtext', 'rte', 'tinymce', 'editor', 'formatted', 'paragraph'],
 			settings: {

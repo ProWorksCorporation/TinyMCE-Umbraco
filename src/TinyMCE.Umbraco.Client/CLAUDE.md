@@ -10,6 +10,8 @@ This is the frontend backoffice package that provides the TinyMCE Rich Text Edit
 
 ## Common Commands
 
+**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 17.6.2. npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
+
 ```bash
 # Install dependencies
 npm install
@@ -194,6 +196,31 @@ Two per-realm singletons are currently bridged in `init_instance_callback` in `s
 - Any localization keys needed by code running inside the iframe must be explicitly synced into the iframe's `umbLocalizationManager`.
 - The sync reads from the outer `umbLocalizationManager.localizations` and injects a module script that calls `registerLocalization()` for each locale's relevant keys.
 - If you add new features inside `umb-rte-block` that depend on localization, add the required keys to `BLOCK_LOC_KEYS` in that function.
+- **Current members (4)**: `blockEditor_confirmDeleteBlockTitle`, `blockEditor_confirmDeleteBlockMessage`,
+  `blockEditor_unsupportedBlockName`, `blockEditor_unsupportedBlockDescription`.
+- The unsupported-block pair was added in the **Umbraco 17.6.2 upgrade**. Umbraco 17.6 completed a feature
+  that was stubbed in 17.5 (`// TODO: Missing unsupported rendering` in `block-rte-entry.element.ts`), so
+  `<umb-unsupported-rte-block>` now renders inside the iframe when a block's element type has been deleted.
+  It calls `localize.term()` for both keys; without them the placeholder rendered with a blank name and
+  blank description. The keys already existed in Umbraco's translation files — only the component reading
+  them was new, which is exactly the failure mode this warning is about.
+- **Check this list on every Umbraco minor upgrade.** Nothing automated catches a missing key: the sync
+  loop silently skips keys it does not find, so the symptom is blank UI inside the editor, never an error.
+  Diffing Umbraco's `block-rte` and `block` packages for new `localize.term(` calls is the reliable check.
+- **The active language is bridged separately from the dictionaries, and must go through the registry.**
+  Copying the locale sets across is only half the job — `UmbLocalizationController` picks a set using
+  `umbLocalizationManager.documentLanguage`, so if that is wrong inside the iframe every lookup falls
+  through `primary -> secondary -> en` and the synced translations render in English. Set it with
+  `umbLocalizationRegistry.loadLanguage(outerLang)`, importing `@umbraco-cms/backoffice/localization`
+  in the injected script, **not** by assigning `documentLanguage` directly. The registry is a module
+  side-effect; the sibling `block-rte` script pulls it into the iframe realm, and constructing it emits
+  its `'en'` bootstrap value, whose `tap` overwrites a direct assignment. Both injected scripts are
+  created with `createElement('script')` and are therefore `async` with no guaranteed execution order,
+  so importing the registry in our own script — which constructs it before our body runs — is what makes
+  the result deterministic rather than a race. `documentDirection` still needs a direct assignment:
+  only `#setBrowserLanguage` sets it, and that pipeline stops at its extension-length guard in this
+  realm, where no `localization` manifests are registered. Symptom when this regresses: the iframe is
+  English while the rest of the backoffice is translated — invisible to an English-only test pass.
 
 **2. `umbExtensionsRegistry`** (extension manifests for block actions):
 - `umb-block-action-list` (new in Umbraco 17.5.0) reads `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
@@ -237,7 +264,7 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 - `tinymce-i18n` ^24.12.30 - Localization files
 
 **Peer Dependencies**:
-- `@umbraco-cms/backoffice` ^17.1.0
+- `@umbraco-cms/backoffice` ^17.6.2
 - `tinymce` and `tinymce-i18n` (ensures version compatibility)
 
 **Dev Dependencies**: Vite, TypeScript, Rollup plugins, OpenAPI generator, etc.

@@ -15,12 +15,34 @@ jobs:
     steps:
 
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v7
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v2
+      uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: 9.0.x
+        # Must match the TargetFramework declared by the projects (net10.0).
+        dotnet-version: 10.0.x
+
+    - name: Setup Node
+      uses: actions/setup-node@v7
+      with:
+        # @umbraco-cms/backoffice 17.6.2 requires node >=24.13 and npm >=11.
+        node-version: 24
+        cache: npm
+        cache-dependency-path: src/TinyMCE.Umbraco.Client/package-lock.json
+
+    # The frontend is compiled into TinyMCE.Umbraco/wwwroot and shipped inside the
+    # NuGet package, so it must be built here — dotnet pack alone will not produce it.
+    #
+    # `npm run build` is `tsc && vite build`, and the client tsconfig.json sets
+    # "noEmit": true, so this step type-checks as well as bundles. A separate
+    # `tsc --noEmit` step would run the identical check twice.
+    #
+    # This runs BEFORE dotnet pack, so a frontend that does not compile fails the
+    # run before anything is published.
+    - name: Build frontend
+      working-directory: src/TinyMCE.Umbraco.Client
+      run: npm ci && npm run build
 
     - name: Build & Pack
       run: dotnet pack src\TinyMCE.Umbraco\TinyMCE.Umbraco.csproj -c Release /p:Version=${{github.ref_name}}
