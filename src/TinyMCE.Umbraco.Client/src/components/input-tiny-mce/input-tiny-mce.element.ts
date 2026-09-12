@@ -4,7 +4,8 @@ import { pastePreProcessHandler } from '@tiny-mce-umbraco/backoffice/core';
 import { uriAttributeSanitizer } from '@tiny-mce-umbraco/backoffice/core';
 import { UmbStylesheetRuleManager } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbTinyMcePluginClass } from '@tiny-mce-umbraco/backoffice/core';
-import { css, customElement, html, property, query } from '@umbraco-cms/backoffice/external/lit';
+import { css, customElement, html, property, query, state } from '@umbraco-cms/backoffice/external/lit';
+import type { PropertyValues } from '@umbraco-cms/backoffice/external/lit';
 import { loadManifestApi } from '@umbraco-cms/backoffice/extension-api';
 import { getProcessedImageUrl, umbDeepMerge } from '@umbraco-cms/backoffice/utils';
 import { renderEditor } from '@umbraco-cms/backoffice/external/tinymce';
@@ -18,6 +19,8 @@ import { UUIFormControlMixin } from '@umbraco-cms/backoffice/external/uui';
 import type { EditorEvent, Editor, RawEditorOptions } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 import type { ManifestTinyMcePlugin } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
+
+import { bridgeInlineEditor } from './shadow-dom-selection.js';
 
 import { TinyMceService } from '../../api/index.js';
 import { tryExecute } from '@umbraco-cms/backoffice/resources';
@@ -131,8 +134,21 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	@query('.editor', true)
 	private readonly _editorElement?: HTMLElement;
 
+	@state()
+	private _inline = false;
+
 	getEditor() {
 		return this.#editorRef;
+	}
+
+	override willUpdate(changedProperties: PropertyValues) {
+		super.willUpdate(changedProperties);
+
+		// Resolved before the first render so the target element carries the right classes from the
+		// start - TinyMCE takes it over during init and `render()` cannot usefully re-run after that.
+		if (changedProperties.has('configuration')) {
+			this._inline = this.configuration?.getValueByAlias<string>('mode')?.toLocaleLowerCase() === 'inline';
+		}
 	}
 
 	override firstUpdated() {
@@ -326,9 +342,15 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		}
 
 		// set the configured inline mode
-		const mode = this.configuration?.getValueByAlias<string>('mode');
-		if (mode?.toLocaleLowerCase() === 'inline') {
+		if (this._inline) {
 			configurationOptions.inline = true;
+
+			// Inline mode makes the target element itself the editable body, so there is no editor
+			// chrome to size and TinyMCE drops height/width on the floor. Left unset, the empty
+			// target div collapses to 0px and the editor is invisible until it happens to be
+			// clicked - so hand the sizing to our own CSS instead (see the `.editor.inline` rule).
+			delete configurationOptions.height;
+			delete configurationOptions.width;
 		}
 
 		// set the maximum image size
@@ -506,6 +528,12 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	}
 
 	#onInit(editor: Editor) {
+		// Inline mode leaves the editable element in the backoffice's shadow DOM, which TinyMCE's
+		// document-scoped selection and id lookups cannot reach - see `shadow-dom-selection.ts`.
+		if (this._inline) {
+			bridgeInlineEditor(editor);
+		}
+
 		//enable browser based spell checking
 		editor.getBody().setAttribute('spellcheck', 'true');
 		uriAttributeSanitizer(editor);
@@ -523,7 +551,9 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	 * a target div and binds the RTE to that element
 	 */
 	override render() {
-		return html`<div class="editor"></div>`;
+		// `umb-rte` stands in for `body_class`, which TinyMCE only applies to the iframe body - in
+		// inline mode this element *is* the editable body.
+		return html`<div class=${this._inline ? 'editor inline umb-rte' : 'editor'}></div>`;
 	}
 
 	static override readonly styles = [
@@ -537,6 +567,21 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 			.tox-tinymce-fullscreen {
 				position: absolute;
+			}
+
+			/* Inline mode edits this element directly - TinyMCE renders no chrome around it and
+			   ignores the configured height, so it needs to look like a field on its own. */
+			.editor.inline {
+				box-sizing: border-box;
+				min-height: 100px;
+				padding: var(--uui-size-space-3, 9px);
+				background-color: var(--uui-color-surface, #fff);
+				border: var(--uui-input-border-width, 1px) solid var(--uui-input-border-color, var(--uui-color-border, #d8d7d9));
+			}
+
+			.editor.inline:focus {
+				outline: none;
+				border-color: var(--uui-color-focus, #3544b1);
 			}
 
 			/* FIXME: Remove this workaround when https://github.com/tinymce/tinymce/issues/6431 has been fixed */

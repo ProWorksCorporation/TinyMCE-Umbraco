@@ -67,6 +67,19 @@ export const defaultFallbackConfig: RawEditorOptions = {
 	//},
 
 	init_instance_callback: function (editor) {
+		// Everything below bootstraps the editor's *iframe* realm: it proxies context/icon requests
+		// out of the iframe and injects an import map, the backoffice stylesheets, the localization
+		// sync script and the block-component script into `editor.dom.doc.head`.
+		//
+		// In inline mode there is no iframe and `editor.dom.doc` IS the backoffice document, so every
+		// one of those injections lands in the live page: a duplicate import map (logging "An import
+		// map rule for specifier '…' was removed, as it conflicted with already resolved module
+		// specifiers" for each entry), duplicate stylesheet links, and a block script whose
+		// `registerMany` re-registers the already-present blockAction/condition manifests
+		// ("Extension with alias Umb.BlockAction.EditContent is already registered"). None of it is
+		// needed inline, because the components it bootstraps already live in this realm.
+		if (!editor.iframeElement) return;
+
 		// The following code is the context api proxy. [NL]
 		// It re-dispatches the context api request event to the origin target of this modal, in other words the element that initiated the modal. [NL]
 		editor.dom.doc.addEventListener(UMB_CONTEXT_REQUEST_EVENT_TYPE, ((event: UmbContextRequestEvent) => {
