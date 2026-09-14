@@ -85,19 +85,7 @@ settings. Where both set the same thing, **`CustomConfig` wins** — with one de
 | Everything else, including `toolbar` | **Replaced.** The configured value overwrites the Data Type's. | The replacement itself |
 
 So setting `"toolbar": "fullscreen"` in `CustomConfig` gives **every** editor a toolbar of exactly one
-button, discarding whatever each Data Type had configured. That is intentional: unlike plugins, the
-toolbar has no exclude list, so replacing it is the only way to take a button away globally. A toolbar is
-also ordered and grouped (`"bold italic | link"`), which leaves no sensible answer for where merged-in
-buttons should land.
-
-**To add a button to every editor**, add it to each Data Type's toolbar in the back office rather than
-through `CustomConfig`. To restate a whole toolbar globally, include every button you want:
-
-```json
-"CustomConfig": {
-  "toolbar": "bold italic | link umbmediapicker | fullscreen"
-}
-```
+button, discarding whatever each Data Type had configured.
 
 **Expressing a list here needs a JSON *string*, not a JSON array.** This section binds into an
 `IDictionary<string, object>`, so a real array has no scalar value for the .NET configuration binder and
@@ -140,7 +128,7 @@ The details on each configuration value are described below:
 | tinyMceUrl  | url string  | None    | The URL location of the TinyMCE library. This allows for specific cloud URL access or self-hosted options. |
 | tinyMceVersion  | string  | 6    | The version of the TinyMCE library. |
 | apikey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
-| openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. |
+| openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. **Read [Security note: the OpenAI key reaches the browser](#security-note-the-openai-key-reaches-the-browser) before setting this.** |
 | sanitizeTinyMce | boolean | true | When `true`, the editor strips any `on*` event attributes (e.g. `onclick`, `onload`) from content on load to prevent XSS. Set to `false` if you need to preserve these attributes (for example, when using `<button onclick="...">` elements in your content). |
 | pluginsToExclude | String array of TinyMCE plugins names to exclude | [] | This excludes these plugins from being selected or used by the TinyMCE Rich Text Editor |
 | openAiApiConfig | Configuration for the OpenAI API | SEE BELOW | This configuration allows for the selection of the OpenAI model and other API configuration. See [OpenAI documentation](https://platform.openai.com/docs/api-reference/chat/create) for more details on the settings. |
@@ -153,6 +141,24 @@ The **openAiApiConfig** supported configuration properties are described below:
 | developerMessage  | string  | ""    | Developer-provided instructions that the model should follow, regardless of messages sent by the user. |
 | maxCompletionTokens  | number  | 800    | An upper bound for the number of tokens that can be generated for a completion, including visible output tokens and reasoning tokens. |
 | temperature  | number  | 1.0    | What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. NOTE: gpt-5 doesn't support customization of temperature. |
+
+### Security note: the OpenAI key reaches the browser
+
+> **If you set `openAiApikey`, that key is sent to the browser of every signed-in back-office user.**
+
+The current AI implementation calls OpenAI **directly from the browser**, so the key is returned by the
+package's configuration endpoint each time a rich text editor loads. The endpoint is authorised with Umbraco's `BackOfficeAccess` 
+policy, so only back-office users can read the key.
+
+**If you use this feature today**, treat the key as back-office-readable:
+
+* Use a **dedicated** OpenAI key for Umbraco, never one shared with other systems
+* Set a **spend limit** on it in your OpenAI account;
+* Rotate it if back-office access changes;
+* Leave `openAiApikey` unset if you do not use the AI plugin.
+
+**This will change.** A future release will allow for AI connections to be provided by 
+[Umbraco.AI](https://github.com/umbraco/Umbraco.AI), which holds provider credentials server-side.
 
 ## Data Types
 
@@ -218,7 +224,7 @@ The TinyMCE Rich Text property editor adds a few new configuration options (from
 
 1. Plugin Selection: Similar to the Toolbar items, you can select which plugins are enabled / available for this Data Type via the back-office UI.
 2. CustomConfig: Each Data Type that implements this editor has its own TinyMCE Configuration JSON that can be used for a custom configuration specific to this Data Type.
-3. Mode: Choose between **Classic** (the default) and **Inline**. Classic renders the editor with its own toolbar and border, editing content inside an iframe. Inline turns the content area itself into the editable region, with the toolbar appearing on focus — see the caveats below before enabling it.
+3. Mode: Choose between **Classic** (the default) and **Inline**. Classic renders the editor with its own toolbar and border, editing content inside an iframe. Inline turns the content area itself into the editable region, with the toolbar appearing on focus (see the caveats below before enabling it).
 
 These Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
 
@@ -231,13 +237,11 @@ prefixed again. If you are upgrading from a version that stored the full path an
 stylesheet requests 404 at `/css/css/...`, that is fixed.
 
 Note that stylesheets are only loaded into the editing surface in **Classic** mode; see the inline mode
-caveats above.
+caveats below.
 
 ##### Inline mode caveats
 
-> **Inline mode requires a Chromium-based browser** (Chrome, Edge, Brave, Opera). It is not supported in Firefox or Safari, where the editor will render and take focus but silently discard typing.
->
-> The Umbraco back-office renders each property editor inside deeply nested shadow DOM. Classic mode is unaffected because its content lives in an iframe, but an inline editor's editable element sits inside those shadow roots, and several DOM APIs TinyMCE relies on — `window.getSelection()` among them — do not cross a shadow boundary. This package bridges that gap using `ShadowRoot.getSelection()`, which is a Chromium extension with no Firefox or Safari equivalent.
+> **Inline mode is verified in Chromium-based browsers (Chrome, Edge, Brave, Opera) and in Firefox.**
 
 Inline mode also behaves differently from classic mode in two ways that are inherent to TinyMCE rather than to this package:
 

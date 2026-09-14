@@ -328,9 +328,15 @@ nothing. Three are bridged in `src/components/input-tiny-mce/shadow-dom-selectio
 
 **Consequences to keep in mind:**
 
-- **Inline mode is Chromium-only.** `ShadowRoot.getSelection()` has no Firefox or Safari equivalent, so
-  there is nothing to bridge with there and the bridge falls back to the native selection. Documented as
-  a caveat in `.github/README.md`.
+- **Browser support: Chromium and Firefox yes, Safari no.** The three engines differ in how selection
+  interacts with shadow DOM, and the bridge's fallback is load-bearing rather than a safety net:
+  Chromium's `window.getSelection()` is shadow-blind but it implements `ShadowRoot.getSelection()`, which
+  is the branch the bridge takes. **Firefox is the opposite** — no `ShadowRoot.getSelection()`, but its
+  `window.getSelection()` already pierces shadow roots, so the `?? nativeGetSelection()` fallback returns
+  the correct selection and the bridge effectively no-ops. Safari has neither, so nothing can bridge it.
+  Do not "simplify" the fallback away: it is what makes Firefox work.
+  `Selection.getComposedRanges()` is the standardised replacement for both branches and would likely
+  cover Safari too — worth considering if Safari support is ever required.
 - `init_instance_callback` in `input-tiny-mce.defaults.ts` **must** keep its `if (!editor.iframeElement)
   return;` guard. Its whole body bootstraps the iframe realm via `editor.dom.doc.head`, and in inline mode
   `editor.dom.doc` **is the back-office document** — without the guard it injects a duplicate import map
