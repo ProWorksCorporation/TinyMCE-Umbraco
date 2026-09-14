@@ -314,6 +314,39 @@ export const defaultFallbackConfig: RawEditorOptions = {
 				);
 				if (conditions.length) umbExtensionsRegistry.registerMany(conditions);
 			}
+
+			// Define the ufm-* component elements in the inner realm - five of them as of 17.6.2:
+			// ufm-label-value, ufm-localize, ufm-content-name, ufm-link and ufm-member-name. Same
+			// story as umb-icon: the outer document loads them lazily via ufmComponent manifests,
+			// so any {=alias} / {umbValue:} / {#term} block label renders an element that never
+			// upgrades and shows nothing. A JS-expression label is unaffected, because
+			// umb-ufm-js-expression is in block-rte's static import graph - which is exactly why
+			// this looked like it already worked.
+			//
+			// The manifests are on the package's \`manifests\` export, NOT \`extensions\`, which is a
+			// single bundle wrapper: filtering that matches nothing and fails silently. The
+			// umbraco-package.js URL is stable across builds and the api() closures resolve their
+			// own hashed chunks relative to whichever realm imports the module - this one.
+			//
+			// Deliberately last: this is the only top-level await in the script, so anything after
+			// it would wait on the ufm package plus five dynamic imports. Custom element upgrade is
+			// retroactive, so defining these after the registry syncs costs nothing.
+			try {
+				const ufmPkg = await import("/umbraco/backoffice/packages/ufm/umbraco-package.js");
+				const loaded = new Set();
+				for (const manifest of (ufmPkg.manifests ?? []).filter((m) => m.type === "ufmComponent")) {
+					if (loaded.has(manifest.alias)) continue;
+					loaded.add(manifest.alias);
+					try {
+						await manifest.api?.();
+					} catch {
+						// A single component failing to load should not break the rest.
+					}
+				}
+			} catch {
+				// If the ufm package is ever restructured, block labels degrade back to empty
+				// rather than breaking the editor.
+			}
 		`;
 		editor.dom.doc.head.appendChild(script);
 	},
