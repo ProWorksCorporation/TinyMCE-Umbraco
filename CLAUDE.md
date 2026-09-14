@@ -93,6 +93,23 @@ The `TinyMceComposer` src/TinyMCE.Umbraco/Composing/TinyMceComposer.cs:14 is res
 - Binding nested JSON from `TinyMceConfig:customConfig` section using custom `ConfigurationBinder` that converts nested configuration into ExpandoObjects
 - **Preventing TinyMCE to TipTap migration** by setting `TinyMceToTiptapMigrationSettings.DisableMigration = true` (critical for v16+ compatibility)
 
+**The two `customConfig` sections are NOT bound the same way, and the difference is a trap.**
+`TinyMceConfig:customConfig` gets the `BindToExpandoObject` treatment above, so nested objects and arrays
+survive. `Umbraco:CMS:RichTextEditor:CustomConfig` does not — it is a plain
+`.Configure<RichTextEditorSettings>(...)` into an `IDictionary<string, object>`
+(`Configuration/RichTextEditorSettings.cs:133`), where a value written as a real JSON array has no scalar
+for the binder and arrives as an object instead of a list. A list has to be written as an escaped JSON
+*string* there (`"plugins": "[\"fullscreen\"]"`), which `parseJsonStringValues` in
+`input-tiny-mce.element.ts` parses back. Passing the un-parsed object on to TinyMCE crashes editor
+construction outright, which is why `mergeArrays` filters to strings — see its comment.
+
+**Precedence, when the same key is set in more than one place**: `umbDeepMerge(source, fallback)` takes
+the *source* as the winner, and every `customConfig` is merged in as the source — so configuration
+overwrites the Data Type's value. `plugins` is the single deliberate exception, unioned across all
+sources by an explicit assignment after the merge. The user-facing statement of this is under
+[How CustomConfig combines with Data Type settings](.github/README.md#how-customconfig-combines-with-data-type-settings);
+keep the two in step.
+
 **API Controllers**: Located in `src/TinyMCE.Umbraco/Api/Management/Controllers/`, these expose Umbraco Management API endpoints for TinyMCE configuration. They inherit from `TinyMceManagementApiControllerBase` and use OpenAPI/Swagger for API documentation.
 
 **Migrations**: The `TinyMceMigrationPlan` in `src/TinyMCE.Umbraco/Migrations/` handles installation steps when the package is first installed.

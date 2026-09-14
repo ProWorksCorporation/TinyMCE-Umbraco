@@ -222,6 +222,17 @@ The TinyMCE Rich Text property editor adds a few new configuration options (from
 
 These Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
 
+##### Where picked stylesheets are loaded from
+
+The **Stylesheets** setting stores each sheet relative to Umbraco's CSS root, and the editor resolves it
+against `Global:UmbracoCssPath` (default `/css`) — the same way Umbraco's own rich text editor does. A
+value that is already rooted at that path, or an absolute `http(s)` URL, is used as-is rather than being
+prefixed again. If you are upgrading from a version that stored the full path and previously saw
+stylesheet requests 404 at `/css/css/...`, that is fixed.
+
+Note that stylesheets are only loaded into the editing surface in **Classic** mode; see the inline mode
+caveats above.
+
 ##### Inline mode caveats
 
 > **Inline mode requires a Chromium-based browser** (Chrome, Edge, Brave, Opera). It is not supported in Firefox or Safari, where the editor will render and take focus but silently discard typing.

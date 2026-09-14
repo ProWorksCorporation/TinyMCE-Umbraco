@@ -392,10 +392,31 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 
 ### Adding a New Plugin
 
+For a **custom** Umbraco-specific plugin:
+
 1. Create plugin file in `src/plugins/`
 2. Extend base plugin class from `src/plugins/core/`
 3. Add manifest to `src/plugins/manifests.ts`
 4. Export in main `src/manifests.ts`
+
+For **exposing a plugin TinyMCE already ships** (fullscreen, help, searchreplace, …) there is no plugin
+file to write — only step 3. The `tinyMcePlugin` manifest is the entire mechanism: it is what puts the
+plugin in the Data Type's plugin picker and its button in the toolbar picker. Without one the plugin
+files are still on disk and still shipped to `wwwroot/.../lib/plugins/`, but nothing in the back office
+can select them, which is exactly how `fullscreen` came to be unavailable despite shipping (issue #223).
+
+Three things to get right in the manifest:
+
+- **`meta.plugins`** is the TinyMCE plugin name, and it must match a directory under
+  `node_modules/tinymce/plugins/` (they are copied to `lib/plugins/` by the Vite static-copy step).
+- **`meta.toolbar[].icon` is a *TinyMCE* icon name, not an Umbraco one.** The toolbar picker renders it
+  via `tinymce.IconManager.get('default')`, so `icon-fullscreen` (an Umbraco icon) shows nothing —
+  the correct value is `fullscreen`. Check names against `node_modules/tinymce/icons/default/icons.js`.
+- **Premium plugins must also be listed in `defaultPremiumPluginsList`** in `input-tiny-mce.defaults.ts`,
+  which is what strips them when no API key is present.
+
+Keep the open-source list in `.github/README.md` in step — it is the only place users can see what is
+selectable.
 
 ### Adding Configuration Option
 
