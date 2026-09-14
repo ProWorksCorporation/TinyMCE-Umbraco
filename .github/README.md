@@ -182,8 +182,20 @@ The TinyMCE Rich Text property editor adds a few new configuration options (from
 
 1. Plugin Selection: Similar to the Toolbar items, you can select which plugins are enabled / available for this Data Type via the back-office UI.
 2. CustomConfig: Each Data Type that implements this editor has its own TinyMCE Configuration JSON that can be used for a custom configuration specific to this Data Type.
+3. Mode: Choose between **Classic** (the default) and **Inline**. Classic renders the editor with its own toolbar and border, editing content inside an iframe. Inline turns the content area itself into the editable region, with the toolbar appearing on focus — see the caveats below before enabling it.
 
-Both of these Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
+These Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
+
+##### Inline mode caveats
+
+> **Inline mode requires a Chromium-based browser** (Chrome, Edge, Brave, Opera). It is not supported in Firefox or Safari, where the editor will render and take focus but silently discard typing.
+>
+> The Umbraco back-office renders each property editor inside deeply nested shadow DOM. Classic mode is unaffected because its content lives in an iframe, but an inline editor's editable element sits inside those shadow roots, and several DOM APIs TinyMCE relies on — `window.getSelection()` among them — do not cross a shadow boundary. This package bridges that gap using `ShadowRoot.getSelection()`, which is a Chromium extension with no Firefox or Safari equivalent.
+
+Inline mode also behaves differently from classic mode in two ways that are inherent to TinyMCE rather than to this package:
+
+* The **Dimensions** setting is ignored — there is no editor chrome to size. The editable region is styled by the package instead, and grows with its content.
+* The stylesheets picked under **Stylesheets** still populate the style *formats* dropdown, but they are not loaded into the editing surface, because there is no iframe document to load them into. Content in an inline editor is styled by the back-office, so it will not preview your site's CSS.
 
 ## Extending the Rich Text Editor
 

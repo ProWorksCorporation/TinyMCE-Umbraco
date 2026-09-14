@@ -260,6 +260,64 @@ Umbraco minor, for anything rendered inside the editor:
 
 **Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
 
+## Inline Mode and Shadow DOM
+
+**CRITICAL, and the mirror image of the iframe section above.** Everything above applies to *classic*
+mode, where the content area is an iframe and the problem is that the iframe is a separate realm. Inline
+mode (`mode: "Inline"` on the Data Type) has **no iframe**: the target element itself becomes the editable
+body, so none of the realm bridging applies — and a different problem takes its place.
+
+The back-office renders each property editor inside deeply nested shadow DOM — the editable element sits
+**more than twenty shadow roots** below the document (`umb-input-tiny-mce` → … → `umb-app`). TinyMCE's
+shadow DOM support covers iframe mode; several of the DOM APIs it relies on internally do not cross a
+shadow boundary, and each failure is **silent** — no exception, just an editor that looks fine and does
+nothing. Three are bridged in `src/components/input-tiny-mce/shadow-dom-selection.ts`, applied from
+`#onInit` in `input-tiny-mce.element.ts` and **only for inline editors**:
+
+1. **`window.getSelection()`** — TinyMCE reads the caret through `win.getSelection()` (`getSel` in
+   `Selection.getRng`). A window selection never descends into a shadow root, so it returns a range
+   anchored at the host document's `<body>`. Symptom: the field takes focus and shows its toolbar, but
+   nothing can be typed or pasted into it. Bridged with `ShadowRoot.getSelection()`, and **only while an
+   inline editor actually holds focus** — resolved live via `root.activeElement === body` on each call,
+   never cached from a focus/blur event. TinyMCE moves the selection at moments when its own focus
+   bookkeeping is mid-flight, and a stale flag there sends `setRng` to the wrong selection.
+2. **`document.contains()`** — `setRng` guards with `isValidRange` → `isAttachedToDom`, which asks
+   `contains(node.ownerDocument, node)`; Sugar's `contains` is a plain `d1.contains(d2)`. Every range
+   inside the editor is therefore judged *detached*, and `setRng` returns on its first line without even
+   dispatching `SetSelectionRange`. Symptom: nothing that repositions the caret works — pressing Enter
+   builds the new paragraph but leaves the caret on the old line. Overridden on the `document` object
+   (not `Node.prototype`), turning only `false` into `true`, only for nodes inside a live inline editor.
+3. **`DOMUtils.get(id)`** — this is `doc.getElementById(id)`, which cannot see into a shadow root. It
+   breaks bookmarks: operations that restructure the DOM drop `<span data-mce-type="bookmark">` markers,
+   rebuild, then call `moveToBookmark`, whose `restoreEndPoint` resolves them with `dom.get`. Symptom is
+   twofold — the caret is not restored, **and the markers are never removed**, so they accumulate in the
+   content one pair per edit and get saved into the field. Patched per-editor to look inside the editor
+   body first, falling back to the native lookup.
+
+**Consequences to keep in mind:**
+
+- **Inline mode is Chromium-only.** `ShadowRoot.getSelection()` has no Firefox or Safari equivalent, so
+  there is nothing to bridge with there and the bridge falls back to the native selection. Documented as
+  a caveat in `.github/README.md`.
+- `init_instance_callback` in `input-tiny-mce.defaults.ts` **must** keep its `if (!editor.iframeElement)
+  return;` guard. Its whole body bootstraps the iframe realm via `editor.dom.doc.head`, and in inline mode
+  `editor.dom.doc` **is the back-office document** — without the guard it injects a duplicate import map
+  and re-registers the `blockAction` manifests into the live registry, producing a wall of "import map
+  rule … was removed" warnings and "Extension with alias … is already registered" errors.
+- `height`/`width` (the **Dimensions** setting) are dropped for inline mode — TinyMCE ignores them without
+  an editor chrome, and an unstyled empty target collapses to 0px. Sizing comes from the `.editor.inline`
+  CSS rule in the component instead.
+- `content_css` is never loaded in inline mode (no iframe document), and `body_class` is not applied — the
+  component adds `umb-rte` to the element by hand to stand in for it.
+
+**Upgrade checklist for this section.** All three bridges patch TinyMCE *internals*, so a TinyMCE major
+bump (v7/v8, which this package supports via `tinyMceVersion`) can move them without any build error.
+On each TinyMCE upgrade, re-check that `Selection.getRng`/`setRng` still route through `win.getSelection()`
+and `isValidRange`, and that `DOMUtils.get` is still `doc.getElementById`. The only reliable test is manual
+and in a browser: type, paste, press Enter twice, apply a list and a block format, then confirm
+`editor.getBody().querySelectorAll('[data-mce-type="bookmark"]').length === 0`. Nothing here throws when it
+regresses.
+
 ## Working with Components
 
 All components use Lit web components with Umbraco's extension system:
