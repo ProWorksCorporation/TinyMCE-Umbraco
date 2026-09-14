@@ -4,7 +4,8 @@ import { pastePreProcessHandler } from '@tiny-mce-umbraco/backoffice/core';
 import { uriAttributeSanitizer } from '@tiny-mce-umbraco/backoffice/core';
 import { UmbStylesheetRuleManager } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbTinyMcePluginClass } from '@tiny-mce-umbraco/backoffice/core';
-import { css, customElement, html, property, query } from '@umbraco-cms/backoffice/external/lit';
+import { css, customElement, html, property, query, state } from '@umbraco-cms/backoffice/external/lit';
+import type { PropertyValues } from '@umbraco-cms/backoffice/external/lit';
 import { loadManifestApi } from '@umbraco-cms/backoffice/extension-api';
 import { getProcessedImageUrl, umbDeepMerge } from '@umbraco-cms/backoffice/utils';
 import { renderEditor } from '@umbraco-cms/backoffice/external/tinymce';
@@ -13,11 +14,14 @@ import { ImageCropModeModel } from '@umbraco-cms/backoffice/external/backend-api
 import { UmbChangeEvent } from '@umbraco-cms/backoffice/event';
 import { UmbLitElement } from '@umbraco-cms/backoffice/lit-element';
 import { UmbStylesheetDetailRepository } from '@umbraco-cms/backoffice/stylesheet';
+import { UMB_SERVER_CONTEXT } from '@umbraco-cms/backoffice/server';
 import { UUIFormControlMixin } from '@umbraco-cms/backoffice/external/uui';
 //import type { ClassConstructor } from '@umbraco-cms/backoffice/extension-api';
 import type { EditorEvent, Editor, RawEditorOptions } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 import type { ManifestTinyMcePlugin } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
+
+import { bridgeInlineEditor } from './shadow-dom-selection.js';
 
 import { TinyMceService } from '../../api/index.js';
 import { tryExecute } from '@umbraco-cms/backoffice/resources';
@@ -52,11 +56,24 @@ async function onResize(
 	e.target.setAttribute('data-mce-src', resizedPath);
 }
 
-function mergeArrays(arr1: string | string[] | undefined, arr2: string | string[] | undefined): string[] {
-	const a1 = Array.isArray(arr1) ? arr1 : arr1 ? [arr1] : [];
-	const a2 = Array.isArray(arr2) ? arr2 : arr2 ? [arr2] : [];
+// Merges plugin lists into the flat `string[]` TinyMCE expects, dropping anything that is not a
+// string. That filtering is load-bearing, not defensive dressing: TinyMCE trims every plugin name with
+// `String.replace` (`trim$4`, called from its plugin-list parser), so a single non-string entry throws
+// during editor construction and the editor never renders at all.
+//
+// Non-strings do reach here from configuration. `Umbraco:CMS:RichTextEditor:CustomConfig` binds into an
+// `IDictionary<string, object>`, so a value written as a real JSON array has no scalar to bind and
+// arrives as an object rather than a list. The supported way to express a list there is a JSON *string*
+// - `"plugins": "[\"fullscreen\"]"` - which `parseJsonStringValues` turns back into a real array.
+function mergeArrays(arr1: unknown, arr2: unknown): string[] {
+	const toStringList = (value: unknown): string[] => {
+		if (typeof value === 'string') return [value];
+		if (!Array.isArray(value)) return [];
 
-	return Array.from(new Set([...a1, ...a2]));
+		return value.filter((entry): entry is string => typeof entry === 'string');
+	};
+
+	return Array.from(new Set([...toStringList(arr1), ...toStringList(arr2)]));
 }
 
 // Some config paths (e.g. Umbraco:CMS:RichTextEditor:CustomConfig) can only store scalar string
@@ -88,6 +105,12 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	#plugins: Array<UmbTinyMcePluginClass | undefined> = [];
 	#editorRef?: Editor | null = null;
 	#sanitizeTinyMce = true;
+
+	/**
+	 * Where the picked stylesheets are served from. Configurable as `Global:UmbracoCssPath`; `/css` is
+	 * the fallback Umbraco itself uses when the server has not reported one yet.
+	 */
+	#stylesheetRootPath = '/css';
 	readonly #stylesheetRepository = new UmbStylesheetDetailRepository(this);
 	readonly #umbStylesheetRuleManager = new UmbStylesheetRuleManager();
 
@@ -131,12 +154,34 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	@query('.editor', true)
 	private readonly _editorElement?: HTMLElement;
 
+	@state()
+	private _inline = false;
+
 	getEditor() {
 		return this.#editorRef;
 	}
 
+	override willUpdate(changedProperties: PropertyValues) {
+		super.willUpdate(changedProperties);
+
+		// Resolved before the first render so the target element carries the right classes from the
+		// start - TinyMCE takes it over during init and `render()` cannot usefully re-run after that.
+		if (changedProperties.has('configuration')) {
+			this._inline = this.configuration?.getValueByAlias<string>('mode')?.toLocaleLowerCase() === 'inline';
+		}
+	}
+
 	override firstUpdated() {
+		this.#loadStylesheetRootPath();
 		this.#loadEditor();
+	}
+
+	#loadStylesheetRootPath() {
+		this.consumeContext(UMB_SERVER_CONTEXT, (serverContext) => {
+			this.observe(serverContext?.getServerConnection()?.umbracoCssPath, (umbracoCssPath) => {
+				if (umbracoCssPath) this.#stylesheetRootPath = umbracoCssPath;
+			});
+		});
 	}
 
 	async #loadEditor() {
@@ -251,9 +296,17 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		const preValueCustomConfig = this.configuration?.getValueByAlias<JSON>('customConfig') ?? {};
 
-		// Map the stylesheets with server url
+		// Map the stylesheets with server url, matching what Umbraco's own rich text editor does in
+		// `input-tiptap.element.ts`. Prefixing unconditionally is wrong in two cases: a path that is
+		// already rooted (older configurations stored the full `/css/foo.css`, which became
+		// `/css/css/foo.css` and 404'd), and an absolute URL to an external stylesheet.
 		const stylesheets =
-			stylesheetPaths?.map((stylesheetPath: string) => `/css${stylesheetPath.replace(/\\/g, '/')}`) ?? [];
+			stylesheetPaths?.map((stylesheetPath: string) => {
+				const path = stylesheetPath.replace(/\\/g, '/');
+				return path.startsWith('http') || path.startsWith(this.#stylesheetRootPath)
+					? path
+					: `${this.#stylesheetRootPath}${path}`;
+			}) ?? [];
 
 		stylesheets.push('/umbraco/backoffice/css/rte-content.css');
 
@@ -326,9 +379,15 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		}
 
 		// set the configured inline mode
-		const mode = this.configuration?.getValueByAlias<string>('mode');
-		if (mode?.toLocaleLowerCase() === 'inline') {
+		if (this._inline) {
 			configurationOptions.inline = true;
+
+			// Inline mode makes the target element itself the editable body, so there is no editor
+			// chrome to size and TinyMCE drops height/width on the floor. Left unset, the empty
+			// target div collapses to 0px and the editor is invisible until it happens to be
+			// clicked - so hand the sizing to our own CSS instead (see the `.editor.inline` rule).
+			delete configurationOptions.height;
+			delete configurationOptions.width;
 		}
 
 		// set the maximum image size
@@ -376,8 +435,22 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		if (appSettingsConfig) {
 			if (appSettingsConfig.richTextEditor) {
-				const mergedPlugins = mergeArrays(appSettingsConfig.richTextEditor.plugins, config.plugins);
-				config = umbDeepMerge(parseJsonStringValues(appSettingsConfig.richTextEditor.customConfig), config);
+				// Plugins reach this section from two places: the dedicated `Plugins` setting, and a
+				// `plugins` entry inside `CustomConfig`. Both must be folded in before the assignment
+				// below, which overwrites whatever the deep merge produced. Miss the CustomConfig one
+				// and a plugin configured only there is silently dropped - the toolbar still lists its
+				// button, because the merged `toolbar` does survive, but TinyMCE never loaded the
+				// plugin so nothing renders for it.
+				const richTextEditorCustomConfig = parseJsonStringValues(appSettingsConfig.richTextEditor.customConfig);
+				const mergedPlugins = mergeArrays(
+					mergeArrays(
+						appSettingsConfig.richTextEditor.plugins,
+						richTextEditorCustomConfig['plugins']
+					),
+					config.plugins
+				);
+
+				config = umbDeepMerge(richTextEditorCustomConfig, config);
 				config.plugins = mergedPlugins;
 
 				if (appSettingsConfig.richTextEditor.validElements.length > 0) {
@@ -506,6 +579,12 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	}
 
 	#onInit(editor: Editor) {
+		// Inline mode leaves the editable element in the backoffice's shadow DOM, which TinyMCE's
+		// document-scoped selection and id lookups cannot reach - see `shadow-dom-selection.ts`.
+		if (this._inline) {
+			bridgeInlineEditor(editor);
+		}
+
 		//enable browser based spell checking
 		editor.getBody().setAttribute('spellcheck', 'true');
 		uriAttributeSanitizer(editor);
@@ -523,7 +602,9 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	 * a target div and binds the RTE to that element
 	 */
 	override render() {
-		return html`<div class="editor"></div>`;
+		// `umb-rte` stands in for `body_class`, which TinyMCE only applies to the iframe body - in
+		// inline mode this element *is* the editable body.
+		return html`<div class=${this._inline ? 'editor inline umb-rte' : 'editor'}></div>`;
 	}
 
 	static override readonly styles = [
@@ -537,6 +618,21 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 			.tox-tinymce-fullscreen {
 				position: absolute;
+			}
+
+			/* Inline mode edits this element directly - TinyMCE renders no chrome around it and
+			   ignores the configured height, so it needs to look like a field on its own. */
+			.editor.inline {
+				box-sizing: border-box;
+				min-height: 100px;
+				padding: var(--uui-size-space-3, 9px);
+				background-color: var(--uui-color-surface, #fff);
+				border: var(--uui-input-border-width, 1px) solid var(--uui-input-border-color, var(--uui-color-border, #d8d7d9));
+			}
+
+			.editor.inline:focus {
+				outline: none;
+				border-color: var(--uui-color-focus, #3544b1);
 			}
 
 			/* FIXME: Remove this workaround when https://github.com/tinymce/tinymce/issues/6431 has been fixed */

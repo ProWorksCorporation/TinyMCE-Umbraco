@@ -10,8 +10,8 @@
     <Product>TinyMCE.Umbraco</Product>
     <PackageId>TinyMCE.Umbraco</PackageId>
     <Title>TinyMCE for Umbraco CMS</Title>
-    <Version>17.5.0</Version>
-    <Description>This Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE) in version 16 and above. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).</Description>
+    <Version>17.6.2</Version>
+    <Description>This Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE). It requires Umbraco 17.6.2 or later - for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).</Description>
     <PackageTags>umbraco;umbraco-marketplace;tinymce</PackageTags>
     <Authors>ProWorks</Authors>
     <Company>ProWorks Corporation</Company>
@@ -25,10 +25,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Umbraco.Cms.Web.Website" Version="17.5.0" />
-    <PackageReference Include="Umbraco.Cms.Web.Common" Version="17.5.0" />
-    <PackageReference Include="Umbraco.Cms.Api.Common" Version="17.5.0" />
-    <PackageReference Include="Umbraco.Cms.Api.Management" Version="17.5.0" />
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="17.6.2" />
+    <PackageReference Include="Umbraco.Cms.Web.Common" Version="17.6.2" />
+    <PackageReference Include="Umbraco.Cms.Api.Common" Version="17.6.2" />
+    <PackageReference Include="Umbraco.Cms.Api.Management" Version="17.6.2" />
     <ProjectReference Include="..\TinyMCE.Umbraco.Client\TinyMCE.Umbraco.Client.esproj">
       <ReferenceOutputAssembly>False</ReferenceOutputAssembly>
     </ProjectReference>

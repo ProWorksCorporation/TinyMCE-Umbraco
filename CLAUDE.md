@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Umbraco CMS package that brings TinyMCE Rich Text Editor back to Umbraco v16+ (targets v17.5.0). It replaces the default TipTap editor and supports both open-source and premium TinyMCE plugins. The package consists of three main projects:
+This is an Umbraco CMS package that brings TinyMCE Rich Text Editor back to Umbraco. This branch targets Umbraco 17.6.2; the published package requires Umbraco 17.6.2 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It replaces the default TipTap editor and supports both open-source and premium TinyMCE plugins. The package consists of three main projects:
 
 - **TinyMCE.Umbraco** (.NET 10.0 / Razor SDK): Main NuGet package containing C# backend, API controllers, configuration, and compiled frontend assets
 - **TinyMCE.Umbraco.Client** (TypeScript/Vite): Frontend backoffice package built with Lit elements and Umbraco's extension system
@@ -32,6 +32,8 @@ dotnet build src/TinyMCE.Umbraco/TinyMCE.Umbraco.csproj
 ```
 
 ### Frontend Development
+
+**Requires Node.js 24.13+ and npm 11+** (floors raised by `@umbraco-cms/backoffice` 17.6.2). npm only warns on an older Node, it does not fail — so a stale toolchain shows up as a confusing build error rather than an install error.
 
 ```bash
 cd src/TinyMCE.Umbraco.Client
@@ -91,6 +93,23 @@ The `TinyMceComposer` src/TinyMCE.Umbraco/Composing/TinyMceComposer.cs:14 is res
 - Binding nested JSON from `TinyMceConfig:customConfig` section using custom `ConfigurationBinder` that converts nested configuration into ExpandoObjects
 - **Preventing TinyMCE to TipTap migration** by setting `TinyMceToTiptapMigrationSettings.DisableMigration = true` (critical for v16+ compatibility)
 
+**The two `customConfig` sections are NOT bound the same way, and the difference is a trap.**
+`TinyMceConfig:customConfig` gets the `BindToExpandoObject` treatment above, so nested objects and arrays
+survive. `Umbraco:CMS:RichTextEditor:CustomConfig` does not — it is a plain
+`.Configure<RichTextEditorSettings>(...)` into an `IDictionary<string, object>`
+(`Configuration/RichTextEditorSettings.cs:133`), where a value written as a real JSON array has no scalar
+for the binder and arrives as an object instead of a list. A list has to be written as an escaped JSON
+*string* there (`"plugins": "[\"fullscreen\"]"`), which `parseJsonStringValues` in
+`input-tiny-mce.element.ts` parses back. Passing the un-parsed object on to TinyMCE crashes editor
+construction outright, which is why `mergeArrays` filters to strings — see its comment.
+
+**Precedence, when the same key is set in more than one place**: `umbDeepMerge(source, fallback)` takes
+the *source* as the winner, and every `customConfig` is merged in as the source — so configuration
+overwrites the Data Type's value. `plugins` is the single deliberate exception, unioned across all
+sources by an explicit assignment after the merge. The user-facing statement of this is under
+[How CustomConfig combines with Data Type settings](.github/README.md#how-customconfig-combines-with-data-type-settings);
+keep the two in step.
+
 **API Controllers**: Located in `src/TinyMCE.Umbraco/Api/Management/Controllers/`, these expose Umbraco Management API endpoints for TinyMCE configuration. They inherit from `TinyMceManagementApiControllerBase` and use OpenAPI/Swagger for API documentation.
 
 **Migrations**: The `TinyMceMigrationPlan` in `src/TinyMCE.Umbraco/Migrations/` handles installation steps when the package is first installed.
@@ -127,6 +146,21 @@ The `TinyMceComposer` src/TinyMCE.Umbraco/Composing/TinyMceComposer.cs:14 is res
 
 These plugins use the base class in `src/TinyMCE.Umbraco.Client/src/plugins/core/` which provides common plugin infrastructure.
 
+**Before changing how the editor renders content, read `src/TinyMCE.Umbraco.Client/CLAUDE.md`.** It carries
+two sections covering failure modes that produce **no error at all** — blank UI, missing chrome, dropped
+keystrokes — and that this repository has now hit repeatedly:
+
+- **TinyMCE iframe Module Scope** — classic mode puts the content area in an iframe, which is a separate
+  module realm *and* a separate custom element registry. Localization, extension manifests and element
+  definitions all have to be bridged across explicitly.
+- **Inline Mode and Shadow DOM** — inline mode has no iframe, so none of the above applies; instead the
+  editable element sits deep in the backoffice's shadow DOM, where several DOM APIs TinyMCE relies on
+  silently do not reach it.
+
+The two are mirror images, and a fix for one is usually irrelevant or actively wrong for the other. Both
+sections carry a per-upgrade checklist, including which tests actually exercise them — several
+plausible-looking tests exercise neither.
+
 **NPM Package Exports**: The client exports via `@tiny-mce-umbraco/backoffice`:
 - `@tiny-mce-umbraco/backoffice/core` - Main exports (components, utils, constants)
 - `@tiny-mce-umbraco/backoffice/external/tinymce` - TinyMCE type exports for extension developers
@@ -153,7 +187,7 @@ These plugins use the base class in `src/TinyMCE.Umbraco.Client/src/plugins/core
 
 ## Project-Specific Conventions
 
-- The package targets .NET 10.0 and Umbraco 17.5.0
+- The package targets .NET 10.0 and Umbraco 17.6.2
 - Uses TinyMCE v6 by default but supports v7/v8 via configuration
 - Frontend uses Lit elements and Umbraco's Web Components architecture
 - TypeScript is configured with strict mode and experimental decorators

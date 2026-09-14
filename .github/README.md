@@ -4,7 +4,7 @@
 [![NuGet](https://img.shields.io/nuget/vpre/TinyMCE.Umbraco?color=0273B3)](https://www.nuget.org/packages/TinyMCE.Umbraco)
 [![GitHub license](https://img.shields.io/github/license/ProWorksCorporation/TinyMCE-Umbraco?color=8AB803)](../LICENSE)
 
-This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE) back to [Umbraco CMS](https://umbraco.com/), (version 16+).
+This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE) back to [Umbraco CMS](https://umbraco.com/). It requires Umbraco 17.6.2 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x.
 
 It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (`appsettings.json`).
 
@@ -27,7 +27,7 @@ In addition, you can install packages via the Visual Studio NuGet Package Manage
 
 ### Upgrading from v15
 
-If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
+If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16. Use a **16.x** version of this package for that migration — the current release requires Umbraco 17.6.2 or later.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
 
 ### Looking for the v13 version?
 
@@ -71,8 +71,31 @@ The details on each configuration value are described below:
 | CloudApiKey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
 | ValidElements | string |  [See defaults](../docs/defaults.md) | Specifies the list of HTML tags available to the TinyMCE Rich Text Editor. See the [default list of ValidElements](../docs/defaults.md) for more information. |
 | InvalidElements | String | None | Specifies invalid HTML tags. These tags will not be allowed. |
-| CustomConfig | JSON key/value pairs | {} | Simple key/value pairs for configuration of the TinyMCE Editor and Plugins. See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. This is here to support easy migration and upgrades. **It is recommended to use the customConfig element below for a richer configuration experience.** | 
+| CustomConfig | JSON key/value pairs | {} | Simple key/value pairs for configuration of the TinyMCE Editor and Plugins. See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. This is here to support easy migration and upgrades. Note how these values combine with a Data Type's own settings — see [How CustomConfig combines with Data Type settings](#how-customconfig-combines-with-data-type-settings). **It is recommended to use the customConfig element below for a richer configuration experience.** | 
 
+
+#### How CustomConfig combines with Data Type settings
+
+`CustomConfig` applies to every TinyMCE editor on the site, while each Data Type also carries its own
+settings. Where both set the same thing, **`CustomConfig` wins** — with one deliberate exception.
+
+| Setting | Behaviour | How to remove something globally |
+| ------- | --------- | -------------------------------- |
+| `Plugins` | **Merged.** The union of the Data Type's selected plugins and the configured ones is loaded. | `pluginsToExclude` |
+| Everything else, including `toolbar` | **Replaced.** The configured value overwrites the Data Type's. | The replacement itself |
+
+So setting `"toolbar": "fullscreen"` in `CustomConfig` gives **every** editor a toolbar of exactly one
+button, discarding whatever each Data Type had configured.
+
+**Expressing a list here needs a JSON *string*, not a JSON array.** This section binds into an
+`IDictionary<string, object>`, so a real array has no scalar value for the .NET configuration binder and
+does not survive. Write it as an escaped string, which the package parses back into an array:
+
+```json
+"CustomConfig": {
+  "plugins": "[\"fullscreen\"]"
+}
+```
 
 ### New Configuration Options:
 
@@ -105,7 +128,7 @@ The details on each configuration value are described below:
 | tinyMceUrl  | url string  | None    | The URL location of the TinyMCE library. This allows for specific cloud URL access or self-hosted options. |
 | tinyMceVersion  | string  | 6    | The version of the TinyMCE library. |
 | apikey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
-| openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. |
+| openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. **Read [Security note: the OpenAI key reaches the browser](#security-note-the-openai-key-reaches-the-browser) before setting this.** |
 | sanitizeTinyMce | boolean | true | When `true`, the editor strips any `on*` event attributes (e.g. `onclick`, `onload`) from content on load to prevent XSS. Set to `false` if you need to preserve these attributes (for example, when using `<button onclick="...">` elements in your content). |
 | pluginsToExclude | String array of TinyMCE plugins names to exclude | [] | This excludes these plugins from being selected or used by the TinyMCE Rich Text Editor |
 | openAiApiConfig | Configuration for the OpenAI API | SEE BELOW | This configuration allows for the selection of the OpenAI model and other API configuration. See [OpenAI documentation](https://platform.openai.com/docs/api-reference/chat/create) for more details on the settings. |
@@ -119,6 +142,24 @@ The **openAiApiConfig** supported configuration properties are described below:
 | maxCompletionTokens  | number  | 800    | An upper bound for the number of tokens that can be generated for a completion, including visible output tokens and reasoning tokens. |
 | temperature  | number  | 1.0    | What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. NOTE: gpt-5 doesn't support customization of temperature. |
 
+### Security note: the OpenAI key reaches the browser
+
+> **If you set `openAiApikey`, that key is sent to the browser of every signed-in back-office user.**
+
+The current AI implementation calls OpenAI **directly from the browser**, so the key is returned by the
+package's configuration endpoint each time a rich text editor loads. The endpoint is authorised with Umbraco's `BackOfficeAccess` 
+policy, so only back-office users can read the key.
+
+**If you use this feature today**, treat the key as back-office-readable:
+
+* Use a **dedicated** OpenAI key for Umbraco, never one shared with other systems
+* Set a **spend limit** on it in your OpenAI account;
+* Rotate it if back-office access changes;
+* Leave `openAiApikey` unset if you do not use the AI plugin.
+
+**This will change.** A future release will allow for AI connections to be provided by 
+[Umbraco.AI](https://github.com/umbraco/Umbraco.AI), which holds provider credentials server-side.
+
 ## Data Types
 
 ### Rich Text Editor
@@ -130,6 +171,7 @@ The following open source TinyMCE plugins are available to add to the TinyMCE Um
 * Accordion (accordion)
 * Code Sample (codesample)
 * Emoticons (emoticons)
+* Fullscreen (fullscreen)
 * Help for Editors (help)
 * Insert Date/Time (insertdatetime)
 * Search and Replace (searchreplace)
@@ -182,14 +224,37 @@ The TinyMCE Rich Text property editor adds a few new configuration options (from
 
 1. Plugin Selection: Similar to the Toolbar items, you can select which plugins are enabled / available for this Data Type via the back-office UI.
 2. CustomConfig: Each Data Type that implements this editor has its own TinyMCE Configuration JSON that can be used for a custom configuration specific to this Data Type.
+3. Mode: Choose between **Classic** (the default) and **Inline**. Classic renders the editor with its own toolbar and border, editing content inside an iframe. Inline turns the content area itself into the editable region, with the toolbar appearing on focus (see the caveats below before enabling it).
 
-Both of these Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
+These Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
+
+##### Where picked stylesheets are loaded from
+
+The **Stylesheets** setting stores each sheet relative to Umbraco's CSS root, and the editor resolves it
+against `Global:UmbracoCssPath` (default `/css`) — the same way Umbraco's own rich text editor does. A
+value that is already rooted at that path, or an absolute `http(s)` URL, is used as-is rather than being
+prefixed again. If you are upgrading from a version that stored the full path and previously saw
+stylesheet requests 404 at `/css/css/...`, that is fixed.
+
+Note that stylesheets are only loaded into the editing surface in **Classic** mode; see the inline mode
+caveats below.
+
+##### Inline mode caveats
+
+> **Inline mode is verified in Chromium-based browsers (Chrome, Edge, Brave, Opera) and in Firefox.**
+
+Inline mode also behaves differently from classic mode in two ways that are inherent to TinyMCE rather than to this package:
+
+* The **Dimensions** setting is ignored — there is no editor chrome to size. The editable region is styled by the package instead, and grows with its content.
+* The stylesheets picked under **Stylesheets** still populate the style *formats* dropdown, but they are not loaded into the editing surface, because there is no iframe document to load them into. Content in an inline editor is styled by the back-office, so it will not preview your site's CSS.
 
 ## Extending the Rich Text Editor
 
 If you would like to extend the TinyMCE for Umbraco CMS package, there is an [npm package](https://www.npmjs.com/package/@tiny-mce-umbraco/backoffice) avaliable to allow extentions and customization.  It can be installed for development by running this on the command line:
 
     npm install --save-dev @tiny-mce-umbraco/backoffice
+
+> **Requirements for extension projects:** this package declares `@umbraco-cms/backoffice` `^17.6.2` as a **peer dependency**, so your project needs a matching backoffice version installed alongside it — building against an older backoffice will produce a peer dependency conflict. Building also requires Node.js 24.13+ and npm 11+.
 
 Creating an extension to this package aligns with how [Umbraco CMS allowed custom packages in version 15](https://docs.umbraco.com/umbraco-cms/fundamentals/backoffice/property-editors/built-in-umbraco-property-editors/rich-text-editor-tinymce/plugins).  
 
