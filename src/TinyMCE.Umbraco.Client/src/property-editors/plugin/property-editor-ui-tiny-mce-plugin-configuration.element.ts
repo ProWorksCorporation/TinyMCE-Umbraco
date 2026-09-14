@@ -138,11 +138,20 @@ export class UmbPropertyEditorUITinyMcePluginConfigurationElement
 			});
 		}
 
-		const defaultPluginAliases = this._pluginConfig.map((p) => p.alias);
+		// A plugin can be named by more than one source - the fallback defaults, the appsettings
+		// `Plugins` list, and a `tinyMcePlugin` manifest. Each source used to push its own row, so a
+		// plugin named twice appeared twice in the picker and handed lit's keyed `repeat()` a duplicate
+		// key. First source wins, which keeps the defaults' "(default plugin)" label and disabled state.
+		const seen = new Set(this._pluginConfig.map((p) => p.alias));
+		const addPlugin = (entry: PluginConfig) => {
+			if (seen.has(entry.alias)) return;
+			seen.add(entry.alias);
+			this._pluginConfig.push(entry);
+		};
 
 		configPlugins.forEach((p) => {
-			if (!excludeList.includes(p) && !defaultPluginAliases.includes(p)) {
-				this._pluginConfig.push({
+			if (!excludeList.includes(p)) {
+				addPlugin({
 					alias: p,
 					label: p,
 					icon: undefined,
@@ -155,7 +164,7 @@ export class UmbPropertyEditorUITinyMcePluginConfigurationElement
 		plugins.forEach((p) => {
 			if (p.meta?.plugins) {
 				if (typeof p.meta.plugins === 'string' && !excludeList.includes(p.meta.plugins)) {
-					this._pluginConfig.push({
+					addPlugin({
 						alias: p.meta.plugins,
 						label: p.meta.plugins,
 						icon: undefined,
@@ -165,7 +174,7 @@ export class UmbPropertyEditorUITinyMcePluginConfigurationElement
 				} else if (Array.isArray(p.meta.plugins)) {
 					p.meta.plugins.forEach((pl: any) => {
 						if (!excludeList.includes(pl)) {
-							this._pluginConfig.push({
+							addPlugin({
 								alias: pl,
 								label: pl,
 								icon: undefined,
