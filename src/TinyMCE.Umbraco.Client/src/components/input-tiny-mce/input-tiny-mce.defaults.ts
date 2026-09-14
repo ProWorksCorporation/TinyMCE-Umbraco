@@ -67,6 +67,12 @@ export const defaultFallbackConfig: RawEditorOptions = {
 	//},
 
 	init_instance_callback: function (editor) {
+		// Everything below bootstraps the editor's *iframe* realm through `editor.dom.doc.head`. Inline
+		// mode has no iframe and `editor.dom.doc` IS the backoffice document, so running any of it would
+		// inject a duplicate import map and re-register live manifests into the running registry - and
+		// none of it is needed there, since the components it bootstraps already live in this realm.
+		if (!editor.iframeElement) return;
+
 		// The following code is the context api proxy. [NL]
 		// It re-dispatches the context api request event to the origin target of this modal, in other words the element that initiated the modal. [NL]
 		editor.dom.doc.addEventListener(UMB_CONTEXT_REQUEST_EVENT_TYPE, ((event: UmbContextRequestEvent) => {
@@ -162,7 +168,25 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		// instance) from the outer document. Without this, requestDelete() in UmbBlockEntryContext
 		// falls back to returning raw keys because the iframe's manager has no registered translations.
 		const locSetsToSync: Array<Record<string, string>> = [];
-		const BLOCK_LOC_KEYS = ['blockEditor_confirmDeleteBlockTitle', 'blockEditor_confirmDeleteBlockMessage'];
+		// Keys needed by components that render INSIDE the TinyMCE iframe. The iframe has its own
+		// per-realm umbLocalizationManager, so anything not copied across renders blank there.
+		// The unsupported-block pair is read by Umbraco 17.6's <umb-unsupported-rte-block>.
+		const BLOCK_LOC_KEYS = [
+			// Rendered by the block components themselves.
+			'blockEditor_confirmDeleteBlockTitle',
+			'blockEditor_confirmDeleteBlockMessage',
+			'blockEditor_unsupportedBlockName',
+			'blockEditor_unsupportedBlockDescription',
+			// Labels declared by Umbraco's `blockAction` manifests, which `umb-block-action-list`
+			// renders inside the iframe. Enumerated from
+			// `packages/block/block/action/common/*/manifests.ts` — kept complete deliberately, so a
+			// newly reachable action does not show a raw `#key` the way copy-to-clipboard did.
+			'clipboard_labelForCopyToClipboard',
+			'general_delete',
+			'general_edit',
+			'general_settings',
+			'actions_create',
+		];
 		umbLocalizationManager.localizations.forEach((locSet, code) => {
 			const locSetAny = locSet as unknown as Record<string, string>;
 			const entry: Record<string, string> = {
@@ -180,11 +204,43 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			if (hasKey) locSetsToSync.push(entry);
 		});
 
+		// The active language must cross the realm boundary too, not just the dictionaries.
+		// Without this the iframe resolves every term through UmbLocalizationController's
+		// primary -> secondary -> `en` fallback chain, so the synced Danish set sits in the
+		// iframe's map unused and the placeholder renders in English.
+		//
+		// This must go through `umbLocalizationRegistry.loadLanguage()`, not a direct write to
+		// `umbLocalizationManager.documentLanguage`. The registry is a module side-effect
+		// (`export const umbLocalizationRegistry = new UmbLocalizationRegistry(...)`), and the
+		// block script below imports `@umbraco-cms/backoffice/block-rte`, whose module graph pulls
+		// the localization package into the iframe realm. Constructing the registry there emits
+		// its `UMB_DEFAULT_LOCALIZATION_CULTURE` bootstrap value synchronously, whose `tap` stamps
+		// `'en'` onto the manager — overwriting a direct assignment. Both scripts are dynamically
+		// inserted and therefore `async` with no guaranteed order, and the block script's larger
+		// graph reliably lands last. Importing the registry here instead means it is constructed
+		// before this script's body runs, so `loadLanguage()` always wins regardless of order.
+		// Nothing inside the iframe ever calls `loadLanguage()` otherwise — that is driven by
+		// `<umb-app>` and the current-user context, neither of which exists in this realm.
+		const outerLang = umbLocalizationManager.documentLanguage;
+		const outerDir = umbLocalizationManager.documentDirection;
+
 		if (locSetsToSync.length > 0) {
 			const locScript = document.createElement('script');
 			locScript.setAttribute('type', 'module');
 			locScript.text = `
 				import { umbLocalizationManager } from "@umbraco-cms/backoffice/localization-api";
+				import { umbLocalizationRegistry } from "@umbraco-cms/backoffice/localization";
+
+				// Sets documentLanguage via the registry's synchronous \`tap\`. The load that
+				// follows finds no localization extensions in this realm's registry, so the
+				// pipeline stops at its own length guard and never writes the language again.
+				umbLocalizationRegistry.loadLanguage(${JSON.stringify(outerLang)});
+				// Direction is only set by #setBrowserLanguage, which that stalled pipeline never
+				// reaches, so carry it across by hand — it matters for an RTL backoffice.
+				umbLocalizationManager.documentDirection = ${JSON.stringify(outerDir)};
+				// Register last: registerLocalization's keysChanged pass is what re-renders any
+				// consumer that connected before this script ran, and setting the language
+				// notifies nobody on its own.
 				${JSON.stringify(locSetsToSync)}.forEach(s => umbLocalizationManager.registerLocalization(s));
 			`;
 			editor.dom.doc.head.appendChild(locScript);
@@ -212,11 +268,12 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			import { umbExtensionsRegistry } from "@umbraco-cms/backoffice/extension-registry";
 			import { UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST } from "@umbraco-cms/backoffice/block";
 			import "${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}";
-
-			// Define <umb-icon> (and the other core components) in the inner realm. The outer
-			// document gets these lazily through the extension registry, so block-rte's import
-			// graph never pulls them in here. Without this import every block icon inside the
-			// editor stays an un-upgraded 0x0 element while <uui-icon> right next to it works.
+			// Defines <umb-icon>, which umb-ref-rte-block renders for the block's element-type icon.
+			// block-rte does not pull it in transitively, so without this it stays an un-upgraded
+			// unknown element: the .name property binding still lands, but nothing ever renders.
+			// The existing UUIIconRequestEvent proxy is not involved — uui-icon is already defined
+			// in this realm, and the action-bar icons resolve through that proxy correctly.
+			// This is the whole components barrel because the export map exposes no narrower path.
 			import "@umbraco-cms/backoffice/components";
 
 			// Register the blockAction default kind definition in the inner realm's registry.
@@ -227,12 +284,38 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			// in the inner customElements registry.
 			umbExtensionsRegistry.registerMany([UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST]);
 
-			// Define the ufm-* component elements (ufm-label-value, ufm-localize, ufm-content-name,
-			// ufm-link) in the inner realm. Same story as umb-icon: the outer document loads them
-			// lazily via ufmComponent manifests, so any {=alias} / {umbValue:} / {#term} block label
-			// renders an element that never upgrades and shows nothing. The ufm package's
-			// umbraco-package.js is a stable URL and its manifests' api() closures resolve their
-			// hashed chunks relative to whichever realm imports the module — this one.
+			// Sync blockAction manifests from the outer registry into the inner realm's registry.
+			// Umbraco registers these via umbraco-package.json at backoffice startup; they only
+			// exist in the outer registry and must be copied so umb-block-action-list can discover them.
+			const outerReg = window.parent?._umbOuterExtReg;
+			if (outerReg) {
+				const blockActions = outerReg.getByType('blockAction') ?? [];
+				if (blockActions.length) umbExtensionsRegistry.registerMany(blockActions);
+
+				// Block actions declare their \`conditions\` by alias, and the extension system resolves
+				// each alias against the registry the action was registered in. Copying the actions
+				// without the condition manifests they name leaves every conditional action permanently
+				// un-initialized — delete, edit content, edit settings and expose content all have
+				// conditions, copy-to-clipboard does not, which is why it was the only one that rendered.
+				// Derived from the copied manifests rather than hard-coded, so an action that gains a
+				// new condition in a future Umbraco version is covered without another fix here.
+				const conditionAliases = new Set(
+					blockActions.flatMap((a) => (a.conditions ?? []).map((c) => c.alias)),
+				);
+				const conditions = (outerReg.getByType('condition') ?? []).filter((c) =>
+					conditionAliases.has(c.alias),
+				);
+				if (conditions.length) umbExtensionsRegistry.registerMany(conditions);
+			}
+
+			// Define the ufm-* elements in the inner realm so {=alias} block labels interpolate. Unlike
+			// umb-icon these are in no importable barrel - the outer document defines them by running
+			// each ufmComponent manifest's api(). Two constraints when editing this:
+			//   1. The manifests are on the package's \`manifests\` export, NOT \`extensions\`, which is a
+			//      single bundle wrapper - filtering that matches nothing and fails silently.
+			//   2. This is the only top-level await in the script, so it must stay LAST or everything
+			//      above it waits on the ufm package plus one dynamic import per component. Custom
+			//      element upgrade is retroactive, so defining these last costs nothing.
 			try {
 				const ufmPkg = await import("/umbraco/backoffice/packages/ufm/umbraco-package.js");
 				const loaded = new Set();
@@ -248,23 +331,6 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			} catch {
 				// If the ufm package is ever restructured, block labels degrade back to empty
 				// rather than breaking the editor.
-			}
-
-			// Sync blockAction manifests from the outer registry into the inner realm's registry.
-			// Umbraco registers these via umbraco-package.json at backoffice startup; they only
-			// exist in the outer registry and must be copied so umb-block-action-list can discover them.
-			const outerReg = window.parent?._umbOuterExtReg;
-			if (outerReg) {
-				const blockActions = outerReg.getByType('blockAction') ?? [];
-				if (blockActions.length) umbExtensionsRegistry.registerMany(blockActions);
-
-				// The blockActions synced above are gated by 'condition' extensions (Delete needs
-				// not-read-only, Edit Content needs showContentEdit). Those manifests also exist
-				// only in the outer registry; without them the conditions never resolve, the
-				// actions never become permitted, and Copy — the only unconditioned core action —
-				// is the only button that renders on a block.
-				const conditions = outerReg.getByType('condition') ?? [];
-				if (conditions.length) umbExtensionsRegistry.registerMany(conditions);
 			}
 		`;
 		editor.dom.doc.head.appendChild(script);

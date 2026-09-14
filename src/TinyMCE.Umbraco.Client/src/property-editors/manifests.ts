@@ -10,7 +10,7 @@ export const manifests: Array<UmbExtensionManifest> = [
 		meta: {
 			label: 'TinyMCE Plugin Configuration',
 			icon: 'icon-autofill',
-			group: 'common',
+			group: '#propertyEditorUIGroups_common',
 		},
 	},
 	{
@@ -21,7 +21,7 @@ export const manifests: Array<UmbExtensionManifest> = [
 		meta: {
 			label: 'TinyMCE Toolbar Configuration',
 			icon: 'icon-autofill',
-			group: 'common',
+			group: '#propertyEditorUIGroups_common',
 		},
 	},
 	{
@@ -32,7 +32,7 @@ export const manifests: Array<UmbExtensionManifest> = [
 		meta: {
 			label: 'TinyMCE Custom Configuration',
 			icon: 'icon-autofill',
-			group: 'common',
+			group: '#propertyEditorUIGroups_common',
 		},
 	},
 ];

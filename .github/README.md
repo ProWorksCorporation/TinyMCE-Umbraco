@@ -4,7 +4,7 @@
 [![NuGet](https://img.shields.io/nuget/vpre/TinyMCE.Umbraco?color=0273B3)](https://www.nuget.org/packages/TinyMCE.Umbraco)
 [![GitHub license](https://img.shields.io/github/license/ProWorksCorporation/TinyMCE-Umbraco?color=8AB803)](../LICENSE)
 
-This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE) back to [Umbraco CMS](https://umbraco.com/), (version 16+).
+This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE) back to [Umbraco CMS](https://umbraco.com/). It requires Umbraco 17.6.2 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x.
 
 It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (`appsettings.json`).
 
@@ -27,7 +27,7 @@ In addition, you can install packages via the Visual Studio NuGet Package Manage
 
 ### Upgrading from v15
 
-If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
+If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16. Use a **16.x** version of this package for that migration — the current release requires Umbraco 17.6.2 or later.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
 
 ### Looking for the v13 version?
 
@@ -182,14 +182,28 @@ The TinyMCE Rich Text property editor adds a few new configuration options (from
 
 1. Plugin Selection: Similar to the Toolbar items, you can select which plugins are enabled / available for this Data Type via the back-office UI.
 2. CustomConfig: Each Data Type that implements this editor has its own TinyMCE Configuration JSON that can be used for a custom configuration specific to this Data Type.
+3. Mode: Choose between **Classic** (the default) and **Inline**. Classic renders the editor with its own toolbar and border, editing content inside an iframe. Inline turns the content area itself into the editable region, with the toolbar appearing on focus — see the caveats below before enabling it.
 
-Both of these Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
+These Data Type configuration options are managed via the Data Type editing interface in the back-office of Umbraco.
+
+##### Inline mode caveats
+
+> **Inline mode requires a Chromium-based browser** (Chrome, Edge, Brave, Opera). It is not supported in Firefox or Safari, where the editor will render and take focus but silently discard typing.
+>
+> The Umbraco back-office renders each property editor inside deeply nested shadow DOM. Classic mode is unaffected because its content lives in an iframe, but an inline editor's editable element sits inside those shadow roots, and several DOM APIs TinyMCE relies on — `window.getSelection()` among them — do not cross a shadow boundary. This package bridges that gap using `ShadowRoot.getSelection()`, which is a Chromium extension with no Firefox or Safari equivalent.
+
+Inline mode also behaves differently from classic mode in two ways that are inherent to TinyMCE rather than to this package:
+
+* The **Dimensions** setting is ignored — there is no editor chrome to size. The editable region is styled by the package instead, and grows with its content.
+* The stylesheets picked under **Stylesheets** still populate the style *formats* dropdown, but they are not loaded into the editing surface, because there is no iframe document to load them into. Content in an inline editor is styled by the back-office, so it will not preview your site's CSS.
 
 ## Extending the Rich Text Editor
 
 If you would like to extend the TinyMCE for Umbraco CMS package, there is an [npm package](https://www.npmjs.com/package/@tiny-mce-umbraco/backoffice) avaliable to allow extentions and customization.  It can be installed for development by running this on the command line:
 
     npm install --save-dev @tiny-mce-umbraco/backoffice
+
+> **Requirements for extension projects:** this package declares `@umbraco-cms/backoffice` `^17.6.2` as a **peer dependency**, so your project needs a matching backoffice version installed alongside it — building against an older backoffice will produce a peer dependency conflict. Building also requires Node.js 24.13+ and npm 11+.
 
 Creating an extension to this package aligns with how [Umbraco CMS allowed custom packages in version 15](https://docs.umbraco.com/umbraco-cms/fundamentals/backoffice/property-editors/built-in-umbraco-property-editors/rich-text-editor-tinymce/plugins).  
 

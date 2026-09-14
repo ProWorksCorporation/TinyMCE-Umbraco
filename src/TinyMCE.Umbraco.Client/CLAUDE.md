@@ -10,6 +10,8 @@ This is the frontend backoffice package that provides the TinyMCE Rich Text Edit
 
 ## Common Commands
 
+**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 17.6.2. npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
+
 ```bash
 # Install dependencies
 npm install
@@ -188,21 +190,165 @@ This generates code in `src/api/` that provides type-safe API calls.
 
 **CRITICAL**: TinyMCE renders its content area inside an **iframe**. ES modules are per-realm, so the iframe gets its own module-level singletons — completely separate from the outer document's instances. The `umb-rte-block` and `umb-rte-block-inline` custom elements (block editor entries) live inside this iframe.
 
-Two per-realm singletons are currently bridged in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`:
+Two per-realm **singletons** are bridged in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`, and — a separate concern with the same root cause — a set of **custom element definitions** has to be forced into the inner realm as well (covered under point 2):
 
 **1. `umbLocalizationManager`** (localization keys):
 - Any localization keys needed by code running inside the iframe must be explicitly synced into the iframe's `umbLocalizationManager`.
 - The sync reads from the outer `umbLocalizationManager.localizations` and injects a module script that calls `registerLocalization()` for each locale's relevant keys.
 - If you add new features inside `umb-rte-block` that depend on localization, add the required keys to `BLOCK_LOC_KEYS` in that function.
+- **Current members (4)**: `blockEditor_confirmDeleteBlockTitle`, `blockEditor_confirmDeleteBlockMessage`,
+  `blockEditor_unsupportedBlockName`, `blockEditor_unsupportedBlockDescription`.
+- The unsupported-block pair was added in the **Umbraco 17.6.2 upgrade**. Umbraco 17.6 completed a feature
+  that was stubbed in 17.5 (`// TODO: Missing unsupported rendering` in `block-rte-entry.element.ts`), so
+  `<umb-unsupported-rte-block>` now renders inside the iframe when a block's element type has been deleted.
+  It calls `localize.term()` for both keys; without them the placeholder rendered with a blank name and
+  blank description. The keys already existed in Umbraco's translation files — only the component reading
+  them was new, which is exactly the failure mode this warning is about.
+- **Check this list on every Umbraco minor upgrade.** Nothing automated catches a missing key: the sync
+  loop silently skips keys it does not find, so the symptom is blank UI inside the editor, never an error.
+  Diffing Umbraco's `block-rte` and `block` packages for new `localize.term(` calls is the reliable check.
+- **The active language is bridged separately from the dictionaries, and must go through the registry.**
+  Copying the locale sets across is only half the job — `UmbLocalizationController` picks a set using
+  `umbLocalizationManager.documentLanguage`, so if that is wrong inside the iframe every lookup falls
+  through `primary -> secondary -> en` and the synced translations render in English. Set it with
+  `umbLocalizationRegistry.loadLanguage(outerLang)`, importing `@umbraco-cms/backoffice/localization`
+  in the injected script, **not** by assigning `documentLanguage` directly. The registry is a module
+  side-effect; the sibling `block-rte` script pulls it into the iframe realm, and constructing it emits
+  its `'en'` bootstrap value, whose `tap` overwrites a direct assignment. Both injected scripts are
+  created with `createElement('script')` and are therefore `async` with no guaranteed execution order,
+  so importing the registry in our own script — which constructs it before our body runs — is what makes
+  the result deterministic rather than a race. `documentDirection` still needs a direct assignment:
+  only `#setBrowserLanguage` sets it, and that pipeline stops at its extension-length guard in this
+  realm, where no `localization` manifests are registered. Symptom when this regresses: the iframe is
+  English while the rest of the backoffice is translated — invisible to an English-only test pass.
 
 **2. `umbExtensionsRegistry`** (extension manifests for block actions):
 - `umb-block-action-list` (new in Umbraco 17.5.0) reads `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
 - Two things are required in the injected module script:
   1. Import `UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST` from `@umbraco-cms/backoffice/block` **in the inner realm** and register it into the inner registry. Because the import runs in the inner realm, the manifest's `element` factory (`() => import('./block-action.element.js')`) captures the inner realm's module URL — so when the extension system later calls it, `<umb-block-action>` is lazily registered in the inner `customElements`.
   2. The outer `umbExtensionsRegistry` reference is exposed on `window._umbOuterExtReg`, then read via `window.parent._umbOuterExtReg` in the injected script. The `blockAction` manifests (registered by Umbraco's package loader, not by module import) are copied into the inner registry so `umb-block-action-list` can discover them.
+  3. **The `condition` extensions those actions name must be copied too.** A `blockAction` manifest
+     declares its `conditions` by alias, and the extension system resolves each alias against the
+     registry the action was registered in. Copy the actions without the conditions and every
+     *conditional* action stays permanently un-initialized, with no error: `delete`, `edit-content`,
+     `edit-settings` and `expose-content` all have conditions and silently vanish, while
+     `copy-to-clipboard` (the only one with none) renders — so the action bar looks present but
+     nearly empty. Derive the aliases from the copied manifests
+     (`blockActions.flatMap(a => (a.conditions ?? []).map(c => c.alias))`) rather than hard-coding
+     them, so an action that gains a condition in a later Umbraco version needs no change here.
+- **Custom elements that Umbraco's components render must be *defined* in the inner realm.** Element
+  registration is per-realm just like module singletons, and an undefined custom element is inert
+  rather than an error: lit property bindings (`.name=${...}`) still set their expandos, so the element
+  looks correctly configured in DevTools while rendering nothing. `umb-ref-rte-block` renders
+  `<umb-icon>` for the block's element-type icon, and `block-rte` does **not** pull it in transitively,
+  so the injected script imports `@umbraco-cms/backoffice/components` — the whole barrel, because the
+  export map exposes no narrower path (`./icon` is the icon *registry*, and the deep
+  `packages/core/components/icon` path is not exported, so it cannot resolve through the importmap).
+  Note this is unrelated to the `UUIIconRequestEvent` proxy below, which works correctly: `uui-icon`
+  *is* defined in the inner realm, and the action-bar icons resolve through that proxy fine. A blank
+  icon means a missing element definition, not a failed icon request.
+- **The `ufm-*` elements need a different mechanism — a barrel import will not reach them.** A block
+  label written as `{=alias}` (also `{#term}`, `{umbValue:…}`) parses correctly and emits
+  `<ufm-label-value alias="…">`, which then never upgrades and renders nothing. Unlike `umb-icon`, these
+  are not exported from any importable barrel: the outer document defines them lazily by running the
+  `api()` closure on each `ufmComponent` manifest. The injected script therefore imports
+  `/umbraco/backoffice/packages/ufm/umbraco-package.js` — a stable URL whose `api()` closures resolve
+  their own hashed chunks relative to whichever realm imports the module — and awaits each one. Three
+  things to know before touching it:
+  1. The manifests are on that package's **`manifests`** export, **not `extensions`**, which is a single
+     `bundle` wrapper. Filtering `extensions` for `ufmComponent` matches nothing and fails silently.
+  2. It is the only **top-level `await`** in the injected script, so it must stay **last**: anything
+     after it waits on a dynamic import plus one `api()` call per component. Custom element upgrade is
+     retroactive, so defining these after the registry syncs costs nothing.
+  3. It is wrapped in try/catch at both levels, so a restructured `ufm` package degrades labels back to
+     blank rather than breaking the editor. **That means a regression here is silent** — see the testing
+     note in the checklist below.
+  Contributed as PR #228 (fixes #227); the surrounding `umb-icon` and condition-sync fixes were developed
+  here independently and kept in this branch's form.
 - If new Umbraco versions introduce other per-realm singletons that components inside the iframe need, apply the same pattern: expose on `window`, read via `window.parent` in the injected script.
 
+**Upgrade checklist for this section.** Every failure mode here is silent — blank UI, missing chrome,
+or English text, never an exception — so none of it surfaces without deliberate checking. On each
+Umbraco minor, for anything rendered inside the editor:
+1. New `localize.term(` calls in Umbraco's `block-rte`/`block` packages → add keys to `BLOCK_LOC_KEYS`.
+2. New or changed `conditions` on `blockAction` manifests → confirmed covered by the alias-derived copy.
+3. New custom elements rendered by block components → confirm they are defined in the inner realm.
+4. New `ufmComponent` manifests in Umbraco's `ufm` package → nothing to change (the loop takes whatever
+   the package exports), but confirm the export is still called `manifests` and still carries `api()`
+   closures. 17.6.2 ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`.
+5. Test with a **non-English** backoffice. An English-only pass cannot distinguish a working
+   localization bridge from a broken one.
+6. **Test block labels with `{=alias}` on a *classic* data type.** This one cost two false passes during
+   the 17.6.2 upgrade, because two near-identical-looking tests exercise none of this code:
+   - a `${ … }` label resolves through `umb-ufm-js-expression`, which **is** in `block-rte`'s static
+     import graph and was never broken; and
+   - an **inline** data type has no iframe at all, so `init_instance_callback` returns at its first line
+     and not one of these bridges runs (see *Inline Mode and Shadow DOM* below).
+
+   Only `{=alias}` in classic mode touches the iframe's custom element registry. Checking the label
+   merely *appears* is not enough either — confirm the element upgraded **and** resolved its value, e.g.
+   `editor.iframeElement.contentWindow.customElements.get('ufm-label-value')` is defined and the
+   rendered text is the property's value, not empty.
+
 **Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
+
+## Inline Mode and Shadow DOM
+
+**CRITICAL, and the mirror image of the iframe section above.** Everything above applies to *classic*
+mode, where the content area is an iframe and the problem is that the iframe is a separate realm. Inline
+mode (`mode: "Inline"` on the Data Type) has **no iframe**: the target element itself becomes the editable
+body, so none of the realm bridging applies — and a different problem takes its place.
+
+The back-office renders each property editor inside deeply nested shadow DOM — the editable element sits
+**more than twenty shadow roots** below the document (`umb-input-tiny-mce` → … → `umb-app`). TinyMCE's
+shadow DOM support covers iframe mode; several of the DOM APIs it relies on internally do not cross a
+shadow boundary, and each failure is **silent** — no exception, just an editor that looks fine and does
+nothing. Three are bridged in `src/components/input-tiny-mce/shadow-dom-selection.ts`, applied from
+`#onInit` in `input-tiny-mce.element.ts` and **only for inline editors**:
+
+1. **`window.getSelection()`** — TinyMCE reads the caret through `win.getSelection()` (`getSel` in
+   `Selection.getRng`). A window selection never descends into a shadow root, so it returns a range
+   anchored at the host document's `<body>`. Symptom: the field takes focus and shows its toolbar, but
+   nothing can be typed or pasted into it. Bridged with `ShadowRoot.getSelection()`, and **only while an
+   inline editor actually holds focus** — resolved live via `root.activeElement === body` on each call,
+   never cached from a focus/blur event. TinyMCE moves the selection at moments when its own focus
+   bookkeeping is mid-flight, and a stale flag there sends `setRng` to the wrong selection.
+2. **`document.contains()`** — `setRng` guards with `isValidRange` → `isAttachedToDom`, which asks
+   `contains(node.ownerDocument, node)`; Sugar's `contains` is a plain `d1.contains(d2)`. Every range
+   inside the editor is therefore judged *detached*, and `setRng` returns on its first line without even
+   dispatching `SetSelectionRange`. Symptom: nothing that repositions the caret works — pressing Enter
+   builds the new paragraph but leaves the caret on the old line. Overridden on the `document` object
+   (not `Node.prototype`), turning only `false` into `true`, only for nodes inside a live inline editor.
+3. **`DOMUtils.get(id)`** — this is `doc.getElementById(id)`, which cannot see into a shadow root. It
+   breaks bookmarks: operations that restructure the DOM drop `<span data-mce-type="bookmark">` markers,
+   rebuild, then call `moveToBookmark`, whose `restoreEndPoint` resolves them with `dom.get`. Symptom is
+   twofold — the caret is not restored, **and the markers are never removed**, so they accumulate in the
+   content one pair per edit and get saved into the field. Patched per-editor to look inside the editor
+   body first, falling back to the native lookup.
+
+**Consequences to keep in mind:**
+
+- **Inline mode is Chromium-only.** `ShadowRoot.getSelection()` has no Firefox or Safari equivalent, so
+  there is nothing to bridge with there and the bridge falls back to the native selection. Documented as
+  a caveat in `.github/README.md`.
+- `init_instance_callback` in `input-tiny-mce.defaults.ts` **must** keep its `if (!editor.iframeElement)
+  return;` guard. Its whole body bootstraps the iframe realm via `editor.dom.doc.head`, and in inline mode
+  `editor.dom.doc` **is the back-office document** — without the guard it injects a duplicate import map
+  and re-registers the `blockAction` manifests into the live registry, producing a wall of "import map
+  rule … was removed" warnings and "Extension with alias … is already registered" errors.
+- `height`/`width` (the **Dimensions** setting) are dropped for inline mode — TinyMCE ignores them without
+  an editor chrome, and an unstyled empty target collapses to 0px. Sizing comes from the `.editor.inline`
+  CSS rule in the component instead.
+- `content_css` is never loaded in inline mode (no iframe document), and `body_class` is not applied — the
+  component adds `umb-rte` to the element by hand to stand in for it.
+
+**Upgrade checklist for this section.** All three bridges patch TinyMCE *internals*, so a TinyMCE major
+bump (v7/v8, which this package supports via `tinyMceVersion`) can move them without any build error.
+On each TinyMCE upgrade, re-check that `Selection.getRng`/`setRng` still route through `win.getSelection()`
+and `isValidRange`, and that `DOMUtils.get` is still `doc.getElementById`. The only reliable test is manual
+and in a browser: type, paste, press Enter twice, apply a list and a block format, then confirm
+`editor.getBody().querySelectorAll('[data-mce-type="bookmark"]').length === 0`. Nothing here throws when it
+regresses.
 
 ## Working with Components
 
@@ -237,7 +383,7 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 - `tinymce-i18n` ^24.12.30 - Localization files
 
 **Peer Dependencies**:
-- `@umbraco-cms/backoffice` ^17.1.0
+- `@umbraco-cms/backoffice` ^17.6.2
 - `tinymce` and `tinymce-i18n` (ensures version compatibility)
 
 **Dev Dependencies**: Vite, TypeScript, Rollup plugins, OpenAPI generator, etc.

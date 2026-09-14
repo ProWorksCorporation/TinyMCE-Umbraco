@@ -1,7 +1,7 @@
 {
 	"name": "@tiny-mce-umbraco/backoffice",
-	"version": "17.5.0",
-	"description": "This Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE) in version 16 and above. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).",
+	"version": "17.6.2",
+	"description": "This Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE). It requires Umbraco 17.6.2 or later - for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).",
 	"keywords": [
 		"Umbraco",
 		"TinyMCE",
@@ -40,7 +40,7 @@
 		"@rollup/plugin-json": "^6.1.0",
 		"@rollup/plugin-node-resolve": "^16.0.1",
 		"@rollup/plugin-replace": "^6.0.2",
-		"@umbraco-cms/backoffice": "^17.5.0",
+		"@umbraco-cms/backoffice": "^17.6.2",
 		"chalk": "^5.3.0",
 		"cross-env": "^10.1.0",
 		"eslint": "^10.2.0",
@@ -55,7 +55,7 @@
 		"vite-tsconfig-paths": "^5.1.4"
 	},
 	"peerDependencies": {
-		"@umbraco-cms/backoffice": "^17.5.0",
+		"@umbraco-cms/backoffice": "^17.6.2",
 		"tinymce": "^6.8.5",
 		"tinymce-i18n": "^24.12.30"
 	}
