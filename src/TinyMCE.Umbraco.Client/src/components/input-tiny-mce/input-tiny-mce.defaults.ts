@@ -67,17 +67,10 @@ export const defaultFallbackConfig: RawEditorOptions = {
 	//},
 
 	init_instance_callback: function (editor) {
-		// Everything below bootstraps the editor's *iframe* realm: it proxies context/icon requests
-		// out of the iframe and injects an import map, the backoffice stylesheets, the localization
-		// sync script and the block-component script into `editor.dom.doc.head`.
-		//
-		// In inline mode there is no iframe and `editor.dom.doc` IS the backoffice document, so every
-		// one of those injections lands in the live page: a duplicate import map (logging "An import
-		// map rule for specifier '…' was removed, as it conflicted with already resolved module
-		// specifiers" for each entry), duplicate stylesheet links, and a block script whose
-		// `registerMany` re-registers the already-present blockAction/condition manifests
-		// ("Extension with alias Umb.BlockAction.EditContent is already registered"). None of it is
-		// needed inline, because the components it bootstraps already live in this realm.
+		// Everything below bootstraps the editor's *iframe* realm through `editor.dom.doc.head`. Inline
+		// mode has no iframe and `editor.dom.doc` IS the backoffice document, so running any of it would
+		// inject a duplicate import map and re-register live manifests into the running registry - and
+		// none of it is needed there, since the components it bootstraps already live in this realm.
 		if (!editor.iframeElement) return;
 
 		// The following code is the context api proxy. [NL]
@@ -315,22 +308,14 @@ export const defaultFallbackConfig: RawEditorOptions = {
 				if (conditions.length) umbExtensionsRegistry.registerMany(conditions);
 			}
 
-			// Define the ufm-* component elements in the inner realm - five of them as of 17.6.2:
-			// ufm-label-value, ufm-localize, ufm-content-name, ufm-link and ufm-member-name. Same
-			// story as umb-icon: the outer document loads them lazily via ufmComponent manifests,
-			// so any {=alias} / {umbValue:} / {#term} block label renders an element that never
-			// upgrades and shows nothing. A JS-expression label is unaffected, because
-			// umb-ufm-js-expression is in block-rte's static import graph - which is exactly why
-			// this looked like it already worked.
-			//
-			// The manifests are on the package's \`manifests\` export, NOT \`extensions\`, which is a
-			// single bundle wrapper: filtering that matches nothing and fails silently. The
-			// umbraco-package.js URL is stable across builds and the api() closures resolve their
-			// own hashed chunks relative to whichever realm imports the module - this one.
-			//
-			// Deliberately last: this is the only top-level await in the script, so anything after
-			// it would wait on the ufm package plus five dynamic imports. Custom element upgrade is
-			// retroactive, so defining these after the registry syncs costs nothing.
+			// Define the ufm-* elements in the inner realm so {=alias} block labels interpolate. Unlike
+			// umb-icon these are in no importable barrel - the outer document defines them by running
+			// each ufmComponent manifest's api(). Two constraints when editing this:
+			//   1. The manifests are on the package's \`manifests\` export, NOT \`extensions\`, which is a
+			//      single bundle wrapper - filtering that matches nothing and fails silently.
+			//   2. This is the only top-level await in the script, so it must stay LAST or everything
+			//      above it waits on the ufm package plus one dynamic import per component. Custom
+			//      element upgrade is retroactive, so defining these last costs nothing.
 			try {
 				const ufmPkg = await import("/umbraco/backoffice/packages/ufm/umbraco-package.js");
 				const loaded = new Set();

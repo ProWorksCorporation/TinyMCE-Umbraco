@@ -129,6 +129,21 @@ The `TinyMceComposer` src/TinyMCE.Umbraco/Composing/TinyMceComposer.cs:14 is res
 
 These plugins use the base class in `src/TinyMCE.Umbraco.Client/src/plugins/core/` which provides common plugin infrastructure.
 
+**Before changing how the editor renders content, read `src/TinyMCE.Umbraco.Client/CLAUDE.md`.** It carries
+two sections covering failure modes that produce **no error at all** — blank UI, missing chrome, dropped
+keystrokes — and that this repository has now hit repeatedly:
+
+- **TinyMCE iframe Module Scope** — classic mode puts the content area in an iframe, which is a separate
+  module realm *and* a separate custom element registry. Localization, extension manifests and element
+  definitions all have to be bridged across explicitly.
+- **Inline Mode and Shadow DOM** — inline mode has no iframe, so none of the above applies; instead the
+  editable element sits deep in the backoffice's shadow DOM, where several DOM APIs TinyMCE relies on
+  silently do not reach it.
+
+The two are mirror images, and a fix for one is usually irrelevant or actively wrong for the other. Both
+sections carry a per-upgrade checklist, including which tests actually exercise them — several
+plausible-looking tests exercise neither.
+
 **NPM Package Exports**: The client exports via `@tiny-mce-umbraco/backoffice`:
 - `@tiny-mce-umbraco/backoffice/core` - Main exports (components, utils, constants)
 - `@tiny-mce-umbraco/backoffice/external/tinymce` - TinyMCE type exports for extension developers

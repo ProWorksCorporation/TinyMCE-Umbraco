@@ -190,7 +190,7 @@ This generates code in `src/api/` that provides type-safe API calls.
 
 **CRITICAL**: TinyMCE renders its content area inside an **iframe**. ES modules are per-realm, so the iframe gets its own module-level singletons — completely separate from the outer document's instances. The `umb-rte-block` and `umb-rte-block-inline` custom elements (block editor entries) live inside this iframe.
 
-Two per-realm singletons are currently bridged in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`:
+Two per-realm **singletons** are bridged in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`, and — a separate concern with the same root cause — a set of **custom element definitions** has to be forced into the inner realm as well (covered under point 2):
 
 **1. `umbLocalizationManager`** (localization keys):
 - Any localization keys needed by code running inside the iframe must be explicitly synced into the iframe's `umbLocalizationManager`.
@@ -247,6 +247,24 @@ Two per-realm singletons are currently bridged in `init_instance_callback` in `s
   Note this is unrelated to the `UUIIconRequestEvent` proxy below, which works correctly: `uui-icon`
   *is* defined in the inner realm, and the action-bar icons resolve through that proxy fine. A blank
   icon means a missing element definition, not a failed icon request.
+- **The `ufm-*` elements need a different mechanism — a barrel import will not reach them.** A block
+  label written as `{=alias}` (also `{#term}`, `{umbValue:…}`) parses correctly and emits
+  `<ufm-label-value alias="…">`, which then never upgrades and renders nothing. Unlike `umb-icon`, these
+  are not exported from any importable barrel: the outer document defines them lazily by running the
+  `api()` closure on each `ufmComponent` manifest. The injected script therefore imports
+  `/umbraco/backoffice/packages/ufm/umbraco-package.js` — a stable URL whose `api()` closures resolve
+  their own hashed chunks relative to whichever realm imports the module — and awaits each one. Three
+  things to know before touching it:
+  1. The manifests are on that package's **`manifests`** export, **not `extensions`**, which is a single
+     `bundle` wrapper. Filtering `extensions` for `ufmComponent` matches nothing and fails silently.
+  2. It is the only **top-level `await`** in the injected script, so it must stay **last**: anything
+     after it waits on a dynamic import plus one `api()` call per component. Custom element upgrade is
+     retroactive, so defining these after the registry syncs costs nothing.
+  3. It is wrapped in try/catch at both levels, so a restructured `ufm` package degrades labels back to
+     blank rather than breaking the editor. **That means a regression here is silent** — see the testing
+     note in the checklist below.
+  Contributed as PR #228 (fixes #227); the surrounding `umb-icon` and condition-sync fixes were developed
+  here independently and kept in this branch's form.
 - If new Umbraco versions introduce other per-realm singletons that components inside the iframe need, apply the same pattern: expose on `window`, read via `window.parent` in the injected script.
 
 **Upgrade checklist for this section.** Every failure mode here is silent — blank UI, missing chrome,
@@ -255,8 +273,22 @@ Umbraco minor, for anything rendered inside the editor:
 1. New `localize.term(` calls in Umbraco's `block-rte`/`block` packages → add keys to `BLOCK_LOC_KEYS`.
 2. New or changed `conditions` on `blockAction` manifests → confirmed covered by the alias-derived copy.
 3. New custom elements rendered by block components → confirm they are defined in the inner realm.
-4. Test with a **non-English** backoffice. An English-only pass cannot distinguish a working
+4. New `ufmComponent` manifests in Umbraco's `ufm` package → nothing to change (the loop takes whatever
+   the package exports), but confirm the export is still called `manifests` and still carries `api()`
+   closures. 17.6.2 ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`.
+5. Test with a **non-English** backoffice. An English-only pass cannot distinguish a working
    localization bridge from a broken one.
+6. **Test block labels with `{=alias}` on a *classic* data type.** This one cost two false passes during
+   the 17.6.2 upgrade, because two near-identical-looking tests exercise none of this code:
+   - a `${ … }` label resolves through `umb-ufm-js-expression`, which **is** in `block-rte`'s static
+     import graph and was never broken; and
+   - an **inline** data type has no iframe at all, so `init_instance_callback` returns at its first line
+     and not one of these bridges runs (see *Inline Mode and Shadow DOM* below).
+
+   Only `{=alias}` in classic mode touches the iframe's custom element registry. Checking the label
+   merely *appears* is not enough either — confirm the element upgraded **and** resolved its value, e.g.
+   `editor.iframeElement.contentWindow.customElements.get('ufm-label-value')` is defined and the
+   rendered text is the property's value, not empty.
 
 **Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
 

@@ -1,35 +1,26 @@
 /**
- * Bridges the three places where TinyMCE's inline mode assumes a document it can see into, but the
- * backoffice gives it a shadow root instead: the caret (`window.getSelection`), the check that a
- * range is still on the page (`document.contains`), and id lookups (`DOMUtils.get`).
+ * TinyMCE's inline mode assumes its editable element is somewhere document-level APIs can reach. In the
+ * backoffice it sits some twenty shadow roots deep (`umb-input-tiny-mce` -> ... -> `umb-app`), so three
+ * of those APIs silently fail and are bridged here. Classic mode needs none of it: its editable body is
+ * a plain document body inside the editor's own iframe.
  *
- * In classic mode the editor's realm is its own iframe, whose editable body is a plain document
- * body - document-level APIs find it, and none of this is needed. Inline mode has no iframe: the
- * editable element is the target element itself, which in the backoffice sits more than twenty
- * shadow roots deep (`umb-input-tiny-mce` -> ... -> `umb-app`). Moving the target into the light
- * DOM does not help, because that only escapes one shadow root out of the chain.
+ * Every failure mode below is silent - no exception, no stack trace. See **Inline Mode and Shadow DOM**
+ * in this project's CLAUDE.md for the symptoms and how to test them.
  */
 
 import type { Editor } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 
 type SelectionRoot = ShadowRoot & { getSelection?: () => Selection | null };
 
-/**
- * The editable elements of the live inline editors, so the selection bridge can tell which of them
- * (if any) currently holds focus.
- */
+/** Editable elements of the live inline editors; read by both document-level bridges. */
 const inlineBodies = new Set<HTMLElement>();
 
 let installed = false;
 
 /**
- * The editable element of the inline editor that currently has focus, if any.
- *
- * Deliberately resolved on each call rather than tracked through focus/blur events: TinyMCE moves
- * the selection at moments when its own focus bookkeeping is mid-flight, and a stale flag there
- * means `setRng` silently writes to the wrong selection - which looks like the caret refusing to
- * move. `root.activeElement === body` is the same liveness check TinyMCE's own `hasInlineFocus`
- * makes, and it cannot go stale.
+ * Resolved per call, never cached from focus/blur events: TinyMCE moves the selection while its own
+ * focus bookkeeping is mid-flight, and a stale flag there sends `setRng` to the wrong selection. This is
+ * the same liveness check TinyMCE's own `hasInlineFocus` makes.
  */
 function getFocusedInlineBody(): HTMLElement | null {
 	for (const body of inlineBodies) {
@@ -40,17 +31,11 @@ function getFocusedInlineBody(): HTMLElement | null {
 }
 
 /**
- * Makes `window.getSelection()` shadow-aware while an inline editor has focus.
+ * TinyMCE reads the caret through `win.getSelection()` (`getSel` in `Selection.getRng`), which never
+ * descends into a shadow root. `ShadowRoot.getSelection()` does.
  *
- * TinyMCE resolves the caret through `win.getSelection()` (see `getSel` in `Selection.getRng`),
- * and a window selection never descends into a shadow root - so every call returns a range
- * anchored at the host document's `<body>` instead of inside the editor. Reads then normalize each
- * keystroke against a range outside the editor and the input is dropped; writes (`setRng`) land on
- * a selection that cannot address the editor's nodes at all, so the caret never moves.
- *
- * `ShadowRoot.getSelection()` does report the real range, so this bridges the two. It is installed
- * once and only diverts while one of our inline editors actually holds focus - every other caller,
- * at every other moment, gets the untouched native selection.
+ * Diverts only while one of our inline editors holds focus, so every other caller gets the native
+ * selection untouched.
  */
 function installShadowDomSelectionBridge() {
 	const nativeGetSelection = window.getSelection.bind(window);
@@ -59,71 +44,20 @@ function installShadowDomSelectionBridge() {
 		const body = getFocusedInlineBody();
 		if (!body) return nativeGetSelection();
 
-		// `ShadowRoot.getSelection()` is a Chromium extension rather than a standard API. Where it is
-		// missing there is nothing to bridge with, so fall back rather than break the selection.
+		// Chromium-only API, so fall back rather than break the selection where it is missing.
 		const selection = (body.getRootNode() as SelectionRoot).getSelection?.();
 
 		return selection ?? nativeGetSelection();
 	};
 }
 
-/** Installs the document-level bridges, once per page. */
-function installBridges() {
-	if (installed) return;
-	installed = true;
-
-	installShadowDomSelectionBridge();
-	installShadowDomAttachmentBridge();
-}
-
 /**
- * Scopes an editor's id lookups to its own body, so they can see inside the shadow root.
+ * `Selection.setRng` guards with `isValidRange` -> `isAttachedToDom` -> Sugar's `contains`, a plain
+ * `d1.contains(d2)` that does not cross shadow boundaries. Every range inside the editor is therefore
+ * judged detached, and `setRng` returns before it dispatches anything.
  *
- * `DOMUtils.get(id)` is `doc.getElementById(id)`, and for an inline editor `doc` is the host
- * document - which cannot see an element inside a shadow root. That breaks TinyMCE's bookmarks:
- * operations that restructure the DOM (pressing Enter, applying a block format, most commands)
- * drop `<span data-mce-type="bookmark" id="..._start">` markers, rebuild the content, then call
- * `moveToBookmark` to put the caret back. `restoreEndPoint` resolves those markers with `dom.get`,
- * so in a shadow root it finds nothing: the caret is left where it was, and the markers are never
- * removed, so they pile up in the content - one pair per edit.
- *
- * Looking the id up inside the editor body first fixes both, and also keeps ids scoped per editor
- * rather than first-match-in-the-document. Anything not found there falls back to the native
- * lookup, which is what `dom.get` is for when the id is outside the editor.
- * @param editor The inline editor to patch.
- */
-function bridgeEditorLookups(editor: Editor) {
-	const dom = editor.dom;
-	const nativeGet = dom.get.bind(dom);
-
-	dom.get = (elm: string | HTMLElement) => {
-		if (typeof elm !== 'string') return nativeGet(elm);
-
-		const body = editor.getBody();
-		if (!body) return nativeGet(elm);
-
-		// In inline mode the body is the target element itself, so it can be the id being asked for.
-		if (body.id === elm) return body;
-
-		return body.querySelector<HTMLElement>(`#${CSS.escape(elm)}`) ?? nativeGet(elm);
-	};
-}
-
-/**
- * Teaches `document.contains()` that the inline editors' content is on the page.
- *
- * TinyMCE guards `Selection.setRng` with `isValidRange` -> `isAttachedToDom`, which asks
- * `contains(node.ownerDocument, node)` - and Sugar's `contains` is a plain `d1.contains(d2)`, which
- * does not cross shadow boundaries. So every range inside the editor is judged detached and
- * `setRng` returns on its first line, without even dispatching `SetSelectionRange`. The visible
- * effect is that nothing which repositions the caret works: pressing Enter builds the new paragraph
- * but leaves the caret on the old line, and the same goes for the commands that move the caret
- * after restructuring content.
- *
- * Overriding `contains` on the document object (not on `Node.prototype`) is enough, because that is
- * exactly the call `isAttachedToDom` makes. It only ever turns `false` into `true`, only for nodes
- * inside a live inline editor - which are genuinely attached to the page, just behind a shadow
- * boundary that the DOM method predates.
+ * Patched on the document object rather than `Node.prototype` because that is the exact call being
+ * made. Only ever turns `false` into `true`, and only for nodes inside a live inline editor.
  */
 function installShadowDomAttachmentBridge() {
 	const nativeContains = document.contains.bind(document);
@@ -140,9 +74,43 @@ function installShadowDomAttachmentBridge() {
 	};
 }
 
+/** Installs the document-level bridges, once per page. */
+function installBridges() {
+	if (installed) return;
+	installed = true;
+
+	installShadowDomSelectionBridge();
+	installShadowDomAttachmentBridge();
+}
+
 /**
- * Applies the shadow-DOM bridges to a freshly initialized inline editor, and tears them down again
- * when it is removed. Safe to call for inline editors only - classic editors need none of this.
+ * `DOMUtils.get(id)` is `doc.getElementById(id)`, which cannot see into a shadow root. TinyMCE's
+ * bookmarks depend on it: operations that restructure the DOM drop `<span data-mce-type="bookmark">`
+ * markers and call `moveToBookmark` to restore the caret afterwards. Unresolvable markers mean the caret
+ * is never restored *and* the markers are never removed - they accumulate in the content and get saved.
+ *
+ * Searching the editor body first also scopes ids per editor rather than first-match-in-document.
+ * @param editor The inline editor to patch.
+ */
+function bridgeEditorLookups(editor: Editor) {
+	const dom = editor.dom;
+	const nativeGet = dom.get.bind(dom);
+
+	dom.get = (elm: string | HTMLElement) => {
+		if (typeof elm !== 'string') return nativeGet(elm);
+
+		const body = editor.getBody();
+		if (!body) return nativeGet(elm);
+
+		// Inline mode's body is the target element itself, so it can be the id being asked for.
+		if (body.id === elm) return body;
+
+		return body.querySelector<HTMLElement>(`#${CSS.escape(elm)}`) ?? nativeGet(elm);
+	};
+}
+
+/**
+ * Applies the shadow-DOM bridges to a freshly initialized inline editor. Call for inline editors only.
  * @param editor The inline editor to bridge.
  */
 export function bridgeInlineEditor(editor: Editor) {
