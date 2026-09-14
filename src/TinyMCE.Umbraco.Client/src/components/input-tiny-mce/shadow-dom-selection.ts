@@ -31,8 +31,9 @@ function getFocusedInlineBody(): HTMLElement | null {
 }
 
 /**
- * TinyMCE reads the caret through `win.getSelection()` (`getSel` in `Selection.getRng`), which never
- * descends into a shadow root. `ShadowRoot.getSelection()` does.
+ * TinyMCE reads the caret through `win.getSelection()` (`getSel` in `Selection.getRng`), which in
+ * Chromium never descends into a shadow root; `ShadowRoot.getSelection()` does. Firefox is the reverse -
+ * see the note on the fallback below.
  *
  * Diverts only while one of our inline editors holds focus, so every other caller gets the native
  * selection untouched.
@@ -44,7 +45,9 @@ function installShadowDomSelectionBridge() {
 		const body = getFocusedInlineBody();
 		if (!body) return nativeGetSelection();
 
-		// Chromium-only API, so fall back rather than break the selection where it is missing.
+		// `ShadowRoot.getSelection()` is Chromium-only. The fallback is not a safety net - it is the
+		// working path in Firefox, whose `window.getSelection()` already pierces shadow roots. Removing
+		// it breaks Firefox. (Safari has neither and is unsupported.)
 		const selection = (body.getRootNode() as SelectionRoot).getSelection?.();
 
 		return selection ?? nativeGetSelection();
