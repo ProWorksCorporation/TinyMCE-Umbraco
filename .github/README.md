@@ -71,8 +71,43 @@ The details on each configuration value are described below:
 | CloudApiKey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
 | ValidElements | string |  [See defaults](../docs/defaults.md) | Specifies the list of HTML tags available to the TinyMCE Rich Text Editor. See the [default list of ValidElements](../docs/defaults.md) for more information. |
 | InvalidElements | String | None | Specifies invalid HTML tags. These tags will not be allowed. |
-| CustomConfig | JSON key/value pairs | {} | Simple key/value pairs for configuration of the TinyMCE Editor and Plugins. See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. This is here to support easy migration and upgrades. **It is recommended to use the customConfig element below for a richer configuration experience.** | 
+| CustomConfig | JSON key/value pairs | {} | Simple key/value pairs for configuration of the TinyMCE Editor and Plugins. See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. This is here to support easy migration and upgrades. Note how these values combine with a Data Type's own settings — see [How CustomConfig combines with Data Type settings](#how-customconfig-combines-with-data-type-settings). **It is recommended to use the customConfig element below for a richer configuration experience.** | 
 
+
+#### How CustomConfig combines with Data Type settings
+
+`CustomConfig` applies to every TinyMCE editor on the site, while each Data Type also carries its own
+settings. Where both set the same thing, **`CustomConfig` wins** — with one deliberate exception.
+
+| Setting | Behaviour | How to remove something globally |
+| ------- | --------- | -------------------------------- |
+| `Plugins` | **Merged.** The union of the Data Type's selected plugins and the configured ones is loaded. | `pluginsToExclude` |
+| Everything else, including `toolbar` | **Replaced.** The configured value overwrites the Data Type's. | The replacement itself |
+
+So setting `"toolbar": "fullscreen"` in `CustomConfig` gives **every** editor a toolbar of exactly one
+button, discarding whatever each Data Type had configured. That is intentional: unlike plugins, the
+toolbar has no exclude list, so replacing it is the only way to take a button away globally. A toolbar is
+also ordered and grouped (`"bold italic | link"`), which leaves no sensible answer for where merged-in
+buttons should land.
+
+**To add a button to every editor**, add it to each Data Type's toolbar in the back office rather than
+through `CustomConfig`. To restate a whole toolbar globally, include every button you want:
+
+```json
+"CustomConfig": {
+  "toolbar": "bold italic | link umbmediapicker | fullscreen"
+}
+```
+
+**Expressing a list here needs a JSON *string*, not a JSON array.** This section binds into an
+`IDictionary<string, object>`, so a real array has no scalar value for the .NET configuration binder and
+does not survive. Write it as an escaped string, which the package parses back into an array:
+
+```json
+"CustomConfig": {
+  "plugins": "[\"fullscreen\"]"
+}
+```
 
 ### New Configuration Options:
 
@@ -130,6 +165,7 @@ The following open source TinyMCE plugins are available to add to the TinyMCE Um
 * Accordion (accordion)
 * Code Sample (codesample)
 * Emoticons (emoticons)
+* Fullscreen (fullscreen)
 * Help for Editors (help)
 * Insert Date/Time (insertdatetime)
 * Search and Replace (searchreplace)
