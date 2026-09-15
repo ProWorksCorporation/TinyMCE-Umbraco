@@ -298,6 +298,43 @@ export default class MyCustomPlugin extends UmbTinyMcePluginBase {
 
 The built JS file must use **default export**. Umbraco loads the default export as the plugin class.
 
+### Accessing the TinyMCE Global
+
+Inside a plugin class you already have the editor (`args.editor`), so you rarely need the TinyMCE global
+itself. When you do — to read the icon set, a utility, or `tinymce.Env` — import it from
+`@tiny-mce-umbraco/backoffice/external/tinymce`:
+
+```typescript
+import { tinymce, loadTinyMce } from '@tiny-mce-umbraco/backoffice/external/tinymce';
+```
+
+> **Do not read properties off `tinymce` at module scope.** As of 17.6.3 the TinyMCE core is loaded on
+> demand rather than up front, so it may not exist yet when your module is first evaluated. The `tinymce`
+> export is a live view of `window.tinymce`, so reading it from anywhere the package calls into your
+> plugin is safe — `extendEditorConfig`, the constructor and `init()` all run with a core present. It is
+> only code at the top level of your module that can run too early.
+
+```typescript
+// Wrong — runs when the module loads, possibly before any core exists
+const iconSet = tinymce.IconManager.get('default');
+
+// Right — inside any of the plugin hooks
+static override async extendEditorConfig(config: Record<string, unknown>): Promise<void> {
+    config.myPlugin_icons = tinymce.IconManager.get('default');
+}
+
+override async init(): Promise<void> {
+    const iconSet = tinymce.IconManager.get('default');
+}
+
+// Also right — from your own code, outside a plugin hook
+const iconSet = (await loadTinyMce()).IconManager.get('default');
+```
+
+`loadTinyMce()` resolves to the TinyMCE global, loading the core this package ships with only if nothing
+else has already provided one — so on a site hosting its own TinyMCE it returns that core rather than
+downloading a second one.
+
 ### Umbraco Package Manifest
 
 Create an `umbraco-package.json` in your plugin's `App_Plugins` folder:
