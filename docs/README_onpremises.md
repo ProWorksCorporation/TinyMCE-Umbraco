@@ -34,24 +34,24 @@ See TinyMCE's licensing documentation here:
 
     - `manifests.js`
         ```
-        import "./tinymce8/tinymce.js";
-        import "./tinymce8/icons/default/icons.js";
+        import "./tinymce/tinymce.js";
+        import "./tinymce/icons/default/icons.js";
         ```
 2. Update the configuration in your appsettings.json with the following:
     ```
     "TinyMceConfig": {
         "tinyMceVersion": "8",
-        "tinyMceUrl": "/App_Plugins/TinyMCE/tinymce8/",
+        "tinyMceUrl": "/App_Plugins/TinyMCE.OnPrem/tinymce/",
         "apikey": "on-prem",
         "customConfig": {
-            license_key": "<license_key>"
+            "license_key": "<license_key>"
         }
     }
     ```
 
 
-    - **NOTE: `overwrites` above is not what does the work here.** Umbraco ignores the `overwrites` property on
-      `bundle` extensions - `UmbBundleExtensionInitializer` reads the registry by type and never applies
-      overwrite filtering - so it neither suppresses `TinyMCE.Lib` nor is it required. It is kept in this
-      example only so that existing configurations remain valid. What actually matters is that your bundle
-      imports a TinyMCE core, which claims the `window.tinymce` global before any editor is rendered.
+> **Note on `overwrites`:** the `"overwrites": "TinyMCE.Lib"` line above is optional. Umbraco applies
+> `overwrites` only to extensions rendered through extension slots, never to `bundle` extensions, so it
+> neither suppresses the packaged TinyMCE nor is it required — it is kept in this example so existing
+> configurations remain valid. What matters is that your bundle imports a TinyMCE core: doing so claims
+> the `window.tinymce` global, and TinyMCE.Umbraco then never loads the core it ships with.
