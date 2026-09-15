@@ -32,18 +32,6 @@ See TinyMCE's licensing documentation here:
         }
         ```
 
-    - **NOTE: `overwrites` is not what does the work here.** Umbraco ignores the `overwrites` property on
-      `bundle` extensions - `UmbBundleExtensionInitializer` reads the registry by type and never applies
-      overwrite filtering - so it neither suppresses `TinyMCE.Lib` nor is it required. It is kept in this
-      example only so that existing configurations remain valid. What actually matters is that your bundle
-      imports a TinyMCE core, which claims the `window.tinymce` global before any editor is rendered.
-
-    - Before version 17.6.3 the packaged TinyMCE core *was* loaded eagerly by the `TinyMCE.Lib` bundle, and
-      because `overwrites` was ignored both cores downloaded at once and the last one to arrive won. That
-      showed up as a rich text editor that was intermittently blank until a hard refresh
-      ([#225](https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues/225)). If you applied a
-      middleware or `App_Plugins` workaround to stub out `tinymce-lib-manifests.js`, you can remove it.
-
     - `manifests.js`
         ```
         import "./tinymce8/tinymce.js";
@@ -61,3 +49,9 @@ See TinyMCE's licensing documentation here:
     }
     ```
 
+
+    - **NOTE: `overwrites` above is not what does the work here.** Umbraco ignores the `overwrites` property on
+      `bundle` extensions - `UmbBundleExtensionInitializer` reads the registry by type and never applies
+      overwrite filtering - so it neither suppresses `TinyMCE.Lib` nor is it required. It is kept in this
+      example only so that existing configurations remain valid. What actually matters is that your bundle
+      imports a TinyMCE core, which claims the `window.tinymce` global before any editor is rendered.
