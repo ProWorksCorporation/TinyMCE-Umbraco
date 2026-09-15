@@ -310,19 +310,24 @@ import { tinymce, loadTinyMce } from '@tiny-mce-umbraco/backoffice/external/tiny
 
 > **Do not read properties off `tinymce` at module scope.** As of 17.6.3 the TinyMCE core is loaded on
 > demand rather than up front, so it may not exist yet when your module is first evaluated. The `tinymce`
-> export is a live view of `window.tinymce`, so reading it from inside a method or an editor callback
-> always works — it is only top-level code that can run too early.
+> export is a live view of `window.tinymce`, so reading it from anywhere the package calls into your
+> plugin is safe — `extendEditorConfig`, the constructor and `init()` all run with a core present. It is
+> only code at the top level of your module that can run too early.
 
 ```typescript
 // Wrong — runs when the module loads, possibly before any core exists
 const iconSet = tinymce.IconManager.get('default');
 
-// Right — inside a method, by which point an editor has rendered
+// Right — inside any of the plugin hooks
+static override async extendEditorConfig(config: Record<string, unknown>): Promise<void> {
+    config.myPlugin_icons = tinymce.IconManager.get('default');
+}
+
 override async init(): Promise<void> {
     const iconSet = tinymce.IconManager.get('default');
 }
 
-// Also right — when you need the core before any editor exists
+// Also right — from your own code, outside a plugin hook
 const iconSet = (await loadTinyMce()).IconManager.get('default');
 ```
 

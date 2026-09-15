@@ -219,6 +219,11 @@ Two things to keep in step:
   Check after a build: only `tinymce.js` may reference the core chunk (`grep -l tinymce-<hash> *.js` in
   `wwwroot/App_Plugins/TinyMCE.Umbraco`). If `manifests.js` or `tinymce-lib-manifests.js` reaches it, the
   race is back and nothing will fail visibly on a default install — only on sites overriding the core.
+- **`#setTinyConfig` must `await loadTinyMce()` before the `extendEditorConfig` loop.** That hook is the
+  only plugin extension point that runs *before* `renderEditor`, so without the explicit load it would be
+  the one place a third-party plugin sees no core — a silent `undefined`, where every other hook is fine.
+  The eager `TinyMCE.Lib` bundle used to provide this guarantee implicitly. Do not "optimise" the call
+  away as redundant with `renderEditor`: it is ordering, not duplication, and the loader memoizes.
 - **`export const tinymce` is a `Proxy` over `window.tinymce`, not a snapshot.** It has to be: the core may
   not exist when the module evaluates. Any consumer that reads it at *module scope* will get `undefined`
   properties — that is what broke the toolbar-configuration property editor, which used to do

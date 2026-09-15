@@ -8,7 +8,7 @@ import { css, customElement, html, property, query, state } from '@umbraco-cms/b
 import type { PropertyValues } from '@umbraco-cms/backoffice/external/lit';
 import { loadManifestApi } from '@umbraco-cms/backoffice/extension-api';
 import { getProcessedImageUrl, umbDeepMerge } from '@umbraco-cms/backoffice/utils';
-import { renderEditor } from '@umbraco-cms/backoffice/external/tinymce';
+import { loadTinyMce, renderEditor } from '@umbraco-cms/backoffice/external/tinymce';
 import { umbExtensionsRegistry } from '@umbraco-cms/backoffice/extension-registry';
 import { ImageCropModeModel } from '@umbraco-cms/backoffice/external/backend-api';
 import { UmbChangeEvent } from '@umbraco-cms/backoffice/event';
@@ -468,6 +468,17 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		if (preValueCustomConfig) {
 			config = umbDeepMerge(preValueCustomConfig, config);
 		}
+
+		// Ensure the TinyMCE core exists before any plugin's `extendEditorConfig` runs.
+		//
+		// `renderEditor` below loads it on demand, which would otherwise be the first thing to do so -
+		// leaving `extendEditorConfig` as the one extension point that runs with no core present. Before
+		// the core became lazily loaded, the `TinyMCE.Lib` bundle guaranteed `window.tinymce` at boot, so
+		// a third-party plugin reading the global here was safe. Loading it a few lines earlier keeps that
+		// contract: the core is loaded either way, this only fixes *when*, and the result is memoized so
+		// `renderEditor` does not load it twice. Without this, such a plugin gets `undefined` and fails
+		// silently - see `external/tinymce/index.ts` and the plugin docs in `.github/README.md`.
+		await loadTinyMce();
 
 		// Loop through plugins and call extendEditorConfig if it exists to allow plugins to
 		// setup some advanced config like javascript before the editor is initialized.
