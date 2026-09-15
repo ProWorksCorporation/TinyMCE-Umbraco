@@ -186,6 +186,37 @@ npm run generate-client https://localhost:44308/umbraco/swagger/tiny-mce/swagger
 
 This generates code in `src/api/` that provides type-safe API calls.
 
+## Which TinyMCE Core Wins
+
+**`overwrites` does nothing for `type: "bundle"` extensions.** Only `UmbBaseExtensionsInitializer` — what
+extension *slots* use — honours it. `UmbBundleExtensionInitializer` subscribes straight to
+`extensionRegistry.byType('bundle')`, and `byType` → `#extensionsOfType` is a plain
+`exts.filter(ext => ext.type === type)`. So a site's on-premises/CDN bundle declaring
+`overwrites: "TinyMCE.Lib"` never suppressed ours; both loaded.
+
+That mattered because TinyMCE's UMD ends with an unconditional `window.tinymce = e, window.tinyMCE = e`,
+and bundles are imported concurrently from one `Promise.allSettled` in `UmbExtensionInitializerBase`. The
+last core to *finish downloading* silently won — a ~768KB local file against a CDN round trip, so it
+flipped with cache state. Symptom: a blank RTE on a cold start that a hard refresh fixed, with no error
+and no request for skin assets, because the packaged v6 core was handed the configured v8 `base_url`
+(issue #225).
+
+**The invariant now: nothing loads a TinyMCE core eagerly.** `src/tinymce-lib-manifests.ts` is inert, and
+`loadTinyMce()` in `src/external/tinymce/index.ts` imports the packaged core on demand *only if*
+`window.tinymce` is unset. This is safe precisely because Umbraco's app element gates its routes on
+`UmbBundleExtensionInitializer.loaded`, so every bundle has provably run before any property editor does.
+
+Two things to keep in step:
+- **Never reintroduce a top-level `import 'tinymce'`** anywhere reachable from a bundle or manifest entry.
+  Check after a build: only `tinymce.js` may reference the core chunk (`grep -l tinymce-<hash> *.js` in
+  `wwwroot/App_Plugins/TinyMCE.Umbraco`). If `manifests.js` or `tinymce-lib-manifests.js` reaches it, the
+  race is back and nothing will fail visibly on a default install — only on sites overriding the core.
+- **`export const tinymce` is a `Proxy` over `window.tinymce`, not a snapshot.** It has to be: the core may
+  not exist when the module evaluates. Any consumer that reads it at *module scope* will get `undefined`
+  properties — that is what broke the toolbar-configuration property editor, which used to do
+  `tinymce.IconManager.get('default')` at the top of the file and now awaits `loadTinyMce()` in
+  `firstUpdated`. Read it from inside a method, or await the loader first.
+
 ## TinyMCE iframe Module Scope
 
 **CRITICAL**: TinyMCE renders its content area inside an **iframe**. ES modules are per-realm, so the iframe gets its own module-level singletons — completely separate from the outer document's instances. The `umb-rte-block` and `umb-rte-block-inline` custom elements (block editor entries) live inside this iframe.

@@ -2,7 +2,7 @@
 These are instructions for loading TinyMCE version 7 or 8 via the TinyMCE cloud CDN instead of referencing TinyMCE version 6 through the TinyMCE.Umbraco package which is the default behavior.
 
 ## Explanation
-The loading of the TinyMCE files happens within an extension with an alias of `TinyMCE.Lib`. This extension can be swapped out with your own extension using the `overwrites` property. In this way, you can load the TinyMCE files from the cloud itself and prevent loading the version included in the TinyMCE.Umbraco package.
+You load the TinyMCE files from the cloud by registering your own `bundle` extension that imports them. Doing so sets the `window.tinymce` global, and TinyMCE.Umbraco then skips the core it ships with entirely - the packaged core is only loaded on demand, and only when nothing else has provided one.
 
 ## Licensing
 See TinyMCE's licensing documentation here:
@@ -30,8 +30,6 @@ See TinyMCE's licensing documentation here:
         }
         ```
 
-    - **NOTE:  The alias, "TinyMCE.Lib" in the "overwrites" section above, is important**
-
     - `manifests.js`
         ```
         import "https://cdn.tiny.cloud/1/no-api-key/tinymce/8/tinymce.min.js";
@@ -46,3 +44,9 @@ See TinyMCE's licensing documentation here:
     }
     ```
 
+
+    - **NOTE: `overwrites` above is not what does the work here.** Umbraco ignores the `overwrites` property on
+      `bundle` extensions - `UmbBundleExtensionInitializer` reads the registry by type and never applies
+      overwrite filtering - so it neither suppresses `TinyMCE.Lib` nor is it required. It is kept in this
+      example only so that existing configurations remain valid. What actually matters is that your bundle
+      imports a TinyMCE core, which claims the `window.tinymce` global before any editor is rendered.
