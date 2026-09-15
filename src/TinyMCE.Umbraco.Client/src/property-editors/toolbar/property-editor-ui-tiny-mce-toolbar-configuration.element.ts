@@ -3,7 +3,7 @@ import { firstValueFrom } from '@umbraco-cms/backoffice/external/rxjs';
 import { TinyMceService } from '../../api/index.js';
 import { tryExecute } from '@umbraco-cms/backoffice/resources';
 import { umbHttpClient } from '@umbraco-cms/backoffice/http-client';
-import { tinymce } from '@umbraco-cms/backoffice/external/tinymce';
+import { loadTinyMce } from '@umbraco-cms/backoffice/external/tinymce';
 import { umbExtensionsRegistry } from '@umbraco-cms/backoffice/extension-registry';
 import { UmbLitElement } from '@umbraco-cms/backoffice/lit-element';
 import { UmbTextStyles } from '@umbraco-cms/backoffice/style';
@@ -15,8 +15,6 @@ import type {
 import { UmbChangeEvent } from '@umbraco-cms/backoffice/event';
 import { UMB_PROPERTY_DATASET_CONTEXT } from '@umbraco-cms/backoffice/property';
 import { defaultPremiumPluginsList } from '@tiny-mce-umbraco/backoffice/core';
-
-const tinyIconSet = tinymce.IconManager.get('default');
 
 type ToolbarConfig = {
 	alias: string;
@@ -71,6 +69,11 @@ export class UmbPropertyEditorUITinyMceToolbarConfigurationElement
 
 	#selectedValues: string[] = [];
 
+	// Resolved in `firstUpdated` rather than at module scope: the TinyMCE core is now loaded on
+	// demand, so there is no core - and therefore no icon set - until something asks for one.
+	@state()
+	private _tinyIconSet?: Record<string, string>;
+
 	async #getTinyMceConfig() {
 		// @ts-ignore
 		const { data } = await tryExecute(this, TinyMceService.getConfig({ client: umbHttpClient }));
@@ -91,6 +94,8 @@ export class UmbPropertyEditorUITinyMceToolbarConfigurationElement
 				pluginAlias: v.pluginAlias,
 			});
 		});
+
+		this._tinyIconSet = (await loadTinyMce()).IconManager.get('default')?.icons;
 
 		await this.getToolbarPlugins();
 
@@ -188,7 +193,7 @@ export class UmbPropertyEditorUITinyMceToolbarConfigurationElement
 							?disabled=${v.disabled}
 							?checked=${v.selected}
 							@change=${this.onChange}>
-							<uui-icon .svg=${tinyIconSet?.icons[v.icon ?? 'alignjustify']}></uui-icon>
+							<uui-icon .svg=${this._tinyIconSet?.[v.icon ?? 'alignjustify']}></uui-icon>
 							${v.label}
 						</uui-checkbox>
 					</li>`
