@@ -5,13 +5,12 @@ import { UMB_BLOCK_RTE_ENTRIES_CONTEXT, UMB_BLOCK_RTE_MANAGER_CONTEXT } from '@u
 import type { Editor } from '@umbraco-cms/backoffice/external/tinymce';
 import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbBlockDataModel } from '@umbraco-cms/backoffice/block';
-import type { UmbBlockTypeBaseModel } from '@umbraco-cms/backoffice/block-type';
-import type { UmbBlockRteLayoutModel } from '@umbraco-cms/backoffice/block-rte';
+import type { UmbBlockRteTypeModel } from '@umbraco-cms/backoffice/block-rte';
 
 export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase {
 	readonly #localize = new UmbLocalizationController(this._host);
 	readonly #editor: Editor;
-	#blocks?: Array<UmbBlockTypeBaseModel>;
+	#blocks?: Array<UmbBlockRteTypeModel>;
 	#entriesContext?: typeof UMB_BLOCK_RTE_ENTRIES_CONTEXT.TYPE;
 	#managerContext?: typeof UMB_BLOCK_RTE_MANAGER_CONTEXT.TYPE;
 
@@ -47,7 +46,7 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 			this.observe(
 				context?.contents,
 				(contents) => {
-					this.#updateBlocks(contents, context?.getLayouts());
+					this.#updateBlocks(contents);
 				},
 				'contents'
 			);
@@ -118,7 +117,7 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 		editor.dispatch('Change');
 	}
 
-	#updateBlocks(blocks?: UmbBlockDataModel[], layouts?: Array<UmbBlockRteLayoutModel>) {
+	#updateBlocks(blocks?: UmbBlockDataModel[]) {
 		const editor = this.#editor;
 		if (!editor?.dom) return;
 
@@ -128,9 +127,9 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 		const newBlocks = blocks?.filter((x) => !existingBlocks.find((contentKey) => contentKey === x.key));
 
 		newBlocks?.forEach((block) => {
-			// Find layout for block
-			const layout = layouts?.find((x) => x.contentKey === block.key);
-			const inline = layout?.displayInline ?? false;
+			// Since Umbraco 17.6 "Display inline" lives on the block type; the layout entry no longer carries it.
+			const blockType = this.#blocks?.find((x) => x.contentElementTypeKey === block.contentTypeKey);
+			const inline = blockType?.displayInline ?? false;
 
 			let blockTag = 'umb-rte-block';
 
