@@ -45,8 +45,8 @@ See TinyMCE's licensing documentation here:
     ```
 
 
-    - **NOTE: `overwrites` above is not what does the work here.** Umbraco ignores the `overwrites` property on
-      `bundle` extensions - `UmbBundleExtensionInitializer` reads the registry by type and never applies
-      overwrite filtering - so it neither suppresses `TinyMCE.Lib` nor is it required. It is kept in this
-      example only so that existing configurations remain valid. What actually matters is that your bundle
-      imports a TinyMCE core, which claims the `window.tinymce` global before any editor is rendered.
+> **Note on `overwrites`:** the `"overwrites": "TinyMCE.Lib"` line above is optional. Umbraco applies
+> `overwrites` only to extensions rendered through extension slots, never to `bundle` extensions, so it
+> neither suppresses the packaged TinyMCE nor is it required — it is kept in this example so existing
+> configurations remain valid. What matters is that your bundle imports a TinyMCE core: doing so claims
+> the `window.tinymce` global, and TinyMCE.Umbraco then never loads the core it ships with.
