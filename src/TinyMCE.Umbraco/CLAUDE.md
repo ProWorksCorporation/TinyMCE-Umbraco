@@ -55,10 +55,15 @@ Both are registered and bound in TinyMceComposer.cs:14 using `IOptions<T>` patte
 
 **TinyMceConfigApiController** (Api/Management/Controllers/TinyMceConfigApiController.cs:11):
 - Exposes GET `/umbraco/management/api/v1/tiny-mce/config` endpoint (Management API, backoffice-authenticated)
-- Returns `TinyMceConfigResponseModel` containing both configuration objects
+- Returns `TinyMceConfigResponseModel`: an **allow-list projection** of both configuration sections (`TinyMceClientConfigModel`, `TinyMceRichTextEditorClientModel`), never the options objects themselves, so `openAiApikey` cannot reach the browser (constitution 1.2.0)
 - Uses ASP.NET Core API versioning (v1.0)
 - Grouped under "TinyMCE" in Swagger UI
 - Authenticated via Umbraco's backoffice auth
+
+**TinyMceAiCompletionApiController** (Api/Management/Controllers/TinyMceAiCompletionApiController.cs):
+- Exposes POST `/umbraco/management/api/v1/tiny-mce/ai/completion`, the AI relay (CL-001): the editor's AI requests are completed on the server by `ITinyMceAiCompletionService` (`Services/OpenAiCompletionService.cs`), so the OpenAI key never reaches a browser
+- Returns only fixed strings and an error `category` on failure, never provider text (it can echo part of the key)
+- Logs one attribution entry per request (user, outcome, duration, category), never the prompt, the completion or the key
 
 **Base Controller**: All controllers inherit from `TinyMceManagementApiControllerBase` which applies:
 - `[TinyMceVersionedApiBackOfficeRoute]` attribute for routing
@@ -104,7 +109,7 @@ When adding new configuration options:
 
 1. Add property to `TinyMceConfig.cs` or `RichTextEditorSettings.cs`
 2. Ensure binding is correct in `TinyMceComposer.cs`
-3. Update `TinyMceConfigResponseModel.cs` if needed for API response
+3. If the browser needs it, add it to the projection model (`Api/Management/Models/TinyMceClientConfigModel.cs` or `TinyMceRichTextEditorClientModel.cs`) and its `From` mapper. A new setting is **not** sent until you do; never add a secret
 4. The frontend will receive changes via the `/config` endpoint
 
 For nested JSON in `customConfig`, the ConfigurationBinder automatically handles conversion to ExpandoObjects.

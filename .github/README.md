@@ -133,7 +133,7 @@ The details on each configuration value are described below:
 | tinyMceUrl  | url string  | None    | The URL location of the TinyMCE library. This allows for specific cloud URL access or self-hosted options. |
 | tinyMceVersion  | string  | 6    | The version of the TinyMCE library. |
 | apikey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
-| openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. **Read [Security note: the OpenAI key reaches the browser](#security-note-the-openai-key-reaches-the-browser) before setting this.** |
+| openAiApikey | key string | None    | The ChatGPT API Key found in [your account](https://platform.openai.com/api-keys). This will enable a default implementation of the AI functionality using ChatGPT. The key stays on the server; see [AI provider key handling](#ai-provider-key-handling). |
 | sanitizeTinyMce | boolean | true | When `true`, the editor strips any `on*` event attributes (e.g. `onclick`, `onload`) from content on load to prevent XSS. Set to `false` if you need to preserve these attributes (for example, when using `<button onclick="...">` elements in your content). |
 | pluginsToExclude | String array of TinyMCE plugins names to exclude | [] | This excludes these plugins from being selected or used by the TinyMCE Rich Text Editor |
 | openAiApiConfig | Configuration for the OpenAI API | SEE BELOW | This configuration allows for the selection of the OpenAI model and other API configuration. See [OpenAI documentation](https://platform.openai.com/docs/api-reference/chat/create) for more details on the settings. |
@@ -147,23 +147,52 @@ The **openAiApiConfig** supported configuration properties are described below:
 | maxCompletionTokens  | number  | 800    | An upper bound for the number of tokens that can be generated for a completion, including visible output tokens and reasoning tokens. |
 | temperature  | number  | 1.0    | What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. NOTE: gpt-5 doesn't support customization of temperature. |
 
-### Security note: the OpenAI key reaches the browser
+### AI provider key handling
 
-> **If you set `openAiApikey`, that key is sent to the browser of every signed-in back-office user.**
+**The OpenAI key stays on the server.** The AI assistant sends each request to this package's own back-office endpoint
+(`POST /umbraco/management/api/v1/tiny-mce/ai/completion`), and the web server calls OpenAI with the key. The key and
+the `openAiApiConfig` settings are never sent to the browser. Only signed-in back-office users can use the endpoint.
 
-The current AI implementation calls OpenAI **directly from the browser**, so the key is returned by the
-package's configuration endpoint each time a rich text editor loads. The endpoint is authorised with Umbraco's `BackOfficeAccess` 
-policy, so only back-office users can read the key.
+What this means for site owners:
 
-**If you use this feature today**, treat the key as back-office-readable:
+* **Outbound network access.** Requests now go from the web server to OpenAI, not from editors' browsers. If the
+  server's outbound traffic is restricted, allow `api.openai.com`.
+* **Set a spend cap.** The endpoint applies no usage limit of its own, so set a monthly budget or spend limit for the
+  key in your OpenAI account. A dedicated key for Umbraco makes this easier.
+* **Usage is logged.** Each request writes one log entry with the back-office user and the outcome, under the
+  `TinyMCE.Umbraco` log category. Successes are logged at `Information`, failures at `Warning` with a reason such as
+  `rate-limited` or `authentication`. The prompt, the generated text and the key are never logged. Your site's own
+  logging configuration decides what is kept: a site whose minimum level is `Warning` keeps only the failures. If you
+  want usage attribution on such a site, you can lower the level for this category alone, for example:
 
-* Use a **dedicated** OpenAI key for Umbraco, never one shared with other systems
-* Set a **spend limit** on it in your OpenAI account;
-* Rotate it if back-office access changes;
-* Leave `openAiApikey` unset if you do not use the AI plugin.
+  ```json
+  {
+    "Serilog": {
+      "MinimumLevel": {
+        "Override": {
+          "TinyMCE.Umbraco": "Information"
+        }
+      }
+    }
+  }
+  ```
 
-**This will change.** A future release will allow for AI connections to be provided by 
-[Umbraco.AI](https://github.com/umbraco/Umbraco.AI), which holds provider credentials server-side.
+* **Errors editors see.** If the key is missing or OpenAI refuses a request, editors get a short message telling them
+  what to do (for example, to try again later, or to ask an administrator to check the key). OpenAI's own error text
+  is never shown, because it can include part of the key.
+
+A future release may let AI connections be provided by [Umbraco.AI](https://github.com/umbraco/Umbraco.AI) instead;
+the endpoint is designed so that can happen without changes for editors.
+
+### Credentials
+
+Each credential setting is one of two kinds:
+
+| Setting | Kind | Where it goes |
+|---|---|---|
+| `TinyMceConfig:openAiApikey` | **Provider secret** | Kept on the server only. Used by the server to call OpenAI. |
+| `TinyMceConfig:apikey` | **Public client identifier** | Sent to signed-in back-office users only, because TinyMCE's CDN needs it in the browser. Protect it with the approved-domain list in your [Tiny Cloud dashboard](https://www.tiny.cloud/my-account/domains/). |
+| `Umbraco:CMS:RichTextEditor:CloudApiKey` | **Public client identifier** | As `TinyMceConfig:apikey`. |
 
 ## Data Types
 

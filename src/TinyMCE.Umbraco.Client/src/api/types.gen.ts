@@ -4,13 +4,6 @@ export type ClientOptions = {
     baseUrl: 'https://localhost:44308' | (string & {});
 };
 
-export type OpenAiApiConfig = {
-    model: string;
-    developerMessage: string;
-    temperature: number;
-    maxCompletionTokens: number;
-};
-
 export type ProblemDetails = {
     type?: string | null;
     title?: string | null;
@@ -32,7 +25,31 @@ export enum RichTextEditorCommandModeModel {
     ALL = 'All'
 }
 
-export type RichTextEditorSettings = {
+export type TinyMceAiCompletionRequestModel = {
+    prompt: string;
+};
+
+export type TinyMceAiCompletionResponseModel = {
+    content: string;
+};
+
+export type TinyMceClientConfigModel = {
+    apikey: string;
+    tinyMceVersion: string;
+    tinyMceUrl: string;
+    pluginsToExclude: Array<string>;
+    sanitizeTinyMce: boolean;
+    customConfig: {
+        [key: string]: unknown;
+    };
+};
+
+export type TinyMceConfigResponseModel = {
+    richTextEditor?: TinyMceRichTextEditorClientModel | null;
+    config?: TinyMceClientConfigModel | null;
+};
+
+export type TinyMceRichTextEditorClientModel = {
     commands: Array<RichTextEditorCommand>;
     plugins: Array<string>;
     customConfig: {
@@ -43,23 +60,46 @@ export type RichTextEditorSettings = {
     cloudApiKey?: string | null;
 };
 
-export type TinyMceConfig = {
-    apikey: string;
-    tinyMceVersion: string;
-    tinyMceUrl: string;
-    openAiApikey: string;
-    pluginsToExclude: Array<string>;
-    openAiApiConfig: OpenAiApiConfig;
-    sanitizeTinyMce: boolean;
-    customConfig: {
-        [key: string]: unknown;
-    };
+export type PostAiCompletionData = {
+    body?: TinyMceAiCompletionRequestModel;
+    path?: never;
+    query?: never;
+    url: '/umbraco/management/api/v1/tiny-mce/ai/completion';
 };
 
-export type TinyMceConfigResponseModel = {
-    richTextEditor?: RichTextEditorSettings | null;
-    config?: TinyMceConfig | null;
+export type PostAiCompletionErrors = {
+    /**
+     * Bad Request
+     */
+    400: ProblemDetails;
+    /**
+     * The resource is protected and requires an authentication token
+     */
+    401: unknown;
+    /**
+     * The authenticated user does not have access to this resource
+     */
+    403: unknown;
+    /**
+     * Bad Gateway
+     */
+    502: ProblemDetails;
+    /**
+     * Service Unavailable
+     */
+    503: ProblemDetails;
 };
+
+export type PostAiCompletionError = PostAiCompletionErrors[keyof PostAiCompletionErrors];
+
+export type PostAiCompletionResponses = {
+    /**
+     * OK
+     */
+    200: TinyMceAiCompletionResponseModel;
+};
+
+export type PostAiCompletionResponse = PostAiCompletionResponses[keyof PostAiCompletionResponses];
 
 export type GetConfigData = {
     body?: never;

@@ -29,6 +29,9 @@ public class ConfigResponseTests : ManagementApiTest<TinyMceConfigApiController>
     /// <summary>The same kind of key, set through Umbraco's legacy <c>RichTextEditor</c> section.</summary>
     private const string RichTextEditorCloudKey = "tiny-public-rte-key-test";
 
+    /// <summary>A recognisable stand-in for the OpenAI key, a provider secret.</summary>
+    private const string OpenAiSentinelKey = "sk-test-SECRET-4d1f";
+
     protected override Expression<Func<TinyMceConfigApiController, object>> MethodSelector { get; set; } =
         x => x.GetConfig();
 
@@ -40,6 +43,9 @@ public class ConfigResponseTests : ManagementApiTest<TinyMceConfigApiController>
         // fixture, so every test in this fixture sees these values.
         InMemoryConfiguration["TinyMceConfig:apikey"] = TinyCloudKey;
         InMemoryConfiguration["Umbraco:CMS:RichTextEditor:CloudApiKey"] = RichTextEditorCloudKey;
+
+        // A provider secret (constitution 1.2.0) that must never reach the browser (C-CFG-1).
+        InMemoryConfiguration["TinyMceConfig:openAiApikey"] = OpenAiSentinelKey;
 
         base.Setup();
     }
@@ -81,6 +87,34 @@ public class ConfigResponseTests : ManagementApiTest<TinyMceConfigApiController>
         Assert.That(
             root.GetProperty("richTextEditor").GetProperty("cloudApiKey").GetString(),
             Is.EqualTo(RichTextEditorCloudKey));
+    }
+
+    /// <summary>
+    ///     C-CFG-1: the OpenAI key is configured, yet the response has no <c>openAiApikey</c> property and no trace of
+    ///     the key value anywhere in its body (CL-001).
+    /// </summary>
+    [Test]
+    public async Task GetConfig_NeverContainsTheOpenAiKey()
+    {
+        await AuthenticateClientAsync(Client, "admin@example.com", UserPassword, isAdmin: true);
+
+        HttpResponseMessage response = await Client.GetAsync(ConfigUrl);
+        string body = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK), body);
+        Assert.That(body, Does.Not.Contain("openAiApikey").IgnoreCase);
+        Assert.That(body, Does.Not.Contain(OpenAiSentinelKey));
+        Assert.That(body, Does.Not.Contain("4d1f"));
+    }
+
+    /// <summary>C-CFG-2: the OpenAI request options are not sent either; only the server uses them now.</summary>
+    [Test]
+    public async Task GetConfig_HasNoOpenAiApiConfig()
+    {
+        JsonElement root = await GetConfigAsAdminAsync();
+
+        Assert.That(root.GetProperty("config").TryGetProperty("openAiApiConfig", out _), Is.False);
+        Assert.That(root.GetRawText(), Does.Not.Contain("openAiApiConfig").IgnoreCase);
     }
 
     /// <summary>C-CFG-4: an unauthenticated request is refused, and the refusal carries no configuration.</summary>

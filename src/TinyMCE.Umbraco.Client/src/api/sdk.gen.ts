@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetConfigData, GetConfigErrors, GetConfigResponses } from './types.gen';
+import type { GetConfigData, GetConfigErrors, GetConfigResponses, PostAiCompletionData, PostAiCompletionErrors, PostAiCompletionResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -19,6 +19,18 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 export class TinyMceService {
+    public static postAiCompletion<ThrowOnError extends boolean = false>(options?: Options<PostAiCompletionData, ThrowOnError>): RequestResult<PostAiCompletionResponses, PostAiCompletionErrors, ThrowOnError> {
+        return (options?.client ?? client).post<PostAiCompletionResponses, PostAiCompletionErrors, ThrowOnError>({
+            security: [{ scheme: 'bearer', type: 'http' }],
+            url: '/umbraco/management/api/v1/tiny-mce/ai/completion',
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers
+            }
+        });
+    }
+    
     public static getConfig<ThrowOnError extends boolean = false>(options?: Options<GetConfigData, ThrowOnError>): RequestResult<GetConfigResponses, GetConfigErrors, ThrowOnError> {
         return (options?.client ?? client).get<GetConfigResponses, GetConfigErrors, ThrowOnError>({
             security: [{ scheme: 'bearer', type: 'http' }],
