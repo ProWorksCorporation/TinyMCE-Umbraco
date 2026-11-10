@@ -74,7 +74,7 @@ The details on each configuration value are described below:
 | Commands   | RichTextEditorCommand  | None    | A list of RichTextEditorCommand objects that contain and alias (STRING), name (STRING), and mode ("Insert", "Selection", or "All"). These commands are the buttons you find at the top of the editor, such as bold, italic, and so on. |
 | Plugins  | String array of TinyMCE plugins names to include  | None   | Add plugins to the list of available plugins in the TinyMCE Rich Text Editor DataType. See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for a list of plugins. |
 | CloudApiKey      | key string  | None    | The TinyMCE API Key found in [your account](https://www.tiny.cloud/my-account/integrate/#html). If applied, this will load the TinyMCE library from the Tiny Cloud URL unless the "tinyMceUrl" is specified. |
-| ValidElements | string |  [See defaults](../docs/defaults.md) | Specifies the list of HTML tags available to the TinyMCE Rich Text Editor. See the [default list of ValidElements](../docs/defaults.md) for more information. |
+| ValidElements | string |  [See defaults](../docs/defaults.md) | Specifies the list of HTML tags available to the TinyMCE Rich Text Editor. See the [default list of ValidElements](../docs/defaults.md) for more information. If you override `ValidElements`, include `data-anchor` and `data-culture` in the `a[...]` rule, or link anchors and cultures will be stripped. |
 | InvalidElements | String | None | Specifies invalid HTML tags. These tags will not be allowed. |
 | CustomConfig | JSON key/value pairs | {} | Simple key/value pairs for configuration of the TinyMCE Editor and Plugins. See the [Tiny Documentation](https://www.tiny.cloud/docs/tinymce/6/plugins/) for the plugin configuration. This is here to support easy migration and upgrades. Note how these values combine with a Data Type's own settings — see [How CustomConfig combines with Data Type settings](#how-customconfig-combines-with-data-type-settings). **It is recommended to use the customConfig element below for a richer configuration experience.** | 
 
@@ -272,6 +272,14 @@ stylesheet requests 404 at `/css/css/...`, that is fixed.
 
 Note that stylesheets are only loaded into the editing surface in **Classic** mode; see the inline mode
 caveats below.
+
+##### Culture-specific document links
+
+A document link that carries a culture (`data-culture`, for example in content created elsewhere) keeps it: it
+reopens in the link picker on that language version, resolves to that language's URL on the website, and loses the
+culture when the link is changed to media or an external URL. The link picker doesn't offer a culture choice in a
+rich text editor, though: in Umbraco 17.8 only the Multi URL Picker does, and Umbraco's own rich text editor behaves
+the same way.
 
 ##### Inline mode caveats
 

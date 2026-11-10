@@ -11,6 +11,8 @@ follow the Umbraco CMS major version they support.
 ### Added
 
 - Automated server-side (NUnit) and in-browser editor test suites (`dotnet test`, `npm test`).
+- Document links keep their culture (`data-culture`): it is saved, reopens in the link picker on that language
+  version, and is removed when the link changes to media or an external URL.
 
 ### Changed
 
@@ -20,6 +22,11 @@ follow the Umbraco CMS major version they support.
 - AI provider requests now originate from the web server; allow outbound access to api.openai.com.
 
 ### Fixed
+
+- External links no longer store an invalid `type="external"` attribute; editing a link removes it.
+- Local links written with URL-encoded braces now reopen correctly in the link picker.
+- Editing an existing link through the link picker is now saved even when nothing else changes afterwards (in inline
+  mode the edit could be lost), and can be undone.
 
 ### Security
 
