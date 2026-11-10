@@ -4,7 +4,7 @@
 [![NuGet](https://img.shields.io/nuget/vpre/TinyMCE.Umbraco?color=0273B3)](https://www.nuget.org/packages/TinyMCE.Umbraco)
 [![GitHub license](https://img.shields.io/github/license/ProWorksCorporation/TinyMCE-Umbraco?color=8AB803)](../LICENSE)
 
-This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE) back to [Umbraco CMS](https://umbraco.com/). It requires Umbraco 17.6.2 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x.
+This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE) back to [Umbraco CMS](https://umbraco.com/). It requires Umbraco 17.8.0 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x.
 
 It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (`appsettings.json`).
 
@@ -25,9 +25,14 @@ To [install from NuGet](https://www.nuget.org/packages/TinyMCE.Umbraco), you can
 
 In addition, you can install packages via the Visual Studio NuGet Package Manager.  This can be found in the Tools menu of Visual Studio.
 
+> **Upgrade Umbraco to 17.8.0 first.** NuGet does not refuse this package on an older 17.x site. Instead it quietly
+> lifts the few Umbraco packages this one depends on to 17.8.0 and leaves the rest of Umbraco where it was, so the
+> site ends up running a mix of Umbraco versions without any warning. Upgrade `Umbraco.Cms` to 17.8.0 or later, then
+> install or update this package.
+
 ### Upgrading from v15
 
-If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16. Use a **16.x** version of this package for that migration — the current release requires Umbraco 17.6.2 or later.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
+If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16. Use a **16.x** version of this package for that migration — the current release requires Umbraco 17.8.0 or later.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
 
 ### Looking for the v13 version?
 
@@ -254,7 +259,7 @@ If you would like to extend the TinyMCE for Umbraco CMS package, there is an [np
 
     npm install --save-dev @tiny-mce-umbraco/backoffice
 
-> **Requirements for extension projects:** this package declares `@umbraco-cms/backoffice` `^17.6.2` as a **peer dependency**, so your project needs a matching backoffice version installed alongside it — building against an older backoffice will produce a peer dependency conflict. Building also requires Node.js 24.13+ and npm 11+.
+> **Requirements for extension projects:** this package declares `@umbraco-cms/backoffice` `^17.8.0` as a **peer dependency**, so your project needs a matching backoffice version installed alongside it — building against an older backoffice will produce a peer dependency conflict. Building also requires Node.js 24.13+ and npm 11+.
 
 Creating an extension to this package aligns with how [Umbraco CMS allowed custom packages in version 15](https://docs.umbraco.com/umbraco-cms/fundamentals/backoffice/property-editors/built-in-umbraco-property-editors/rich-text-editor-tinymce/plugins).  
 

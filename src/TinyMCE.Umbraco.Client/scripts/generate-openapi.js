@@ -43,8 +43,15 @@ fetch(swaggerUrl).then(async (response) => {
       },
       {
         name: '@hey-api/sdk',
-				asClass: true,
-				classNameBuilder: (name) => `${name}Service`,
+				// One `TinyMceService` class per OpenAPI tag, with static methods. This replaces the
+				// `asClass`/`classNameBuilder` options that @hey-api/openapi-ts 0.99 deprecates, and generates
+				// the same output (research R2).
+				operations: {
+					strategy: 'byTags',
+					container: 'class',
+					containerName: '{{name}}Service',
+					methods: 'static',
+				},
 				responseStyle: 'fields',
       }
     ],

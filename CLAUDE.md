@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Umbraco CMS package that brings TinyMCE Rich Text Editor back to Umbraco. This branch targets Umbraco 17.6.2; the published package requires Umbraco 17.6.2 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It replaces the default TipTap editor and supports both open-source and premium TinyMCE plugins. The package consists of three main projects:
+This is an Umbraco CMS package that brings TinyMCE Rich Text Editor back to Umbraco. This branch targets Umbraco 17.8.0; the published package requires Umbraco 17.8.0 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It replaces the default TipTap editor and supports both open-source and premium TinyMCE plugins. The package consists of three main projects:
 
 - **TinyMCE.Umbraco** (.NET 10.0 / Razor SDK): Main NuGet package containing C# backend, API controllers, configuration, and compiled frontend assets
 - **TinyMCE.Umbraco.Client** (TypeScript/Vite): Frontend backoffice package built with Lit elements and Umbraco's extension system
@@ -33,7 +33,7 @@ dotnet build src/TinyMCE.Umbraco/TinyMCE.Umbraco.csproj
 
 ### Frontend Development
 
-**Requires Node.js 24.13+ and npm 11+** (floors raised by `@umbraco-cms/backoffice` 17.6.2). npm only warns on an older Node, it does not fail — so a stale toolchain shows up as a confusing build error rather than an install error.
+**Requires Node.js 24.13+ and npm 11+** (floors raised by `@umbraco-cms/backoffice` 17.8.0). npm only warns on an older Node, it does not fail — so a stale toolchain shows up as a confusing build error rather than an install error.
 
 ```bash
 cd src/TinyMCE.Umbraco.Client
@@ -190,7 +190,7 @@ plausible-looking tests exercise neither of the rendering ones.
 
 ## Project-Specific Conventions
 
-- The package targets .NET 10.0 and Umbraco 17.6.2
+- The package targets .NET 10.0 and Umbraco 17.8.0
 - Uses TinyMCE v6 by default but supports v7/v8 via configuration
 - Frontend uses Lit elements and Umbraco's Web Components architecture
 - TypeScript is configured with strict mode and experimental decorators

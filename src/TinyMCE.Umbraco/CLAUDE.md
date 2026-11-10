@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the **TinyMCE.Umbra
 
 ## Project Overview
 
-This is the main NuGet package project (.NET 10.0, Razor SDK) that provides the TinyMCE Rich Text Editor for Umbraco CMS. It requires Umbraco 17.6.2 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It contains the backend API, configuration system, migrations, and hosts the compiled frontend assets from the TinyMCE.Umbraco.Client project.
+This is the main NuGet package project (.NET 10.0, Razor SDK) that provides the TinyMCE Rich Text Editor for Umbraco CMS. It requires Umbraco 17.8.0 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It contains the backend API, configuration system, migrations, and hosts the compiled frontend assets from the TinyMCE.Umbraco.Client project.
 
 ## Building
 
@@ -19,7 +19,7 @@ dotnet build TinyMCE.Umbraco.csproj -c Release
 dotnet pack TinyMCE.Umbraco.csproj -c Release
 
 # Pack with specific version
-dotnet pack TinyMCE.Umbraco.csproj -c Release /p:Version=17.6.2
+dotnet pack TinyMCE.Umbraco.csproj -c Release /p:Version=17.8.0
 ```
 
 ## Project Structure
@@ -54,7 +54,7 @@ Both are registered and bound in TinyMceComposer.cs:14 using `IOptions<T>` patte
 ### API Controllers
 
 **TinyMceConfigApiController** (Api/Management/Controllers/TinyMceConfigApiController.cs:11):
-- Exposes GET `/umbraco/tiny-mce/api/v1/config` endpoint
+- Exposes GET `/umbraco/management/api/v1/tiny-mce/config` endpoint (Management API, backoffice-authenticated)
 - Returns `TinyMceConfigResponseModel` containing both configuration objects
 - Uses ASP.NET Core API versioning (v1.0)
 - Grouped under "TinyMCE" in Swagger UI
@@ -82,10 +82,10 @@ This line is essential for the package to work correctly. Without it, Umbraco wi
 
 ## Dependencies
 
-- `Umbraco.Cms.Web.Website` 17.6.2
-- `Umbraco.Cms.Web.Common` 17.6.2
-- `Umbraco.Cms.Api.Common` 17.6.2
-- `Umbraco.Cms.Api.Management` 17.6.2
+- `Umbraco.Cms.Web.Website` 17.8.0
+- `Umbraco.Cms.Web.Common` 17.8.0
+- `Umbraco.Cms.Api.Common` 17.8.0
+- `Umbraco.Cms.Api.Management` 17.8.0
 - Project reference to `TinyMCE.Umbraco.Client.esproj` (for asset compilation)
 
 ## Build Output

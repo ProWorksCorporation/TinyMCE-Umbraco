@@ -11,9 +11,9 @@
   <ItemGroup>
     <!-- Umbraco's own integration-test harness (ManagementApiTest<T>, test databases); it brings NUnit and Moq.
          Keep this on the same version as the Umbraco packages the main project references. -->
-    <PackageReference Include="Umbraco.Cms.Tests.Integration" Version="17.6.2" />
+    <PackageReference Include="Umbraco.Cms.Tests.Integration" Version="17.8.0" />
     <!-- Versions match Umbraco's tests/Directory.Packages.props for the same release. -->
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" PrivateAssets="all" />
   </ItemGroup>
 

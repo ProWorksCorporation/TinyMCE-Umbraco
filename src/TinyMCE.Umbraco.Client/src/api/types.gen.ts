@@ -17,7 +17,7 @@ export type ProblemDetails = {
     status?: number | null;
     detail?: string | null;
     instance?: string | null;
-    [key: string]: unknown | string | null | string | null | number | null | string | null | string | null | undefined;
+    [key: string]: unknown;
 };
 
 export type RichTextEditorCommand = {
@@ -36,7 +36,7 @@ export type RichTextEditorSettings = {
     commands: Array<RichTextEditorCommand>;
     plugins: Array<string>;
     customConfig: {
-        [key: string]: string;
+        [key: string]: unknown;
     };
     validElements: string;
     invalidElements: string;

@@ -26,7 +26,6 @@ import { mergeArrays, parseJsonStringValues } from './input-tiny-mce.config-merg
 
 import { TinyMceService } from '../../api/index.js';
 import { tryExecute } from '@umbraco-cms/backoffice/resources';
-// @ts-ignore
 import { umbHttpClient } from '@umbraco-cms/backoffice/http-client';
 
 /**
@@ -240,7 +239,6 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	}
 
 	async #getTinyMceConfig() {
-		// @ts-ignore
 		const { data } = await tryExecute(this, TinyMceService.getConfig({ client: umbHttpClient }));
 		if (!data) return;
 
@@ -279,13 +277,11 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		let excludeList: string[] = [];
 		if (appSettingsConfig) {
 			this.#sanitizeTinyMce = appSettingsConfig.config?.sanitizeTinyMce ?? true;
-			// @ts-ignore
 			apiKey = appSettingsConfig.richTextEditor?.cloudApiKey || 'no-origin';
 			if (appSettingsConfig.config?.apikey) {
 				apiKey = appSettingsConfig.config?.apikey;
 			}
 			version = appSettingsConfig.config?.tinyMceVersion || '6';
-			// @ts-ignore
 			if (apiKey && apiKey != 'no-origin') {
 				url = appSettingsConfig.config?.tinyMceUrl || `https://cdn.tiny.cloud/1/${apiKey}/tinymce/${version}/`;
 			}
