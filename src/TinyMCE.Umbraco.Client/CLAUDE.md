@@ -123,15 +123,24 @@ export const manifests = [
 
 Umbraco's backoffice loads these manifests to discover and register extensions.
 
-### Entry Point (src/entry-points/entry-point.ts)
+### Entry Points (src/entry-points/)
 
-The `onInit` function:
-1. Consumes Umbraco's `UMB_AUTH_CONTEXT`
-2. Gets OAuth configuration from auth context
-3. Configures the OpenAPI client with base URL and credentials
-4. Adds request interceptor to inject Bearer token on every API call
+There are two, registered in `manifest.ts`, because they have different lifetimes:
 
-This enables authenticated API calls to `/umbraco/management/api/v1/tiny-mce/config`.
+- **`entry-point.ts`, a `backofficeEntryPoint` (app-scoped).** Turns on the blob/data download workaround
+  (`blob-download-router-fix.ts`, needed for TinyMCE's PDF export) for as long as the backoffice is loaded, and turns
+  it off in `onUnload`. Nothing user-specific belongs here: it does not re-run when someone signs in again.
+- **`user-entry-point.ts`, a `userEntryPoint` (session-scoped).** Runs after every sign-in, possibly as a different
+  user, and calls `authContext.configureClient(client)` for the package's generated API client. That is Umbraco's
+  documented way to authenticate an extension's own hey-api client: the token is read per request (so refreshes and
+  re-logins just work), Umbraco's 401-retry and ProblemDetails interceptors are attached, and repeated calls are
+  idempotent. Nothing is cached per user, so `onUnload` is a deliberate no-op.
+
+Before 17.8.0 the backoffice entry point instead did `client.setConfig(...)` plus a hand-written
+`client.interceptors.request.use(...)` adding the Bearer token. It was removed because it configured a client that no
+call site used: every call passes `umbHttpClient` (`TinyMceService.getConfig({ client: umbHttpClient })`,
+`postAiCompletion` likewise), which Umbraco already authenticates. Keep passing `umbHttpClient` at call sites; the
+user entry point only keeps the generated client correct as a fallback for anyone calling the services without one.
 
 ## Custom TinyMCE Plugins
 
