@@ -10,6 +10,6 @@
 		"@tiny-mce-umbraco/backoffice": "17.6.3",
 		"@umbraco-cms/backoffice": "17.6.2",
 		"typescript": "5.9.3",
-		"vite": "7.3.6"
+		"vite": "7.3.8"
 	}
 }

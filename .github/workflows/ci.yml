@@ -45,7 +45,7 @@ jobs:
     - name: Setup Node
       uses: actions/setup-node@v7
       with:
-        # @umbraco-cms/backoffice 17.6.2 requires node >=24.13 and npm >=11.
+        # @umbraco-cms/backoffice 17.8.0 requires node >=24.13 and npm >=11.
         node-version: 24
         cache: npm
         cache-dependency-path: src/TinyMCE.Umbraco.Client/package-lock.json

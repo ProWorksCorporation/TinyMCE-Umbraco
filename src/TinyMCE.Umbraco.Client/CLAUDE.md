@@ -10,7 +10,7 @@ This is the frontend backoffice package that provides the TinyMCE Rich Text Edit
 
 ## Common Commands
 
-**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 17.6.2. npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
+**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 17.8.0. npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
 
 ```bash
 # Install dependencies
@@ -131,7 +131,7 @@ The `onInit` function:
 3. Configures the OpenAPI client with base URL and credentials
 4. Adds request interceptor to inject Bearer token on every API call
 
-This enables authenticated API calls to `/umbraco/tiny-mce/api/v1/config`.
+This enables authenticated API calls to `/umbraco/management/api/v1/tiny-mce/config`.
 
 ## Custom TinyMCE Plugins
 
@@ -311,6 +311,16 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
   here independently and kept in this branch's form.
 - If new Umbraco versions introduce other per-realm singletons that components inside the iframe need, apply the same pattern: expose on `window`, read via `window.parent` in the injected script.
 
+**Umbraco 17.8 check (2026-11)**, from diffing Umbraco's 17.6.2 and 17.8.1 sources:
+- No new `localize.term(` keys in `block-rte`/`block`. `blockEditor_confirmDeleteBlockMessage` now wraps its
+  argument in `escapeHTML`, which happens in the outer-realm `block-entry.context.ts` and doesn't change the key.
+- The `@customElement` set in `block-rte` (including `umb-rte-block`) is identical to 17.6.2.
+- `blockAction`'s API interface gained only the optional `getHrefObservable` / `getValidationDataPathObservable`.
+  Conditions are covered by the alias-derived copy.
+- The `ufm` package still exports `manifests`, with the same five `ufmComponent`s.
+- **English users' `documentLanguage` is now `en-gb`** for "English (UK)" (Umbraco #23899). Re-test the language
+  bridge with an English (UK) user, not only a non-English one.
+
 **Upgrade checklist for this section.** Every failure mode here is silent — blank UI, missing chrome,
 or English text, never an exception — so none of it surfaces without deliberate checking. On each
 Umbraco minor, for anything rendered inside the editor:
@@ -319,7 +329,7 @@ Umbraco minor, for anything rendered inside the editor:
 3. New custom elements rendered by block components → confirm they are defined in the inner realm.
 4. New `ufmComponent` manifests in Umbraco's `ufm` package → nothing to change (the loop takes whatever
    the package exports), but confirm the export is still called `manifests` and still carries `api()`
-   closures. 17.6.2 ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`.
+   closures. 17.8.x still ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`.
 5. Test with a **non-English** backoffice. An English-only pass cannot distinguish a working
    localization bridge from a broken one.
 6. **Test block labels with `{=alias}` on a *classic* data type.** This one cost two false passes during
@@ -417,6 +427,19 @@ All components use Lit web components with Umbraco's extension system:
 4. **Rebuild C# Project**: The C# project includes the wwwroot as static assets
 5. **Test in Umbraco**: Run the TestSite and navigate to backoffice
 
+## Tests
+
+`npm test` runs the in-browser tests with `@web/test-runner` in Playwright's Chromium, using the same libraries as
+Umbraco's own backoffice tests (`@open-wc/testing`: Mocha, Chai, `fixture`/`html`). Run
+`npx playwright install chromium` once per machine. Tests sit next to the code they test, as `src/**/*.test.ts`.
+`npm run build` type-checks them, and they are excluded from the Vite build and from the npm typings.
+
+**They cannot reach the editor's rendering.** A component test has no TinyMCE iframe (a separate module realm) and
+no backoffice shadow-DOM tree around an inline editor. So nothing in *TinyMCE iframe Module Scope* or *Inline Mode
+and Shadow DOM* is covered by them, and those sections' checklists, run by hand in the TestSite, remain the only
+defence there. The server-side tests are in `src/TinyMCE.Umbraco.Tests` (`dotnet test`); see
+`.github/CONTRIBUTING.md`.
+
 ## Publishing NPM Package
 
 1. Update version in `package.json`
@@ -433,7 +456,7 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 - `tinymce-i18n` ^24.12.30 - Localization files
 
 **Peer Dependencies**:
-- `@umbraco-cms/backoffice` ^17.6.2
+- `@umbraco-cms/backoffice` ^17.8.0
 - `tinymce` and `tinymce-i18n` (ensures version compatibility)
 
 **Dev Dependencies**: Vite, TypeScript, Rollup plugins, OpenAPI generator, etc.
