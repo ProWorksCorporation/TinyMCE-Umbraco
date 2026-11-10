@@ -16,6 +16,9 @@ import { UmbLitElement } from '@umbraco-cms/backoffice/lit-element';
 import { UmbStylesheetDetailRepository } from '@umbraco-cms/backoffice/stylesheet';
 import { UMB_SERVER_CONTEXT } from '@umbraco-cms/backoffice/server';
 import { UUIFormControlMixin } from '@umbraco-cms/backoffice/external/uui';
+import { UmbEntityInputInteractionMemoryManager } from '@umbraco-cms/backoffice/entity';
+import { UmbInteractionMemoryScopeContext } from '@umbraco-cms/backoffice/interaction-memory';
+import type { UmbInteractionMemoryModel } from '@umbraco-cms/backoffice/interaction-memory';
 //import type { ClassConstructor } from '@umbraco-cms/backoffice/extension-api';
 import type { EditorEvent, Editor, RawEditorOptions } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 import type { ManifestTinyMcePlugin } from '@tiny-mce-umbraco/backoffice/core';
@@ -73,6 +76,29 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	#stylesheetRootPath = '/css';
 	readonly #stylesheetRepository = new UmbStylesheetDetailRepository(this);
 	readonly #umbStylesheetRuleManager = new UmbStylesheetRuleManager();
+
+	// Holds what the modals opened from this input remember between opens, such as the media picker's last folder
+	// (as Tiptap does since Umbraco 17.8). The modals render in the modal portal, not below this element, so
+	// context is the only channel that reaches them; upwards it is a property and an `interaction-memories-change`
+	// event, which the property editor UI stores per Data Type for the rest of the backoffice session.
+	readonly #interactionMemoryScope = new UmbInteractionMemoryScopeContext(this);
+	readonly #interactionMemoryBridge = new UmbEntityInputInteractionMemoryManager(
+		this,
+		this.#interactionMemoryScope.memory,
+	);
+
+	/**
+	 * The memories held by the modals opened from this input, e.g. the last-used folder in a media picker opened
+	 * from the editor toolbar. Bridged from the interaction-memory scope this input provides.
+	 * @type {(Array<UmbInteractionMemoryModel> | undefined)}
+	 */
+	@property({ type: Array, attribute: false })
+	public get interactionMemories(): Array<UmbInteractionMemoryModel> | undefined {
+		return this.#interactionMemoryBridge.getMemories();
+	}
+	public set interactionMemories(value: Array<UmbInteractionMemoryModel> | undefined) {
+		this.#interactionMemoryBridge.setMemories(value);
+	}
 
 	protected override getFormElement() {
 		return this._editorElement?.querySelector('iframe') ?? undefined;
