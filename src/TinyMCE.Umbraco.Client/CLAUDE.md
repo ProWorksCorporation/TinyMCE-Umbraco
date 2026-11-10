@@ -419,20 +419,23 @@ containers (`uui-scroll-container#main`, the native `<dialog>`), so anything pos
 clipped at the panel's edge. TinyMCE dialogs themselves escape (they are `position: fixed`), but the
 dropdowns inside them did not: every dialog dropdown opening left of the panel was unusable.
 
-The fix pins the sink to the viewport **only while a TinyMCE dialog is open**: `OpenWindow`/`CloseWindow`
-toggle the `tinymce-dialog-open` host attribute, and a `:host([tinymce-dialog-open])` rule sets
-`position: fixed !important` (TinyMCE writes `position: relative` inline). Two approaches that look right
-and are not:
+The fix pins the sink to the viewport **only while it holds a modal dialog**: a
+`.tox-silver-sink…:has(.tox-dialog-wrap)` rule sets `position: fixed !important` (TinyMCE writes
+`position: relative` inline). Three approaches that look right and are not:
 - **`ui_mode: 'split'`** doesn't help: dialog dropdowns stay in the dialog sink in both modes. It also moves
   the *inline* toolbar next to the editable element, where a page-level inline editor's top toolbar row ends
   up under the workspace header.
 - **Pinning the sink permanently** detaches toolbar menus and context toolbars from content that scrolls
   inside the panel, because with `combined` they share that sink.
+- **Pinning while *any* dialog is open** (`OpenWindow`/`CloseWindow`, the first version of this fix) throws
+  *inline* dialogs (`.tox-dialog-inline`, no `.tox-dialog-wrap`; Ask AI is one) off screen: TinyMCE places them
+  with coordinates computed against the sink's normal position.
 
 Separately, and not fixed: **Escape in any TinyMCE dialog inside a side panel also closes the panel** (the
 native `<dialog>` closes on Escape), with "Discard unsaved changes" if the block was edited.
-Check on each TinyMCE upgrade that `OpenWindow`/`CloseWindow` still fire and the sink still carries
-`tox-silver-sink tox-tinymce-aux`; the test is quickstart D1 in a small block panel.
+Check on each TinyMCE upgrade that modal dialogs still render a `.tox-dialog-wrap` inside a sink carrying
+`tox-silver-sink tox-tinymce-aux`; the tests are quickstart D1 in a small block panel and opening Ask AI (an inline
+dialog), which must appear under the toolbar.
 
 ## Working with Components
 

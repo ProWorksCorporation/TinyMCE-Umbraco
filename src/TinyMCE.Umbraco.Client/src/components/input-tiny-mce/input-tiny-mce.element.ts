@@ -527,18 +527,6 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		editor.on('Dirty', () => this.#onChange(editor.getContent()));
 		editor.on('Keyup', () => this.#onChange(editor.getContent()));
 
-		// #238: while a TinyMCE dialog is open, its sink is pinned to the viewport (see `styles`). Counted, because a
-		// dialog can open another one.
-		let openDialogs = 0;
-		editor.on('OpenWindow', () => {
-			openDialogs++;
-			this.toggleAttribute('tinymce-dialog-open', true);
-		});
-		editor.on('CloseWindow', () => {
-			openDialogs = Math.max(0, openDialogs - 1);
-			if (!openDialogs) this.toggleAttribute('tinymce-dialog-open', false);
-		});
-
 		editor.on('focus', () => this.dispatchEvent(new CustomEvent('umb-rte-focus', { composed: true, bubbles: true })));
 
 		editor.on('blur', () => {
@@ -643,13 +631,15 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 			/* #238: TinyMCE attaches its dialog sink - dialogs and the dropdowns inside them - to this shadow root, so
 			   it sits inside whatever scrolls around the editor. In a block side panel that is a scroll container,
-			   which clipped every dialog dropdown opening past the panel's edge. While a dialog is open, pinning the
-			   sink to the viewport takes it out of those containers, as the dialogs themselves (position: fixed)
-			   already are. Only then: with the default ui_mode the same sink holds toolbar menus and context
-			   toolbars, which must keep scrolling with the content. !important, because TinyMCE writes
-			   position: relative as an inline style on its sinks. The popup sink of ui_mode 'split' is never
-			   pinned. */
-			:host([tinymce-dialog-open]) .tox.tox-silver-sink.tox-tinymce-aux:not(.tox-silver-popup-sink) {
+			   which clipped every dialog dropdown opening past the panel's edge. While a modal dialog is open (its
+			   .tox-dialog-wrap is in the sink), pinning the sink to the viewport takes it out of those containers, as
+			   the modal dialogs themselves (position: fixed) already are.
+			   Only then: with the default ui_mode the same sink holds toolbar menus and context toolbars, which must
+			   keep scrolling with the content; and inline dialogs (.tox-dialog-inline, e.g. Ask AI) are placed by
+			   coordinates TinyMCE computes against the sink's normal position, so pinning for one of those threw it
+			   off screen. !important, because TinyMCE writes position: relative as an inline style on its sinks. The
+			   popup sink of ui_mode 'split' is never pinned. */
+			.tox.tox-silver-sink.tox-tinymce-aux:not(.tox-silver-popup-sink):has(.tox-dialog-wrap) {
 				position: fixed !important;
 				top: 0;
 				left: 0;
