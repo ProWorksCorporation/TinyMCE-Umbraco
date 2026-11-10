@@ -147,6 +147,32 @@ The **openAiApiConfig** supported configuration properties are described below:
 | maxCompletionTokens  | number  | 800    | An upper bound for the number of tokens that can be generated for a completion, including visible output tokens and reasoning tokens. |
 | temperature  | number  | 1.0    | What sampling temperature to use, between 0 and 2. Higher values like 0.8 will make the output more random, while lower values like 0.2 will make it more focused and deterministic. NOTE: gpt-5 doesn't support customization of temperature. |
 
+### Security: bundled TinyMCE 6
+
+By default this package loads the TinyMCE **6.8.x** core it bundles (`tinyMceVersion` `6`). That core is affected by
+these published advisories, which TinyMCE has fixed only in later major versions:
+
+| Advisory | Severity | Fixed in |
+| -------- | -------- | -------- |
+| [GHSA-mh5m-5hw4-5c69](https://github.com/advisories/GHSA-mh5m-5hw4-5c69): XSS via a sanitization bypass through nested SVGs | High | 7.1.0 |
+| [GHSA-vg35-5wq7-3x7w](https://github.com/advisories/GHSA-vg35-5wq7-3x7w): XSS via media plugin `data-mce-object` injection | High | 7.9.3 |
+| [GHSA-q742-qvgc-gc2f](https://github.com/advisories/GHSA-q742-qvgc-gc2f): XSS via `data-mce-` prefixed `src`, `href` and `style` attributes | High | 7.9.3 |
+| [GHSA-v98h-vmpc-fpqv](https://github.com/advisories/GHSA-v98h-vmpc-fpqv): XSS through `mce:protected` comments | High | 7.9.3 |
+| [GHSA-5359-pvf2-pw78](https://github.com/advisories/GHSA-5359-pvf2-pw78): XSS in handling external SVG files through `object` or `embed` elements | Moderate | 7.0.0 |
+
+All of them are fixed in **TinyMCE 7.9.3 or later**. To run TinyMCE 7 or 8 instead of the bundled core, register a
+small `bundle` extension on your site that imports the TinyMCE 7 or 8 core (from the Tiny Cloud CDN or your own
+copy), and set `TinyMceConfig:tinyMceVersion` to `7` or `8`, with `apikey` (Tiny Cloud) or `tinyMceUrl` (self-hosted)
+so that plugins and skins load from the same version. Setting `tinyMceVersion` alone is not enough: the bundled 6.x
+core would still run. The guides under [Updating TinyMCE To Version 7 or 8](#updating-tinymce-to-version-7-or-8) walk
+through each setup.
+
+Check the licence before you switch: TinyMCE 6 is MIT licensed, while TinyMCE 7 and later are available under GPLv2+
+(self-hosted, with `license_key: "gpl"`) or a commercial licence from Tiny, and Tiny Cloud needs an account with Tiny.
+
+TinyMCE 6.x remains the default in this release by maintainer decision, so that upgrading the package doesn't change
+an existing site's licence terms. The editor is only available to signed-in backoffice users.
+
 ### AI provider key handling
 
 **The OpenAI key stays on the server.** The AI assistant sends each request to this package's own back-office endpoint

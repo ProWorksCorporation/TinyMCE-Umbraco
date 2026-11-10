@@ -4,6 +4,7 @@ import { UmbPropertyEditorUiRteElementBase } from '@umbraco-cms/backoffice/rte';
 import { UmbPropertyEditorUiInteractionMemoryManager } from '@umbraco-cms/backoffice/property-editor';
 import type { UmbInteractionMemoryModel } from '@umbraco-cms/backoffice/interaction-memory';
 import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
+import type { UmbPropertyEditorRteValueType } from '@umbraco-cms/backoffice/rte';
 
 import '@tiny-mce-umbraco/backoffice/core';
 
@@ -21,6 +22,27 @@ export class UmbPropertyEditorUITinyMceElement extends UmbPropertyEditorUiRteEle
 
 	@state()
 	private _interactionMemories: Array<UmbInteractionMemoryModel> = [];
+
+	/**
+	 * True while a value is being set from outside. Changes the editor reports meanwhile are echoes of that value,
+	 * not edits, and must not be reported back (FR-042). On a culture switch Umbraco 17.8's `umb-property` points
+	 * its data path at the new culture, sets that culture's value on this (old) element, and only then replaces the
+	 * element. The block picker reacts to the new block contents by inserting them into the old editor and firing a
+	 * change, which `umb-property` would store under the new culture: the old culture's text leaked into it.
+	 */
+	#settingValue = false;
+
+	public override set value(value: UmbPropertyEditorRteValueType | undefined) {
+		this.#settingValue = true;
+		try {
+			super.value = value;
+		} finally {
+			this.#settingValue = false;
+		}
+	}
+	public override get value(): UmbPropertyEditorRteValueType | undefined {
+		return super.value;
+	}
 
 	public override set config(config: UmbPropertyEditorConfigCollection | undefined) {
 		// Unconditionally, and before the base's own guard: without a config hash there is no key to store the
@@ -52,6 +74,8 @@ export class UmbPropertyEditorUITinyMceElement extends UmbPropertyEditorUiRteEle
 	}
 
 	#onChange(event: CustomEvent & { target: UmbInputTinyMceElement }) {
+		if (this.#settingValue) return;
+
 		const markup = typeof event.target.value === 'string' ? event.target.value : '';
 
 		// If we don't get any markup clear the property editor value.

@@ -8,7 +8,7 @@ It shows how a third-party package plugs into the TinyMCE editor that TinyMCE.Um
 - **A plugin class.** `mentions.tinymce-api.ts` default-exports a class extending `UmbTinyMcePluginBase` from
   `@tiny-mce-umbraco/backoffice/core`. Umbraco loads the default export as the plugin.
 - **`extendEditorConfig`.** This static hook runs before each editor initialises, and adds TinyMCE's
-  `mentions_fetch` option. `metions-request-factory.ts` returns the fetch handler: it filters three sample users
+  `mentions_fetch` option. `mentions-request-factory.ts` returns the fetch handler: it filters three sample users
   by what was typed after `@`.
 - **A premium TinyMCE plugin.** `mentions` is one of TinyMCE's premium plugins, so the editor needs a
   TinyMCE Cloud API key (`TinyMceConfig:apikey`) for the `@` menu to appear.

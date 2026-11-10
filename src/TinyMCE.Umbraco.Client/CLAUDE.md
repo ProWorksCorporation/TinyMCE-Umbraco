@@ -171,6 +171,15 @@ The main property editor is `Umbraco.TinyMCE` (defined in Constants.cs in the C#
 - Handles initialization from configuration
 - Manages Umbraco-specific integrations
 
+**Culture switch (Umbraco 17.8+).** On a culture-variant document, `umb-property` switches its data path to the new
+culture, sets that culture's value on the *current* editor element, and only then replaces the element (we don't
+declare `meta.supportsVariantChange`). Anything the old element reports as a change in between is stored under the
+new culture. The block picker plugin does exactly that: it inserts the new culture's blocks into the old editor and
+dispatches `Change`. So `property-editor-ui-tiny-mce.element.ts` ignores changes reported while its `value` setter
+runs (`#settingValue`); a value set from outside is never an edit. Nothing errors when this regresses: the old
+culture's text silently appears in the new one. Check with quickstart H9 (switch cultures with and without an unsaved
+edit; each culture must show only its own content).
+
 ## Utility Functions (src/utils/)
 
 **Image Handling**:
