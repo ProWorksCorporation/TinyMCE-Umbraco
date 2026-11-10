@@ -31,6 +31,8 @@ follow the Umbraco CMS major version they support.
 - Editing an existing link through the link picker is now saved even when nothing else changes afterwards (in inline
   mode the edit could be lost), and can be undone.
 - Table property dialog dropdowns are no longer clipped inside block side panels (#238) (long-standing).
+- Protocol-relative editor stylesheets (`//cdn…`) load again, and stylesheets always resolve under the configured
+  `UmbracoCssPath` on the Umbraco server.
 
 ### Security
 

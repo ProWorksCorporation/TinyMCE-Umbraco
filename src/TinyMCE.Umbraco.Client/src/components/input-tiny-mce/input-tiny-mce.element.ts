@@ -26,10 +26,12 @@ import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/
 
 import { bridgeInlineEditor } from './shadow-dom-selection.js';
 import { mergeArrays, parseJsonStringValues } from './input-tiny-mce.config-merge.js';
+import { DEFAULT_STYLESHEET_ROOT_PATH, resolveStylesheetHrefs } from './input-tiny-mce.stylesheet-href.js';
 
 import { TinyMceService } from '../../api/index.js';
 import { tryExecute } from '@umbraco-cms/backoffice/resources';
 import { umbHttpClient } from '@umbraco-cms/backoffice/http-client';
+import { UmbStringState } from '@umbraco-cms/backoffice/observable-api';
 
 /**
  * Handles the resize event
@@ -71,9 +73,16 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 	/**
 	 * Where the picked stylesheets are served from. Configurable as `Global:UmbracoCssPath`; `/css` is
-	 * the fallback Umbraco itself uses when the server has not reported one yet.
+	 * the fallback Umbraco itself uses when there is no server connection. `undefined` until the server context
+	 * reports it: the editor configuration waits for it (see `resolveStylesheetHrefs`).
 	 */
-	#stylesheetRootPath = '/css';
+	readonly #stylesheetRootPath = new UmbStringState(undefined);
+
+	/**
+	 * The Umbraco server origin, so stylesheet URLs are absolute on the server: equal to `location.origin` in
+	 * production, different in split setups such as a dev client using `VITE_UMBRACO_API_URL`.
+	 */
+	#serverUrl = '';
 	readonly #stylesheetRepository = new UmbStylesheetDetailRepository(this);
 	readonly #umbStylesheetRuleManager = new UmbStylesheetRuleManager();
 
@@ -162,10 +171,18 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		this.#loadEditor();
 	}
 
+	// Mirrors Umbraco 17.8's Tiptap (`tiptap-rte.context.ts`).
 	#loadStylesheetRootPath() {
 		this.consumeContext(UMB_SERVER_CONTEXT, (serverContext) => {
-			this.observe(serverContext?.getServerConnection()?.umbracoCssPath, (umbracoCssPath) => {
-				if (umbracoCssPath) this.#stylesheetRootPath = umbracoCssPath;
+			this.#serverUrl = serverContext?.getServerUrl() ?? '';
+
+			const serverConnection = serverContext?.getServerConnection();
+			if (!serverConnection) {
+				this.#stylesheetRootPath.setValue(DEFAULT_STYLESHEET_ROOT_PATH);
+				return;
+			}
+			this.observe(serverConnection.umbracoCssPath, (umbracoCssPath) => {
+				this.#stylesheetRootPath.setValue(umbracoCssPath ?? DEFAULT_STYLESHEET_ROOT_PATH);
 			});
 		});
 	}
@@ -281,19 +298,15 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		const preValueCustomConfig = this.configuration?.getValueByAlias<JSON>('customConfig') ?? {};
 
-		// Map the stylesheets with server url, matching what Umbraco's own rich text editor does in
-		// `input-tiptap.element.ts`. Prefixing unconditionally is wrong in two cases: a path that is
-		// already rooted (older configurations stored the full `/css/foo.css`, which became
-		// `/css/css/foo.css` and 404'd), and an absolute URL to an external stylesheet.
-		const stylesheets =
-			stylesheetPaths?.map((stylesheetPath: string) => {
-				const path = stylesheetPath.replace(/\\/g, '/');
-				return path.startsWith('http') || path.startsWith(this.#stylesheetRootPath)
-					? path
-					: `${this.#stylesheetRootPath}${path}`;
-			}) ?? [];
-
-		stylesheets.push('/umbraco/backoffice/css/rte-content.css');
+		// Resolve the stylesheets to absolute URLs on the Umbraco server, as Umbraco 17.8's own rich text editor does
+		// (`resolve-stylesheet-href.function.ts`, ported in `input-tiny-mce.stylesheet-href.ts`, which explains why
+		// the root path is not prefixed unconditionally). Waits for the configured root path first: TinyMCE takes
+		// `content_css` once, so building it early would silently fall back to `/css`.
+		const stylesheets = await resolveStylesheetHrefs(
+			stylesheetPaths,
+			this.#stylesheetRootPath.asObservable(),
+			() => this.#serverUrl,
+		);
 
 		const appSettingsConfig = await this.#getTinyMceConfig();
 
