@@ -16,6 +16,9 @@ import { UmbLitElement } from '@umbraco-cms/backoffice/lit-element';
 import { UmbStylesheetDetailRepository } from '@umbraco-cms/backoffice/stylesheet';
 import { UMB_SERVER_CONTEXT } from '@umbraco-cms/backoffice/server';
 import { UUIFormControlMixin } from '@umbraco-cms/backoffice/external/uui';
+import { UmbEntityInputInteractionMemoryManager } from '@umbraco-cms/backoffice/entity';
+import { UmbInteractionMemoryScopeContext } from '@umbraco-cms/backoffice/interaction-memory';
+import type { UmbInteractionMemoryModel } from '@umbraco-cms/backoffice/interaction-memory';
 //import type { ClassConstructor } from '@umbraco-cms/backoffice/extension-api';
 import type { EditorEvent, Editor, RawEditorOptions } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 import type { ManifestTinyMcePlugin } from '@tiny-mce-umbraco/backoffice/core';
@@ -73,6 +76,29 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	#stylesheetRootPath = '/css';
 	readonly #stylesheetRepository = new UmbStylesheetDetailRepository(this);
 	readonly #umbStylesheetRuleManager = new UmbStylesheetRuleManager();
+
+	// Holds what the modals opened from this input remember between opens, such as the media picker's last folder
+	// (as Tiptap does since Umbraco 17.8). The modals render in the modal portal, not below this element, so
+	// context is the only channel that reaches them; upwards it is a property and an `interaction-memories-change`
+	// event, which the property editor UI stores per Data Type for the rest of the backoffice session.
+	readonly #interactionMemoryScope = new UmbInteractionMemoryScopeContext(this);
+	readonly #interactionMemoryBridge = new UmbEntityInputInteractionMemoryManager(
+		this,
+		this.#interactionMemoryScope.memory,
+	);
+
+	/**
+	 * The memories held by the modals opened from this input, e.g. the last-used folder in a media picker opened
+	 * from the editor toolbar. Bridged from the interaction-memory scope this input provides.
+	 * @type {(Array<UmbInteractionMemoryModel> | undefined)}
+	 */
+	@property({ type: Array, attribute: false })
+	public get interactionMemories(): Array<UmbInteractionMemoryModel> | undefined {
+		return this.#interactionMemoryBridge.getMemories();
+	}
+	public set interactionMemories(value: Array<UmbInteractionMemoryModel> | undefined) {
+		this.#interactionMemoryBridge.setMemories(value);
+	}
 
 	protected override getFormElement() {
 		return this._editorElement?.querySelector('iframe') ?? undefined;
@@ -501,18 +527,6 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		editor.on('Dirty', () => this.#onChange(editor.getContent()));
 		editor.on('Keyup', () => this.#onChange(editor.getContent()));
 
-		// #238: while a TinyMCE dialog is open, its sink is pinned to the viewport (see `styles`). Counted, because a
-		// dialog can open another one.
-		let openDialogs = 0;
-		editor.on('OpenWindow', () => {
-			openDialogs++;
-			this.toggleAttribute('tinymce-dialog-open', true);
-		});
-		editor.on('CloseWindow', () => {
-			openDialogs = Math.max(0, openDialogs - 1);
-			if (!openDialogs) this.toggleAttribute('tinymce-dialog-open', false);
-		});
-
 		editor.on('focus', () => this.dispatchEvent(new CustomEvent('umb-rte-focus', { composed: true, bubbles: true })));
 
 		editor.on('blur', () => {
@@ -617,13 +631,15 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 			/* #238: TinyMCE attaches its dialog sink - dialogs and the dropdowns inside them - to this shadow root, so
 			   it sits inside whatever scrolls around the editor. In a block side panel that is a scroll container,
-			   which clipped every dialog dropdown opening past the panel's edge. While a dialog is open, pinning the
-			   sink to the viewport takes it out of those containers, as the dialogs themselves (position: fixed)
-			   already are. Only then: with the default ui_mode the same sink holds toolbar menus and context
-			   toolbars, which must keep scrolling with the content. !important, because TinyMCE writes
-			   position: relative as an inline style on its sinks. The popup sink of ui_mode 'split' is never
-			   pinned. */
-			:host([tinymce-dialog-open]) .tox.tox-silver-sink.tox-tinymce-aux:not(.tox-silver-popup-sink) {
+			   which clipped every dialog dropdown opening past the panel's edge. While a modal dialog is open (its
+			   .tox-dialog-wrap is in the sink), pinning the sink to the viewport takes it out of those containers, as
+			   the modal dialogs themselves (position: fixed) already are.
+			   Only then: with the default ui_mode the same sink holds toolbar menus and context toolbars, which must
+			   keep scrolling with the content; and inline dialogs (.tox-dialog-inline, e.g. Ask AI) are placed by
+			   coordinates TinyMCE computes against the sink's normal position, so pinning for one of those threw it
+			   off screen. !important, because TinyMCE writes position: relative as an inline style on its sinks. The
+			   popup sink of ui_mode 'split' is never pinned. */
+			.tox.tox-silver-sink.tox-tinymce-aux:not(.tox-silver-popup-sink):has(.tox-dialog-wrap) {
 				position: fixed !important;
 				top: 0;
 				left: 0;

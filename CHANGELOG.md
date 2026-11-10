@@ -13,6 +13,7 @@ follow the Umbraco CMS major version they support.
 - Automated server-side (NUnit) and in-browser editor test suites (`dotnet test`, `npm test`).
 - Document links keep their culture (`data-culture`): it is saved, reopens in the link picker on that language
   version, and is removed when the link changes to media or an external URL.
+- The media picker remembers the last folder used from each TinyMCE Data Type for the rest of the backoffice session.
 
 ### Changed
 
@@ -20,6 +21,8 @@ follow the Umbraco CMS major version they support.
   an older 17.x site, but quietly lifts only the Umbraco packages it depends on, leaving a mix of versions.
 - Regenerated the Management API client with @hey-api/openapi-ts 0.99, as required by Umbraco 17.8.
 - AI provider requests now originate from the web server; allow outbound access to api.openai.com.
+- API client authentication now uses Umbraco's `configureClient` from a user entry point, so it follows token refreshes
+  and re-logins.
 
 ### Fixed
 
