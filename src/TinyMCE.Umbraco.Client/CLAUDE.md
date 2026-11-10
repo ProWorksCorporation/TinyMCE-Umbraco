@@ -410,6 +410,30 @@ and in a browser: type, paste, press Enter twice, apply a list and a block forma
 `editor.getBody().querySelectorAll('[data-mce-type="bookmark"]').length === 0`. Nothing here throws when it
 regresses.
 
+### TinyMCE's UI sink lives inside the side panel (#238, both modes)
+
+TinyMCE attaches its UI sink (`.tox-silver-sink`: dialogs, the dropdowns inside them and, with the default
+`ui_mode`, toolbar menus and context toolbars) to the editor's **content container, which is
+`umb-input-tiny-mce`'s shadow root**, not the document body. A block side panel wraps that in scroll
+containers (`uui-scroll-container#main`, the native `<dialog>`), so anything positioned inside the sink is
+clipped at the panel's edge. TinyMCE dialogs themselves escape (they are `position: fixed`), but the
+dropdowns inside them did not: every dialog dropdown opening left of the panel was unusable.
+
+The fix pins the sink to the viewport **only while a TinyMCE dialog is open**: `OpenWindow`/`CloseWindow`
+toggle the `tinymce-dialog-open` host attribute, and a `:host([tinymce-dialog-open])` rule sets
+`position: fixed !important` (TinyMCE writes `position: relative` inline). Two approaches that look right
+and are not:
+- **`ui_mode: 'split'`** doesn't help: dialog dropdowns stay in the dialog sink in both modes. It also moves
+  the *inline* toolbar next to the editable element, where a page-level inline editor's top toolbar row ends
+  up under the workspace header.
+- **Pinning the sink permanently** detaches toolbar menus and context toolbars from content that scrolls
+  inside the panel, because with `combined` they share that sink.
+
+Separately, and not fixed: **Escape in any TinyMCE dialog inside a side panel also closes the panel** (the
+native `<dialog>` closes on Escape), with "Discard unsaved changes" if the block was edited.
+Check on each TinyMCE upgrade that `OpenWindow`/`CloseWindow` still fire and the sink still carries
+`tox-silver-sink tox-tinymce-aux`; the test is quickstart D1 in a small block panel.
+
 ## Working with Components
 
 All components use Lit web components with Umbraco's extension system:
