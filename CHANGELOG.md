@@ -11,6 +11,8 @@ follow the Umbraco CMS major version they support.
 ### Added
 
 - Automated server-side (NUnit) and in-browser editor test suites (`dotnet test`, `npm test`).
+- Document links keep their culture (`data-culture`): it is saved, reopens in the link picker on that language
+  version, and is removed when the link changes to media or an external URL.
 
 ### Changed
 

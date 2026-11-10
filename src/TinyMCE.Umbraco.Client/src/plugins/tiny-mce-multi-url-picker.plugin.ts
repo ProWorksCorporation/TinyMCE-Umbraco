@@ -55,6 +55,7 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 			target: anchor.getAttribute('target'),
 			type: anchor.getAttribute('type'),
 			'data-anchor': anchor.getAttribute('data-anchor'),
+			'data-culture': anchor.getAttribute('data-culture'),
 		});
 
 		const currentTarget: UmbLinkPickerLink = { ...link, name: link.name || anchor.textContent };

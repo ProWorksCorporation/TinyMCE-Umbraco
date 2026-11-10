@@ -122,10 +122,13 @@ public class RichTextEditorSettingsTests
 
     // ---- Default ValidElements ----
 
-    /// <summary>The attribute list of the default <c>+a[...]</c> rule, as of package 17.6.3.</summary>
+    /// <summary>
+    /// The attribute list of the default <c>+a[...]</c> rule: package 17.6.3's, plus <c>data-anchor</c> and
+    /// <c>data-culture</c> (17.8.0, US4), which the link picker writes.
+    /// </summary>
     private static readonly string[] ExpectedAnchorAttributes =
     [
-        "id", "style", "rel", "data-id", "data-udi", "rev", "charset", "hreflang", "dir", "lang", "tabindex",
+        "id", "style", "rel", "data-id", "data-udi", "data-anchor", "data-culture", "rev", "charset", "hreflang", "dir", "lang", "tabindex",
         "accesskey", "type", "name", "href", "target", "title", "class", "onfocus", "onblur", "onclick", "ondblclick",
         "onmousedown", "onmouseup", "onmouseover", "onmousemove", "onmouseout", "onkeypress", "onkeydown", "onkeyup",
     ];

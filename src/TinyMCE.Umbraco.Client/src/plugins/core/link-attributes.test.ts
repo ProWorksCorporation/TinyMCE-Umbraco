@@ -1,5 +1,4 @@
 // How links are written to and read from `<a>` attributes (contracts/link-markup.md, data-model §5).
-// The culture row is US4 and is covered with `data-culture`.
 import { expect } from '@open-wc/testing';
 import { attributesFromLink, isLocalLinkHref, linkFromAttributes } from './link-attributes.js';
 import type { UmbTinyMceLinkAttributes } from './link-attributes.js';
@@ -25,10 +24,11 @@ function fields(link: UmbLinkPickerLink) {
 		queryString: link.queryString ?? null,
 		name: link.name ?? null,
 		target: link.target ?? null,
+		culture: link.culture ?? null,
 	};
 }
 
-/** Each "Written forms" row of contracts/link-markup.md (except culture), as the link the picker hands back. */
+/** Each "Written forms" row of contracts/link-markup.md, as the link the picker hands back. */
 const writtenForms: Array<{ row: string; link: UmbLinkPickerLink; html: Record<string, string> }> = [
 	{
 		row: 'External',
@@ -49,6 +49,11 @@ const writtenForms: Array<{ row: string; link: UmbLinkPickerLink; html: Record<s
 		row: 'Document + anchor',
 		link: { type: 'document', unique: DOC, url: `/{localLink:${DOC}}`, name: 'Team', queryString: '#team' },
 		html: { href: `/{localLink:${DOC}}#team`, type: 'document', 'data-anchor': '#team', title: 'Team' },
+	},
+	{
+		row: 'Document + culture',
+		link: { type: 'document', unique: DOC, url: `/{localLink:${DOC}}`, name: 'Om os', culture: 'da-DK' },
+		html: { href: `/{localLink:${DOC}}`, type: 'document', 'data-culture': 'da-DK', title: 'Om os' },
 	},
 	{
 		row: 'Media',
@@ -81,7 +86,8 @@ describe('attributesFromLink', () => {
 	// Every managed attribute is present in the result, so editing a link rewrites it wholesale (data-model §5).
 	it('names every managed attribute, so stale ones are removed on edit', () => {
 		const attrs = attributesFromLink({ type: 'external', url: 'https://example.com' });
-		expect(Object.keys(attrs)).to.include.members(['href', 'title', 'target', 'type', 'rel', 'data-anchor']);
+		expect(Object.keys(attrs)).to.include.members(['href', 'title', 'target', 'type', 'rel', 'data-anchor', 'data-culture']);
+		expect(attrs['data-culture']).to.equal(null);
 		expect(attrs['data-anchor']).to.equal(null);
 		expect(attrs.rel).to.equal(null);
 		expect(attrs.target).to.equal(null);
@@ -100,6 +106,22 @@ describe('attributesFromLink', () => {
 		expect(attributesFromLink({ type: 'external', url: 'https://example.com', queryString: '?a=1' }).href).to.equal(
 			'https://example.com?a=1',
 		);
+	});
+});
+
+describe('attributesFromLink: data-culture (US4)', () => {
+	it('writes data-culture null for a document link without a culture', () => {
+		expect(attributesFromLink({ type: 'document', unique: DOC, url: `/{localLink:${DOC}}` })).to.have.property('data-culture', null);
+	});
+
+	it('writes data-culture null for a media link with a culture', () => {
+		const attrs = attributesFromLink({ type: 'media', unique: MEDIA, url: `/{localLink:${MEDIA}}`, culture: 'da-DK' });
+		expect(attrs).to.have.property('data-culture', null);
+	});
+
+	it('writes data-culture null for an external link with a culture, so a change to external removes it (US4-AS3)', () => {
+		const attrs = attributesFromLink({ type: 'external', unique: null, url: 'https://example.com', culture: 'da-DK' });
+		expect(attrs).to.have.property('data-culture', null);
 	});
 });
 
@@ -176,6 +198,21 @@ describe('linkFromAttributes', () => {
 	it('leaves the href whole when it does not end with data-anchor', () => {
 		const link = linkFromAttributes({ href: 'https://example.com/page', 'data-anchor': 'team' });
 		expect(link.url).to.equal('https://example.com/page');
+	});
+
+	it('reads data-culture for a document link', () => {
+		const link = linkFromAttributes({ href: `/{localLink:${DOC}}`, type: 'document', 'data-culture': 'da-DK' });
+		expect(link.culture).to.equal('da-DK');
+	});
+
+	it('ignores data-culture for a media link', () => {
+		const link = linkFromAttributes({ href: `/{localLink:${MEDIA}}`, type: 'media', 'data-culture': 'da-DK' });
+		expect(link.culture ?? null).to.equal(null);
+	});
+
+	it('ignores data-culture for an external link', () => {
+		const link = linkFromAttributes({ href: 'https://example.com', 'data-culture': 'da-DK' });
+		expect(link.culture ?? null).to.equal(null);
 	});
 
 	it('maps title to name and keeps the target', () => {

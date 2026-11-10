@@ -14,6 +14,7 @@ export type UmbTinyMceLinkAttributes = {
 	type?: string | null;
 	rel?: string | null;
 	'data-anchor'?: string | null;
+	'data-culture'?: string | null;
 };
 
 /**
@@ -56,16 +57,19 @@ export function linkFromAttributes(attrs: UmbTinyMceLinkAttributes): UmbLinkPick
 	}
 
 	const unique = (url && LOCAL_LINK_HREF_PATTERN.exec(url)?.groups?.id) || null;
+	// Only a local link carries its entity type on the anchor. Anything else with an href was entered as a URL,
+	// whatever its `type` says, and no href means nothing has been picked yet.
+	const type = unique ? localLinkType(attrs.type) : attrs.href ? 'external' : undefined;
 
 	return {
 		name: attrs.title,
 		queryString,
 		target: attrs.target,
-		// Only a local link carries its entity type on the anchor. Anything else with an href was entered as a URL,
-		// whatever its `type` says, and no href means nothing has been picked yet.
-		type: unique ? localLinkType(attrs.type) : attrs.href ? 'external' : undefined,
+		type,
 		unique,
 		url,
+		// A culture only means something for a document; the link picker selects that variant when it opens.
+		culture: type === 'document' ? attrs['data-culture'] : undefined,
 	};
 }
 
@@ -88,6 +92,8 @@ export function attributesFromLink(link: UmbLinkPickerLink): UmbTinyMceLinkAttri
 
 	// The server needs the entity type to resolve a local link (C-LNK-2); an external link has none (C-LNK-1).
 	const type = link.unique ? (localLinkType(link.type) ?? null) : null;
+	// Written only for a local document link, so changing a link to media or external removes it (US4).
+	const culture = type === 'document' && link.culture ? link.culture : null;
 
 	return {
 		href,
@@ -96,5 +102,6 @@ export function attributesFromLink(link: UmbLinkPickerLink): UmbTinyMceLinkAttri
 		type,
 		rel: link.target === '_blank' ? 'noopener' : null,
 		'data-anchor': queryString,
+		'data-culture': culture,
 	};
 }
