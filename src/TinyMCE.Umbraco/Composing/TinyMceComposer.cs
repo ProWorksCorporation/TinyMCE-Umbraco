@@ -2,6 +2,7 @@ using System.Dynamic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TinyMCE.Umbraco.Api.Management;
+using TinyMCE.Umbraco.Services;
 using Umbraco.Cms.Api.Common.OpenApi;
 using Umbraco.Cms.Core.Composing;
 using Umbraco.Cms.Core.Configuration.Models;
@@ -71,6 +72,11 @@ internal sealed class TinyMceComposer : IComposer
                         options.customConfig = customConfigKeys;
                     });
                     //.AddTransient<IConfigureOptions<TinyMceConfig>, TinyMceConfigPostConfigure>()
+
+            // The AI relay (CL-001): the editor's AI requests are completed on the server, so the provider key never
+            // reaches a browser. 60 s covers a long completion; past that the editor is told the provider timed out.
+            builder.Services.AddHttpClient(TinyMceAiConstants.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(60));
+            builder.Services.AddScoped<ITinyMceAiCompletionService, OpenAiCompletionService>();
         }
         catch (Exception ex)
         {

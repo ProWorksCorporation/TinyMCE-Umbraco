@@ -493,7 +493,7 @@ selectable.
 
 ### Adding Configuration Option
 
-1. Update backend `TinyMceConfig.cs` or `RichTextEditorSettings.cs`
+1. Update backend `TinyMceConfig.cs` or `RichTextEditorSettings.cs` **and** add it to the response projection (`TinyMceClientConfigModel` / `TinyMceRichTextEditorClientModel` and its `From` mapper). The config endpoint sends only what the projection lists, so a setting not added there never reaches the editor
 2. Rebuild backend to update OpenAPI spec
 3. Run `npm run generate-client` to update TypeScript types
 4. Use new config in editor components
