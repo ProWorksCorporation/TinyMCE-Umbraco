@@ -21,6 +21,11 @@ follow the Umbraco CMS major version they support.
 
 ### Fixed
 
+- External links no longer store an invalid `type="external"` attribute; editing a link removes it.
+- Local links written with URL-encoded braces now reopen correctly in the link picker.
+- Editing an existing link through the link picker is now saved even when nothing else changes afterwards (in inline
+  mode the edit could be lost), and can be undone.
+
 ### Security
 
 - The OpenAI API key is no longer sent to the browser. AI assistant requests now go through a backoffice-only server
