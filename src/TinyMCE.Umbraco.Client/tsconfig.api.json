@@ -8,6 +8,10 @@
 		"declarationMap": true,
 		"allowJs": true,
 		"noEmit": false,
-		"allowImportingTsExtensions": false
-	}
+		"allowImportingTsExtensions": false,
+		// Test globals stay out of the published typings.
+		"types": ["@umbraco-cms/backoffice/extension-types"]
+	},
+	// Tests and their fixtures are not part of the npm package.
+	"exclude": ["src/**/*.test.ts", "src/test-utils/**"]
 }

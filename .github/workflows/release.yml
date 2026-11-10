@@ -44,6 +44,21 @@ jobs:
       working-directory: src/TinyMCE.Umbraco.Client
       run: npm ci && npm run build
 
+    # The tests run before pack, so nothing is published from a red run. The editor
+    # tests run in a real Chromium, which Playwright downloads separately from npm ci.
+    - name: Install Playwright Chromium
+      working-directory: src/TinyMCE.Umbraco.Client
+      run: npx playwright install chromium
+
+    - name: Run frontend tests
+      working-directory: src/TinyMCE.Umbraco.Client
+      run: npm test
+
+    # Unit tests plus integration tests against a real Umbraco on SQLite, via
+    # Umbraco's own integration-test harness (src/TinyMCE.Umbraco.Tests).
+    - name: Run .NET tests
+      run: dotnet test src/TinyMCE.Umbraco.sln -c Release
+
     - name: Build & Pack
       run: dotnet pack src\TinyMCE.Umbraco\TinyMCE.Umbraco.csproj -c Release /p:Version=${{github.ref_name}}
 

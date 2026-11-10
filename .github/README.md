@@ -382,7 +382,7 @@ export default defineConfig({
 
 ### Working Example
 
-A complete working plugin using this pattern — a TinyMCE Mentions configuration — is included in the [test site](../src/TinyMCE.Umbraco.TestSite/wwwroot/App_Plugins/tinymce-mentions-plugin/).
+A complete working plugin using this pattern — a TinyMCE Mentions configuration — is in [`examples/tinymce-mentions-plugin/`](../examples/tinymce-mentions-plugin/), with its TypeScript source, `package.json`, `tsconfig.json` and Vite configuration. It builds into the [test site](../src/TinyMCE.Umbraco.TestSite/wwwroot/App_Plugins/tinymce-mentions-plugin/), where its `umbraco-package.json` registers it.
 
 ## Updating TinyMCE To Version 7 or 8
 
