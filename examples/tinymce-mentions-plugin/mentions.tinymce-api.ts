@@ -1,36 +1,17 @@
 import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
 import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
-import type { Editor } from '@tiny-mce-umbraco/backoffice/external/tinymce';
-import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
-import { createMentionsRequest } from './metions-request-factory';
+import { createMentionsRequest } from './mentions-request-factory';
 
 export default class TinyMceMentionsExtensionApi extends UmbTinyMcePluginBase {
-	readonly #editor: Editor;
-	readonly #configuration: UmbPropertyEditorConfigCollection | undefined;
-
 	constructor(args: TinyMcePluginArguments) {
 		super(args);
-		console.log("mentions-assitant initialized");
-
-		this.#editor = args.editor;
-		this.#configuration = args.host.configuration;
-
-		if (this.#editor) {
-			console.log("mentions-assitant this.#editor", [this.#editor]);
-		}
-		if (this.#configuration) {
-			console.log("mentions-assitant this.#configuration", [this.#configuration]);
-		}
+		// `args.editor` is the TinyMCE editor this plugin instance belongs to, e.g. to register a toolbar button with
+		// `args.editor.ui.registry.addButton(...)`. The mentions plugin needs nothing per editor, only the
+		// configuration below.
 	}
 
-	static override async extendEditorConfig(_config: any): Promise<void> {
-		console.log("mentions-assitant extendEditorConfig 1", [_config]);
-		_config.mentions_fetch = await createMentionsRequest(); // or a function that returns the request handler
-		console.log("mentions-assitant extendEditorConfig 2", [_config]);
-	}
-
-	override async init(): Promise<void> {
-		console.log("mentions-assitant init 1");
-		//console.log("mentions-assitant init 2");
+	// Runs before each editor initialises: hands TinyMCE's premium `mentions` plugin its fetch handler.
+	static override async extendEditorConfig(config: Record<string, unknown>): Promise<void> {
+		config.mentions_fetch = createMentionsRequest();
 	}
 }

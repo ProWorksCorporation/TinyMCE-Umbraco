@@ -40,3 +40,4 @@ follow the Umbraco CMS major version they support.
 
 - The OpenAI API key is no longer sent to the browser. AI assistant requests now go through a backoffice-only server
   endpoint (CL-001).
+- Documented the known advisories affecting the bundled TinyMCE 6 core and how to opt into TinyMCE 7/8.
