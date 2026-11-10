@@ -27,6 +27,7 @@ follow the Umbraco CMS major version they support.
 - Local links written with URL-encoded braces now reopen correctly in the link picker.
 - Editing an existing link through the link picker is now saved even when nothing else changes afterwards (in inline
   mode the edit could be lost), and can be undone.
+- Table property dialog dropdowns are no longer clipped inside block side panels (#238) (long-standing).
 
 ### Security
 
