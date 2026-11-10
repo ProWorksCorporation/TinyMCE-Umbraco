@@ -9,6 +9,9 @@ import {
 } from '@umbraco-cms/backoffice/interaction-memory';
 import type { UmbInteractionMemoryModel } from '@umbraco-cms/backoffice/interaction-memory';
 import { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
+import { UMB_BLOCK_RTE_MANAGER_CONTEXT } from '@umbraco-cms/backoffice/block-rte';
+import { UmbChangeEvent } from '@umbraco-cms/backoffice/event';
+import type { UmbPropertyEditorRteValueType } from '@umbraco-cms/backoffice/rte';
 import { UmbInputTinyMceElement } from '@tiny-mce-umbraco/backoffice/core';
 import { UmbPropertyEditorUITinyMceElement } from './property-editor-ui-tiny-mce.element.js';
 
@@ -120,5 +123,68 @@ describe('UmbPropertyEditorUITinyMceElement interaction memory', () => {
 		const stored = await nextStoredMemories();
 		expect(stored).to.have.lengthOf(1);
 		expect(stored[0].memories).to.deep.equal([memory]);
+	});
+});
+
+// FR-042 (quickstart H9): on a culture switch, Umbraco 17.8's umb-property points its data path at the new culture,
+// pushes that culture's value into the *old* editor element, and only then replaces the element. TinyMCE's block
+// picker reacts to the new block contents by inserting the new culture's blocks into the old editor and firing a
+// change, which umb-property stored under the new culture: the old culture's text leaked into the new one.
+describe('UmbPropertyEditorUITinyMceElement value set from outside', () => {
+	const realFirstUpdated = UmbInputTinyMceElement.prototype.firstUpdated;
+	before(() => {
+		UmbInputTinyMceElement.prototype.firstUpdated = function () {};
+	});
+	after(() => {
+		UmbInputTinyMceElement.prototype.firstUpdated = realFirstUpdated;
+	});
+
+	const blockValue = (culture: string, key: string): UmbPropertyEditorRteValueType => ({
+		markup: `<p>${culture} intro</p><umb-rte-block data-content-key="${key}"><!--Umbraco-Block--></umb-rte-block>`,
+		blocks: {
+			layout: { 'Umbraco.RichText': [{ contentKey: key }] },
+			contentData: [{ key, contentTypeKey: 'block-type', values: [] }],
+			settingsData: [],
+			expose: [],
+		},
+	});
+
+	let host: UmbTestMemoryHostElement;
+	let propertyEditor: UmbPropertyEditorUITinyMceElement;
+	let input: UmbInputTinyMceElement;
+	let changes: number;
+
+	beforeEach(async () => {
+		host = new UmbTestMemoryHostElement();
+		document.body.appendChild(host);
+		propertyEditor = new UmbPropertyEditorUITinyMceElement();
+		propertyEditor.config = new UmbPropertyEditorConfigCollection([]);
+		propertyEditor.value = blockValue('en-US', 'en-block');
+		host.appendChild(propertyEditor);
+		await propertyEditor.updateComplete;
+		input = propertyEditor.shadowRoot!.querySelector<UmbInputTinyMceElement>('umb-input-tiny-mce')!;
+		await input.updateComplete;
+
+		// Stand in for the block picker plugin: whenever the block contents change, it updates the editor and fires
+		// a change from the input.
+		const manager = await input.getContext(UMB_BLOCK_RTE_MANAGER_CONTEXT);
+		input.observe(manager!.contents, () => input.dispatchEvent(new UmbChangeEvent()), 'testBlockPicker');
+
+		changes = 0;
+		propertyEditor.addEventListener(UmbChangeEvent.TYPE, () => changes++);
+	});
+
+	afterEach(() => {
+		host.remove();
+	});
+
+	it('does not report a change while its value is being set from outside', () => {
+		propertyEditor.value = blockValue('da-DK', 'da-block');
+		expect(changes).to.equal(0);
+	});
+
+	it('still reports changes that come from the editor', () => {
+		input.dispatchEvent(new UmbChangeEvent());
+		expect(changes).to.equal(1);
 	});
 });

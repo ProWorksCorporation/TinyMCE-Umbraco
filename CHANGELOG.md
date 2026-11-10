@@ -33,6 +33,8 @@ follow the Umbraco CMS major version they support.
 - Table property dialog dropdowns are no longer clipped inside block side panels (#238) (long-standing).
 - Protocol-relative editor stylesheets (`//cdn…`) load again, and stylesheets always resolve under the configured
   `UmbracoCssPath` on the Umbraco server.
+- Switching the culture of a document no longer copies the previous culture's text into the editor of the new one
+  (Umbraco 17.8 rebuilds the editor on a culture switch).
 
 ### Security
 
