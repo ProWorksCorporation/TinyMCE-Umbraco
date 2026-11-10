@@ -45,4 +45,8 @@
     <Folder Include="Migrations\Upgrade\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="TinyMCE.Umbraco.Tests" />
+  </ItemGroup>
+
 </Project>

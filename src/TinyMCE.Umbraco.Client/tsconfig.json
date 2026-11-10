@@ -33,7 +33,7 @@
 			"@tiny-mce-umbraco/backoffice/external/tinymce": [ "./src/external/tinymce/index.js" ]
 		},
 
-		"types": ["@umbraco-cms/backoffice/extension-types"]
+		"types": ["@umbraco-cms/backoffice/extension-types", "mocha"]
 	},
 
 	"include": ["src"]

@@ -91,6 +91,9 @@ TinyMCE.Umbraco.TestSite/
     └── App_Plugins/             # Plugin assets (includes TinyMCE after build)
 ```
 
+`wwwroot/App_Plugins/tinymce-mentions-plugin/` is built from `examples/tinymce-mentions-plugin/` at the repository
+root (`npm run build` there); only its `umbraco-package.json` and `package.manifest` are maintained here by hand.
+
 ## Dependencies
 
 - `Umbraco.Cms` 17.6.2 - Main Umbraco CMS package

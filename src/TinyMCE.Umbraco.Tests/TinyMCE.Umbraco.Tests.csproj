@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Umbraco's own integration-test harness (ManagementApiTest<T>, test databases); it brings NUnit and Moq.
+         Keep this on the same version as the Umbraco packages the main project references. -->
+    <PackageReference Include="Umbraco.Cms.Tests.Integration" Version="17.6.2" />
+    <!-- Versions match Umbraco's tests/Directory.Packages.props for the same release. -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.8.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TinyMCE.Umbraco\TinyMCE.Umbraco.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copied from Umbraco's tests/Umbraco.Tests.Integration for the same release; read by GlobalSetupTeardown. -->
+    <None Update="appsettings.Tests.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The TestSite configuration is the golden input for the ConfigurationBinder characterisation test. -->
+    <None Include="..\TinyMCE.Umbraco.TestSite\appsettings.json" Link="TestData\TestSite.appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    ManagementApiTest<T> hosts the site through WebApplicationFactory<UmbracoTestServerTestBase>, which requires a deps
+    file named after that type's assembly (Umbraco.Tests.Integration.deps.json) next to the tests. Inside Umbraco's own
+    repository that is the test project itself; here it isn't, so provide this project's deps file under that name.
+  -->
+  <Target Name="CopyDepsFileForWebApplicationFactory" AfterTargets="Build">
+    <Copy SourceFiles="$(ProjectDepsFilePath)" DestinationFiles="$(OutDir)Umbraco.Tests.Integration.deps.json" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

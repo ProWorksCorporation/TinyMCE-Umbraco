@@ -1,0 +1,74 @@
+name: CI
+
+# Builds and tests every pull request into a release or development branch, so a
+# change that breaks the build or a test is caught before it is merged rather than
+# when a release tag is pushed. Nothing is packed, pushed or deployed, and no
+# secrets are used, so pull requests from forks run safely with a read-only token.
+#
+# For this check to block merging, it must also be marked as required in the
+# repository's branch protection rules ("CI / build-and-test").
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'v17/main'
+      - 'v17/dev'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same pull request supersedes the run in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+
+    runs-on: windows-latest
+
+    steps:
+
+    # The checkout and setup steps match release.yml exactly, so CI tests with the
+    # same toolchain that publishes the package.
+    - name: Checkout repository
+      uses: actions/checkout@v7
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        # Must match the TargetFramework declared by the projects (net10.0).
+        dotnet-version: 10.0.x
+
+    - name: Setup Node
+      uses: actions/setup-node@v7
+      with:
+        # @umbraco-cms/backoffice 17.6.2 requires node >=24.13 and npm >=11.
+        node-version: 24
+        cache: npm
+        cache-dependency-path: src/TinyMCE.Umbraco.Client/package-lock.json
+
+    # `npm run build` is `tsc && vite build`; tsc type-checks the product code and
+    # the *.test.ts files. Its output in TinyMCE.Umbraco/wwwroot is what the .NET
+    # build below packages, so it has to come first.
+    - name: Build frontend
+      working-directory: src/TinyMCE.Umbraco.Client
+      run: npm ci && npm run build
+
+    # The editor tests run in a real Chromium, which Playwright downloads separately
+    # from npm ci.
+    - name: Install Playwright Chromium
+      working-directory: src/TinyMCE.Umbraco.Client
+      run: npx playwright install chromium
+
+    - name: Run frontend tests
+      working-directory: src/TinyMCE.Umbraco.Client
+      run: npm test
+
+    # Builds the solution, then runs the unit tests plus integration tests against
+    # a real Umbraco on SQLite, via Umbraco's own integration-test harness
+    # (src/TinyMCE.Umbraco.Tests).
+    - name: Run .NET tests
+      run: dotnet test src/TinyMCE.Umbraco.sln -c Release
