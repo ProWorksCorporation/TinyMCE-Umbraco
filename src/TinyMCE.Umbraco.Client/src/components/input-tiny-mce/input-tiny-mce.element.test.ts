@@ -7,6 +7,7 @@ import {
 	UMB_INTERACTION_MEMORY_SCOPE_CONTEXT,
 	UmbInteractionMemoriesChangeEvent,
 } from '@umbraco-cms/backoffice/interaction-memory';
+import { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
 import { UmbInputTinyMceElement } from './input-tiny-mce.element.js';
 
 // The memory wiring is set up in the constructor and needs the element connected, so these tests mount it. Skipping
@@ -81,5 +82,28 @@ describe('UmbInputTinyMceElement interaction memory', () => {
 		element.interactionMemories = [memory];
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(dispatched).to.equal(false);
+	});
+});
+
+// Inline mode hands TinyMCE a container of our own for its toolbar (`fixed_toolbar_container_target`), because its
+// floating toolbar cannot be positioned inside the backoffice's nested shadow DOM - see "Inline Mode and Shadow DOM"
+// in the client CLAUDE.md. Only the rendered structure can be checked here: whether the toolbar then shows, sticks and
+// hides is rendering, which a component test cannot reach.
+describe('UmbInputTinyMceElement inline toolbar container', () => {
+	const mount = (mode: string) =>
+		fixture<UmbTestInputTinyMceElement>(
+			html`<test-input-tiny-mce-interaction-memory
+				.configuration=${new UmbPropertyEditorConfigCollection([{ alias: 'mode', value: mode }])}></test-input-tiny-mce-interaction-memory>`
+		);
+
+	it('renders a toolbar container directly before the editable element in inline mode', async () => {
+		const element = await mount('inline');
+		const editor = element.shadowRoot!.querySelector('.editor');
+		expect(editor?.previousElementSibling?.classList.contains('inline-toolbar')).to.equal(true);
+	});
+
+	it('renders no toolbar container in classic mode', async () => {
+		const element = await mount('classic');
+		expect(element.shadowRoot!.querySelector('.inline-toolbar')).to.equal(null);
 	});
 });

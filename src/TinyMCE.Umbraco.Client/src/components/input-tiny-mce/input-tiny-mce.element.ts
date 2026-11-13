@@ -149,6 +149,10 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	@query('.editor', true)
 	private readonly _editorElement?: HTMLElement;
 
+	/** Inline mode only: where TinyMCE renders its toolbar - see `fixed_toolbar_container_target` in `#setTinyConfig`. */
+	@query('.inline-toolbar', true)
+	private readonly _inlineToolbarElement?: HTMLElement;
+
 	@state()
 	private _inline = false;
 
@@ -384,6 +388,15 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 			// clicked - so hand the sizing to our own CSS instead (see the `.editor.inline` rule).
 			delete configurationOptions.height;
 			delete configurationOptions.width;
+
+			// Render the toolbar into a container of our own instead of letting TinyMCE float it. Its floating
+			// toolbar cannot work this deep in the backoffice's shadow DOM: it is positioned in page coordinates
+			// against a containing block that is really an Umbraco element further in, so the offset is applied
+			// twice, the squeezed toolbar wraps into a tall column, and the sticky-toolbar check then judges it
+			// off screen and fades it out. A fixed container also turns off TinyMCE's own sticky docking; the
+			// container is made sticky in CSS instead (see `.inline-toolbar`). Details in the client CLAUDE.md,
+			// "Inline Mode and Shadow DOM".
+			configurationOptions.fixed_toolbar_container_target = this._inlineToolbarElement;
 		}
 
 		// set the maximum image size
@@ -611,7 +624,11 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	override render() {
 		// `umb-rte` stands in for `body_class`, which TinyMCE only applies to the iframe body - in
 		// inline mode this element *is* the editable body.
-		return html`<div class=${this._inline ? 'editor inline umb-rte' : 'editor'}></div>`;
+		if (this._inline) {
+			return html`<div class="inline-toolbar"></div>
+				<div class="editor inline umb-rte"></div>`;
+		}
+		return html`<div class="editor"></div>`;
 	}
 
 	static override readonly styles = [
@@ -642,6 +659,31 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 				border-color: var(--uui-color-focus, #3544b1);
 			}
 
+			/* Inline mode's toolbar renders here (fixed_toolbar_container_target). TinyMCE shows it on focus and hides
+			   it on blur, so the editable moves down by the toolbar's height while focused. Sticky stands in for
+			   TinyMCE's own sticky toolbar, which a fixed container switches off: CSS layout follows the flat tree, so
+			   this finds the backoffice's scroll container that TinyMCE's scroll detection cannot. A size container, so
+			   the rule below can measure the editor's width. */
+			.inline-toolbar {
+				position: sticky;
+				top: 0;
+				z-index: 1;
+				container-type: inline-size;
+			}
+
+			/* Inline dialogs (Ask AI is 800px wide) are placed inside the editable area and may not start left of it,
+			   so one wider than the editor ran off the right edge of the window, taking its send button with it. Cap
+			   it at the editor's width. */
+			.inline-toolbar .tox .tox-dialog-inline {
+				max-width: 100cqw;
+			}
+
+			/* The min-height above is for the classic editor's chrome; the inline toolbar shares the .tox-tinymce
+			   class but is only as tall as its rows. */
+			.tox-tinymce.tox-tinymce-inline {
+				min-height: 0;
+			}
+
 			/* #238: TinyMCE attaches its dialog sink - dialogs and the dropdowns inside them - to this shadow root, so
 			   it sits inside whatever scrolls around the editor. In a block side panel that is a scroll container,
 			   which clipped every dialog dropdown opening past the panel's edge. While a modal dialog is open (its
@@ -656,6 +698,16 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 				position: fixed !important;
 				top: 0;
 				left: 0;
+			}
+
+			/* In inline mode that sink sits inside .inline-toolbar, which as a sticky element is a stacking context:
+			   the sink's own z-index then only counts inside it, and the modal dialog is stacked as low as the toolbar
+			   (z-index 1). Pinned to the viewport and centred, a wide one (Insert template) reaches over the content
+			   tree beside the workspace, which is stacked higher and covered it. While a modal dialog is open, lift
+			   the toolbar to the sink's own level (the skin's .tox-silver-sink z-index), where the sink stood before
+			   it moved in here. */
+			.inline-toolbar:has(.tox-dialog-wrap) {
+				z-index: 1300;
 			}
 
 			/* FIXME: Remove this workaround when https://github.com/tinymce/tinymce/issues/6431 has been fixed */

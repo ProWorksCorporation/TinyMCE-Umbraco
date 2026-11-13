@@ -35,6 +35,9 @@ follow the Umbraco CMS major version they support.
   `UmbracoCssPath` on the Umbraco server.
 - Switching the culture of a document no longer copies the previous culture's text into the editor of the new one
   (Umbraco 17.8 rebuilds the editor on a culture switch).
+- In inline mode the toolbar no longer appears for a moment on focus and then disappears (reliably on a short or
+  empty editor). It now sits above the editor while it has focus, pushing the content down, and stays at the top
+  of the workspace as you scroll.
 
 ### Security
 

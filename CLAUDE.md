@@ -158,7 +158,8 @@ keystrokes — and that this repository has now hit repeatedly:
   definitions all have to be bridged across explicitly.
 - **Inline Mode and Shadow DOM** — inline mode has no iframe, so none of the above applies; instead the
   editable element sits deep in the backoffice's shadow DOM, where several DOM APIs TinyMCE relies on
-  silently do not reach it.
+  silently do not reach it, and where its floating toolbar cannot be positioned (so it renders into a
+  container of ours).
 
 The last two are mirror images, and a fix for one is usually irrelevant or actively wrong for the other.
 All three carry a per-upgrade checklist, including which tests actually exercise them — several
