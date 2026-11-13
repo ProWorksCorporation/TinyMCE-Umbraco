@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the **TinyMCE.Umbra
 
 ## Project Overview
 
-This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 17.6.2 with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
+This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 17.8.0 with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
 
 ## Running the Test Site
 
@@ -91,11 +91,14 @@ TinyMCE.Umbraco.TestSite/
     └── App_Plugins/             # Plugin assets (includes TinyMCE after build)
 ```
 
+`wwwroot/App_Plugins/tinymce-mentions-plugin/` is built from `examples/tinymce-mentions-plugin/` at the repository
+root (`npm run build` there); only its `umbraco-package.json` and `package.manifest` are maintained here by hand.
+
 ## Dependencies
 
-- `Umbraco.Cms` 17.6.2 - Main Umbraco CMS package
+- `Umbraco.Cms` 17.8.0 - Main Umbraco CMS package
 - Umbraco API packages (Common, Management, Website)
-- `Umbraco.Cms.DevelopmentMode.Backoffice` 17.6.2 - Development tools
+- `Umbraco.Cms.DevelopmentMode.Backoffice` 17.8.0 - Development tools
 - `uSync` 17.3.5 - Content synchronization
 - Project reference to `../TinyMCE.Umbraco/TinyMCE.Umbraco.csproj`
 

@@ -8,6 +8,7 @@ import { UmbTemporaryFileRepository } from '@umbraco-cms/backoffice/temporary-fi
 import { UMB_MEDIA_PICKER_MODAL, UMB_MEDIA_CAPTION_ALT_TEXT_MODAL } from '@umbraco-cms/backoffice/media';
 import { UMB_MODAL_MANAGER_CONTEXT } from '@umbraco-cms/backoffice/modal';
 import type { RawEditorOptions } from '@umbraco-cms/backoffice/external/tinymce';
+import { insertAtCaret } from './core/insert-at-caret.js';
 
 interface MediaPickerTargetData {
 	altText?: string;
@@ -332,8 +333,10 @@ export default class UmbTinyMceMediaPickerPlugin extends UmbTinyMcePluginBase {
 			if (replaceTarget) {
 				dom.setOuterHTML(replaceTarget, content);
 			} else {
-				// Nothing existing to replace: a brand new insert at the caret.
-				this.editor.selection.setContent(content);
+				// Nothing existing to replace: a brand new insert at the caret. Not selection.setContent():
+				// straight after a block the caret is TinyMCE's fake caret, and the image would be dropped on
+				// save. See insertAtCaret.
+				insertAtCaret(this.editor, content);
 			}
 		}
 

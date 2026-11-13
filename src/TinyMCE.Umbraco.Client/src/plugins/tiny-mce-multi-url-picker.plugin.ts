@@ -2,22 +2,9 @@ import { umbOpenModal } from '@umbraco-cms/backoffice/modal';
 import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
 import { UmbTinyMcePluginBase } from '@tiny-mce-umbraco/backoffice/core';
 import { UMB_LINK_PICKER_MODAL } from '@umbraco-cms/backoffice/multi-url-picker';
+import { attributesFromLink, linkFromAttributes } from './core/link-attributes.js';
 import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
-import type {
-	UmbLinkPickerLink,
-	UmbLinkPickerLinkType,
-	UmbLinkPickerModalValue,
-} from '@umbraco-cms/backoffice/multi-url-picker';
-
-type AnchorElementAttributes = {
-	'data-anchor'?: string | null;
-	href?: string | null;
-	target?: string | null;
-	text?: string;
-	title?: string | null;
-	type?: UmbLinkPickerLinkType;
-	rel?: string | null;
-};
+import type { UmbLinkPickerLink, UmbLinkPickerModalValue } from '@umbraco-cms/backoffice/multi-url-picker';
 
 export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase {
 	#linkPickerData?: UmbLinkPickerModalValue;
@@ -59,21 +46,19 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 			return;
 		}
 
-		let url = this.#anchorElement.getAttribute('href') ?? this.#anchorElement.href ?? '';
+		// Read the attributes, not the DOM properties: `.type` is '' rather than null when there is none, and `.href`
+		// is the resolved absolute URL.
+		const anchor = this.#anchorElement;
+		const link = linkFromAttributes({
+			href: anchor.getAttribute('href'),
+			title: anchor.getAttribute('title'),
+			target: anchor.getAttribute('target'),
+			type: anchor.getAttribute('type'),
+			'data-anchor': anchor.getAttribute('data-anchor'),
+			'data-culture': anchor.getAttribute('data-culture'),
+		});
 
-		const queryString = this.#anchorElement.getAttribute('data-anchor') ?? '';
-		if (queryString && url.endsWith(queryString)) {
-			url = url.substring(0, url.indexOf(queryString));
-		}
-
-		const currentTarget: UmbLinkPickerLink = {
-			name: this.#anchorElement.title || this.#anchorElement.textContent,
-			target: this.#anchorElement.target,
-			queryString: queryString,
-			type: (this.#anchorElement.type as UmbLinkPickerLinkType) ?? 'external',
-			unique: url.includes('localLink:') ? url.substring(url.indexOf(':') + 1, url.indexOf('}')) : null,
-			url: url,
-		};
+		const currentTarget: UmbLinkPickerLink = { ...link, name: link.name || anchor.textContent };
 
 		this.#openLinkPicker(currentTarget);
 	}
@@ -99,32 +84,15 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 	}
 
 	#createElemAttributes() {
-		const link = this.#linkPickerData!.link;
-
-		const anchor: AnchorElementAttributes = {
-			href: link.url ?? '',
-			title: link.name ?? link.url ?? '',
-			target: link.target,
-			type: link.type ?? 'external',
-			rel: link.target === '_blank' ? 'noopener' : null,
-		};
-
-		if (link.queryString) {
-			anchor['data-anchor'] = link.queryString;
-
-			if (link.queryString.startsWith('?')) {
-				anchor.href += !anchor.href ? '/' + link.queryString : link.queryString;
-			} else if (link.queryString.startsWith('#')) {
-				anchor.href += link.queryString;
-			}
-		}
-
-		return anchor;
+		return attributesFromLink(this.#linkPickerData!.link);
 	}
 
 	#insertLink() {
 		if (this.#anchorElement) {
-			this.editor.dom.setAttribs(this.#anchorElement, this.#createElemAttributes());
+			// As an undo level, like TinyMCE's own link plugin: that fires `change`, so the property value picks up the
+			// edit. A bare `setAttribs` fires nothing, so in inline mode an edit saved straight away was lost.
+			const anchorElement = this.#anchorElement;
+			this.editor.undoManager.transact(() => this.editor.dom.setAttribs(anchorElement, this.#createElemAttributes()));
 			this.editor.selection.select(this.#anchorElement);
 			this.editor.execCommand('mceEndTyping');
 			return;

@@ -10,7 +10,7 @@ This is the frontend backoffice package that provides the TinyMCE Rich Text Edit
 
 ## Common Commands
 
-**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 17.6.2. npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
+**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 17.8.0. npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
 
 ```bash
 # Install dependencies
@@ -123,15 +123,24 @@ export const manifests = [
 
 Umbraco's backoffice loads these manifests to discover and register extensions.
 
-### Entry Point (src/entry-points/entry-point.ts)
+### Entry Points (src/entry-points/)
 
-The `onInit` function:
-1. Consumes Umbraco's `UMB_AUTH_CONTEXT`
-2. Gets OAuth configuration from auth context
-3. Configures the OpenAPI client with base URL and credentials
-4. Adds request interceptor to inject Bearer token on every API call
+There are two, registered in `manifest.ts`, because they have different lifetimes:
 
-This enables authenticated API calls to `/umbraco/tiny-mce/api/v1/config`.
+- **`entry-point.ts`, a `backofficeEntryPoint` (app-scoped).** Turns on the blob/data download workaround
+  (`blob-download-router-fix.ts`, needed for TinyMCE's PDF export) for as long as the backoffice is loaded, and turns
+  it off in `onUnload`. Nothing user-specific belongs here: it does not re-run when someone signs in again.
+- **`user-entry-point.ts`, a `userEntryPoint` (session-scoped).** Runs after every sign-in, possibly as a different
+  user, and calls `authContext.configureClient(client)` for the package's generated API client. That is Umbraco's
+  documented way to authenticate an extension's own hey-api client: the token is read per request (so refreshes and
+  re-logins just work), Umbraco's 401-retry and ProblemDetails interceptors are attached, and repeated calls are
+  idempotent. Nothing is cached per user, so `onUnload` is a deliberate no-op.
+
+Before 17.8.0 the backoffice entry point instead did `client.setConfig(...)` plus a hand-written
+`client.interceptors.request.use(...)` adding the Bearer token. It was removed because it configured a client that no
+call site used: every call passes `umbHttpClient` (`TinyMceService.getConfig({ client: umbHttpClient })`,
+`postAiCompletion` likewise), which Umbraco already authenticates. Keep passing `umbHttpClient` at call sites; the
+user entry point only keeps the generated client correct as a fallback for anyone calling the services without one.
 
 ## Custom TinyMCE Plugins
 
@@ -161,6 +170,15 @@ The main property editor is `Umbraco.TinyMCE` (defined in Constants.cs in the C#
 - Wraps TinyMCE editor
 - Handles initialization from configuration
 - Manages Umbraco-specific integrations
+
+**Culture switch (Umbraco 17.8+).** On a culture-variant document, `umb-property` switches its data path to the new
+culture, sets that culture's value on the *current* editor element, and only then replaces the element (we don't
+declare `meta.supportsVariantChange`). Anything the old element reports as a change in between is stored under the
+new culture. The block picker plugin does exactly that: it inserts the new culture's blocks into the old editor and
+dispatches `Change`. So `property-editor-ui-tiny-mce.element.ts` ignores changes reported while its `value` setter
+runs (`#settingValue`); a value set from outside is never an edit. Nothing errors when this regresses: the old
+culture's text silently appears in the new one. Check with quickstart H9 (switch cultures with and without an unsaved
+edit; each culture must show only its own content).
 
 ## Utility Functions (src/utils/)
 
@@ -311,6 +329,16 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
   here independently and kept in this branch's form.
 - If new Umbraco versions introduce other per-realm singletons that components inside the iframe need, apply the same pattern: expose on `window`, read via `window.parent` in the injected script.
 
+**Umbraco 17.8 check (2026-11)**, from diffing Umbraco's 17.6.2 and 17.8.1 sources:
+- No new `localize.term(` keys in `block-rte`/`block`. `blockEditor_confirmDeleteBlockMessage` now wraps its
+  argument in `escapeHTML`, which happens in the outer-realm `block-entry.context.ts` and doesn't change the key.
+- The `@customElement` set in `block-rte` (including `umb-rte-block`) is identical to 17.6.2.
+- `blockAction`'s API interface gained only the optional `getHrefObservable` / `getValidationDataPathObservable`.
+  Conditions are covered by the alias-derived copy.
+- The `ufm` package still exports `manifests`, with the same five `ufmComponent`s.
+- **English users' `documentLanguage` is now `en-gb`** for "English (UK)" (Umbraco #23899). Re-test the language
+  bridge with an English (UK) user, not only a non-English one.
+
 **Upgrade checklist for this section.** Every failure mode here is silent — blank UI, missing chrome,
 or English text, never an exception — so none of it surfaces without deliberate checking. On each
 Umbraco minor, for anything rendered inside the editor:
@@ -319,7 +347,7 @@ Umbraco minor, for anything rendered inside the editor:
 3. New custom elements rendered by block components → confirm they are defined in the inner realm.
 4. New `ufmComponent` manifests in Umbraco's `ufm` package → nothing to change (the loop takes whatever
    the package exports), but confirm the export is still called `manifests` and still carries `api()`
-   closures. 17.6.2 ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`.
+   closures. 17.8.x still ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`.
 5. Test with a **non-English** backoffice. An English-only pass cannot distinguish a working
    localization bridge from a broken one.
 6. **Test block labels with `{=alias}` on a *classic* data type.** This one cost two false passes during
@@ -400,6 +428,105 @@ and in a browser: type, paste, press Enter twice, apply a list and a block forma
 `editor.getBody().querySelectorAll('[data-mce-type="bookmark"]').length === 0`. Nothing here throws when it
 regresses.
 
+### The inline toolbar renders into our own container
+
+TinyMCE's **floating** inline toolbar cannot work this deep in shadow DOM, so `#setTinyConfig` passes
+`fixed_toolbar_container_target` (the `.inline-toolbar` div rendered just before the editable) and TinyMCE renders
+the toolbar there instead. Its whole floating-toolbar machinery assumes at most one shadow boundary, and fails here
+in three compounding ways, all silent:
+
+1. **Position.** With the default `ui_mode: 'combined'`, `updateChromePosition` writes page coordinates
+   (`left = targetBounds.x`), assuming the toolbar's containing block is `<body>`. It is really the nearest positioned
+   flat-tree ancestor, Umbraco's `div#editor` (`position: relative`) in `umb-property-layout`, so the offset is
+   applied twice. Removing that one does not help: a stack of `umb-router-slot`s (all `position: relative`) is next.
+2. **Wrapping.** At a doubled `left`, the absolutely positioned toolbar shrinks to fit what is left of the
+   containing block (179px in a 752px field), and a full toolbar wraps into a column several hundred pixels tall.
+3. **Fade-out.** Inline mode forces a sticky toolbar. Docking's visibility check (`lazyContext`) subtracts the header
+   height from the content area's height; with an empty editor (100px) that is negative, the toolbar is judged
+   off screen, and `.tox-editor-header` gets `tox-editor-dock-fadeout`. Symptom: **the toolbar appears for a moment on
+   focus, then disappears**, reliably on a short editor and only sometimes on a long one. Note the outer
+   `.tox-tinymce-inline` keeps an inline `visibility: hidden` throughout; that is normal (the skin's
+   `visibility: inherit !important` overrides it), so check the header's class and opacity, not the container's.
+
+**Why not `ui_mode: 'split'`.** Split mode positions against `offsetParent` and does work once `:host` is
+`position: relative` (without that, Chromium retargets `offsetParent` across the slot to a different element than the
+real containing block). But its scroll-container detection (`detect`) crosses only one shadow boundary and its scroll
+listener sits on the editor's own root node, so it never finds `uui-scroll-container`, never docks, and a page-level
+editor's top toolbar row is clipped behind the workspace header.
+
+**Consequences of the fixed container.** TinyMCE turns its sticky docking off for a fixed container
+(`isStickyToolbar`); `.inline-toolbar { position: sticky }` replaces it, and works because CSS layout follows the flat
+tree. The toolbar is in the document flow, so **the editable moves down by the toolbar's height while focused**. The
+container also becomes TinyMCE's UI container (`getUiContainer`), so the dialog/popup sink now lives inside
+`.inline-toolbar` - still in our shadow root, so the #238 rule below still matches.
+
+**Checklist** (manual, in the TestSite's *Test Empty* and *Inline Test* documents): on focus the full toolbar shows
+above the editable and stays; scrolling keeps it pinned at the top of the workspace; on blur it hides; the Format
+and Table menus open directly under their buttons; Word count (a modal dialog) is centred; Ask AI (an inline
+dialog) opens under the toolbar, no wider than the editor, with its send button on screen. Then the bookmark check
+above.
+
+That last check guards against inline dialogs running off the right edge. TinyMCE never lets one start left of
+the editor (inline mode: layout `northwest` inside the editable area, whose bounds restriction pins it; classic
+mode: anchored to the editor container), so a dialog wider than the editor - Ask AI is 800px - ran off the right of
+the window, or of a block side panel, in **both** modes. `:host` is therefore a size container (`container-type:
+inline-size`, which needs `display: block`; the host used to be inline) and `.tox-dialog-inline` is capped at
+`100cqw`. The host, not an inner wrapper, because it is the only ancestor both sinks share: classic mode attaches
+its sink straight to the shadow root, inline mode inside `.inline-toolbar`.
+
+Clicks on links. Umbraco's router (`ensureAnchorHistory` in router-slot) listens on `window` and turns a plain click
+on any same-origin `<a>` in the composed path into a `pushState`, without checking for editable content. A document
+link in inline content (`/{localLink:...}`) counts as same-origin, so clicking it to edit it took the backoffice to a
+blank page. The inline editable stops plain link clicks from propagating (`#keepLinkClicksInEditor`), only for links
+in its own content: a block's Edit link reaches that listener retargeted to the block element, so it still goes to
+the router and opens the block. Classic mode's iframe never needed this. Check: click a link in a focused inline
+editor - the page must not change - then use a block's Edit action in the same editor.
+
+A second side effect: TinyMCE's sink (dialogs and menus) now sits *inside* `.inline-toolbar`, and a sticky element
+is always a stacking context, so everything in the sink is stacked at the toolbar's `z-index` (1) rather than the
+sink's own (1300). Menus and inline dialogs stay within the editor's column and are unaffected; a wide modal
+dialog, pinned to the viewport by the #238 rule and centred, reaches over the content tree (`umb-section-sidebar`,
+`z-index: 10`) and was drawn underneath it. `.inline-toolbar:has(.tox-dialog-wrap)` lifts the toolbar to 1300
+while a modal is open. Check: Insert template in a window about 600px wide must cover the tree and dim it.
+
+### TinyMCE's UI sink lives inside the side panel (#238, both modes)
+
+TinyMCE attaches its UI sink (`.tox-silver-sink`: dialogs, the dropdowns inside them and, with the default
+`ui_mode`, toolbar menus and context toolbars) to the editor's **content container, which is
+`umb-input-tiny-mce`'s shadow root**, not the document body. A block side panel wraps that in scroll
+containers (`uui-scroll-container#main`, the native `<dialog>`), so anything positioned inside the sink is
+clipped at the panel's edge. TinyMCE dialogs themselves escape (they are `position: fixed`), but the
+dropdowns inside them did not: every dialog dropdown opening left of the panel was unusable.
+
+The fix pins the sink to the viewport **only while it holds a modal dialog**: a
+`.tox-silver-sink…:has(.tox-dialog-wrap)` rule sets `position: fixed !important` (TinyMCE writes
+`position: relative` inline). Three approaches that look right and are not:
+- **`ui_mode: 'split'`** doesn't help: dialog dropdowns stay in the dialog sink in both modes. It also moves
+  the *inline* toolbar next to the editable element, where a page-level inline editor's top toolbar row ends
+  up under the workspace header (why: *The inline toolbar renders into our own container*, above). In inline
+  mode the sink now sits inside `.inline-toolbar` rather than directly in the shadow root; the rule is unaffected.
+- **Pinning the sink permanently** detaches toolbar menus and context toolbars from content that scrolls
+  inside the panel, because with `combined` they share that sink.
+- **Pinning while *any* dialog is open** (`OpenWindow`/`CloseWindow`, the first version of this fix) throws
+  *inline* dialogs (`.tox-dialog-inline`, no `.tox-dialog-wrap`; Ask AI is one) off screen: TinyMCE places them
+  with coordinates computed against the sink's normal position.
+
+Separately, and not fixed: **Escape in any TinyMCE dialog inside a side panel also closes the panel** (the
+native `<dialog>` closes on Escape), with "Discard unsaved changes" if the block was edited.
+Check on each TinyMCE upgrade that modal dialogs still render a `.tox-dialog-wrap` inside a sink carrying
+`tox-silver-sink tox-tinymce-aux`; the tests are quickstart D1 in a small block panel and opening Ask AI (an inline
+dialog), which must appear under the toolbar.
+
+### Plugins insert with `insertAtCaret`, never `selection.setContent` (both modes)
+
+After a block is inserted the caret sits on TinyMCE's **fake caret** beside it, a
+`<p data-mce-caret data-mce-bogus="all">` that serialisation strips. `editor.selection.setContent()` - and
+`selection.setNode()`, which is the same thing - writes into that element as if it were content, so whatever a plugin
+inserted next (a second block, an image, an embed) showed in the editor and was silently left out of the saved value.
+`editor.insertContent()` turns the fake caret into a real paragraph first. `plugins/core/insert-at-caret.ts` wraps it,
+and the block, media and embed plugins use it; `insert-at-caret.test.ts` boots a real TinyMCE and reproduces the loss.
+Any new plugin that inserts markup should use it too.
+
 ## Working with Components
 
 All components use Lit web components with Umbraco's extension system:
@@ -417,6 +544,19 @@ All components use Lit web components with Umbraco's extension system:
 4. **Rebuild C# Project**: The C# project includes the wwwroot as static assets
 5. **Test in Umbraco**: Run the TestSite and navigate to backoffice
 
+## Tests
+
+`npm test` runs the in-browser tests with `@web/test-runner` in Playwright's Chromium, using the same libraries as
+Umbraco's own backoffice tests (`@open-wc/testing`: Mocha, Chai, `fixture`/`html`). Run
+`npx playwright install chromium` once per machine. Tests sit next to the code they test, as `src/**/*.test.ts`.
+`npm run build` type-checks them, and they are excluded from the Vite build and from the npm typings.
+
+**They cannot reach the editor's rendering.** A component test has no TinyMCE iframe (a separate module realm) and
+no backoffice shadow-DOM tree around an inline editor. So nothing in *TinyMCE iframe Module Scope* or *Inline Mode
+and Shadow DOM* is covered by them, and those sections' checklists, run by hand in the TestSite, remain the only
+defence there. The server-side tests are in `src/TinyMCE.Umbraco.Tests` (`dotnet test`); see
+`.github/CONTRIBUTING.md`.
+
 ## Publishing NPM Package
 
 1. Update version in `package.json`
@@ -433,7 +573,7 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 - `tinymce-i18n` ^24.12.30 - Localization files
 
 **Peer Dependencies**:
-- `@umbraco-cms/backoffice` ^17.6.2
+- `@umbraco-cms/backoffice` ^17.8.0
 - `tinymce` and `tinymce-i18n` (ensures version compatibility)
 
 **Dev Dependencies**: Vite, TypeScript, Rollup plugins, OpenAPI generator, etc.
@@ -470,7 +610,7 @@ selectable.
 
 ### Adding Configuration Option
 
-1. Update backend `TinyMceConfig.cs` or `RichTextEditorSettings.cs`
+1. Update backend `TinyMceConfig.cs` or `RichTextEditorSettings.cs` **and** add it to the response projection (`TinyMceClientConfigModel` / `TinyMceRichTextEditorClientModel` and its `From` mapper). The config endpoint sends only what the projection lists, so a setting not added there never reaches the editor
 2. Rebuild backend to update OpenAPI spec
 3. Run `npm run generate-client` to update TypeScript types
 4. Use new config in editor components

@@ -1,6 +1,10 @@
 import type { UmbInputTinyMceElement } from '@tiny-mce-umbraco/backoffice/core';
-import { customElement, html } from '@umbraco-cms/backoffice/external/lit';
+import { customElement, html, state } from '@umbraco-cms/backoffice/external/lit';
 import { UmbPropertyEditorUiRteElementBase } from '@umbraco-cms/backoffice/rte';
+import { UmbPropertyEditorUiInteractionMemoryManager } from '@umbraco-cms/backoffice/property-editor';
+import type { UmbInteractionMemoryModel } from '@umbraco-cms/backoffice/interaction-memory';
+import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
+import type { UmbPropertyEditorRteValueType } from '@umbraco-cms/backoffice/rte';
 
 import '@tiny-mce-umbraco/backoffice/core';
 
@@ -9,7 +13,69 @@ import '@tiny-mce-umbraco/backoffice/core';
  */
 @customElement('umb-property-editor-ui-tiny-mce')
 export class UmbPropertyEditorUITinyMceElement extends UmbPropertyEditorUiRteElementBase {
+	// Keeps what the input's modals remember (e.g. the media picker's last folder) in Umbraco's app-level store,
+	// keyed by a hash of this Data Type's configuration, so it survives the editor being recreated for the rest of
+	// the backoffice session. Mirrors Tiptap's property editor UI, with its own prefix.
+	readonly #interactionMemoryManager = new UmbPropertyEditorUiInteractionMemoryManager(this, {
+		memoryUniquePrefix: 'UmbTinyMce',
+	});
+
+	@state()
+	private _interactionMemories: Array<UmbInteractionMemoryModel> = [];
+
+	/**
+	 * True while a value is being set from outside. Changes the editor reports meanwhile are echoes of that value,
+	 * not edits, and must not be reported back (FR-042). On a culture switch Umbraco 17.8's `umb-property` points
+	 * its data path at the new culture, sets that culture's value on this (old) element, and only then replaces the
+	 * element. The block picker reacts to the new block contents by inserting them into the old editor and firing a
+	 * change, which `umb-property` would store under the new culture: the old culture's text leaked into it.
+	 */
+	#settingValue = false;
+
+	public override set value(value: UmbPropertyEditorRteValueType | undefined) {
+		this.#settingValue = true;
+		try {
+			super.value = value;
+		} finally {
+			this.#settingValue = false;
+		}
+	}
+	public override get value(): UmbPropertyEditorRteValueType | undefined {
+		return super.value;
+	}
+
+	public override set config(config: UmbPropertyEditorConfigCollection | undefined) {
+		// Unconditionally, and before the base's own guard: without a config hash there is no key to store the
+		// memories under.
+		this.#interactionMemoryManager.setPropertyEditorConfig(config);
+		super.config = config;
+	}
+
+	constructor() {
+		super();
+
+		this.observe(
+			this.#interactionMemoryManager.memoriesForPropertyEditor,
+			(memories) => {
+				this._interactionMemories = memories ?? [];
+			},
+			null,
+		);
+	}
+
+	async #onInteractionMemoriesChange(event: Event) {
+		const memories = (event.target as UmbInputTinyMceElement).interactionMemories;
+
+		if (memories && memories.length > 0) {
+			await this.#interactionMemoryManager.saveMemoriesForPropertyEditor(memories);
+		} else {
+			await this.#interactionMemoryManager.deleteMemoriesForPropertyEditor();
+		}
+	}
+
 	#onChange(event: CustomEvent & { target: UmbInputTinyMceElement }) {
+		if (this.#settingValue) return;
+
 		const markup = typeof event.target.value === 'string' ? event.target.value : '';
 
 		// If we don't get any markup clear the property editor value.
@@ -61,7 +127,9 @@ export class UmbPropertyEditorUITinyMceElement extends UmbPropertyEditorUiRteEle
 			<umb-input-tiny-mce
 				.configuration=${this._config}
 				.value=${this._markup}
+				.interactionMemories=${this._interactionMemories}
 				@change=${this.#onChange}
+				@interaction-memories-change=${this.#onInteractionMemoriesChange}
 				?readonly=${this.readonly}>
 			</umb-input-tiny-mce>
 		`;
