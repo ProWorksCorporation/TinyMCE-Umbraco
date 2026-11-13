@@ -4,6 +4,7 @@ import { umbOpenModal } from '@umbraco-cms/backoffice/modal';
 import { UmbLocalizationController } from '@umbraco-cms/backoffice/localization-api';
 import { UMB_EMBEDDED_MEDIA_MODAL } from '@umbraco-cms/backoffice/embedded-media';
 import type { UmbEmbeddedMediaModalData, UmbEmbeddedMediaModalValue } from '@umbraco-cms/backoffice/embedded-media';
+import { insertAtCaret } from './core/insert-at-caret.js';
 
 export default class UmbTinyMceEmbeddedMediaPlugin extends UmbTinyMcePluginBase {
 	constructor(args: TinyMcePluginArguments) {
@@ -73,7 +74,9 @@ export default class UmbTinyMceEmbeddedMediaPlugin extends UmbTinyMcePluginBase 
 		if (activeElement?.nodeName.toUpperCase() === 'DIV' && activeElement.classList.contains('umb-embed-holder')) {
 			activeElement.replaceWith(wrapper); // directly replaces the html node
 		} else {
-			this.editor.selection.setNode(wrapper);
+			// Not selection.setNode(), which is selection.setContent() underneath: straight after a block the
+			// caret is TinyMCE's fake caret, and the embed would be dropped on save. See insertAtCaret.
+			insertAtCaret(this.editor, this.editor.dom.getOuterHTML(wrapper));
 		}
 	}
 

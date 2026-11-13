@@ -466,10 +466,21 @@ and Table menus open directly under their buttons; Word count (a modal dialog) i
 dialog) opens under the toolbar, no wider than the editor, with its send button on screen. Then the bookmark check
 above.
 
-That last check guards a side effect of the fixed container: TinyMCE then anchors inline dialogs *inside* the
-editable area (layout `northwest`, whose bounds restriction stops them starting left of it), so an inline dialog
-wider than the editor - Ask AI is 800px - cannot shift left and ran off the right edge of the window. The
-`.inline-toolbar` is therefore a size container and `.tox-dialog-inline` is capped at `100cqw`.
+That last check guards against inline dialogs running off the right edge. TinyMCE never lets one start left of
+the editor (inline mode: layout `northwest` inside the editable area, whose bounds restriction pins it; classic
+mode: anchored to the editor container), so a dialog wider than the editor - Ask AI is 800px - ran off the right of
+the window, or of a block side panel, in **both** modes. `:host` is therefore a size container (`container-type:
+inline-size`, which needs `display: block`; the host used to be inline) and `.tox-dialog-inline` is capped at
+`100cqw`. The host, not an inner wrapper, because it is the only ancestor both sinks share: classic mode attaches
+its sink straight to the shadow root, inline mode inside `.inline-toolbar`.
+
+Clicks on links. Umbraco's router (`ensureAnchorHistory` in router-slot) listens on `window` and turns a plain click
+on any same-origin `<a>` in the composed path into a `pushState`, without checking for editable content. A document
+link in inline content (`/{localLink:...}`) counts as same-origin, so clicking it to edit it took the backoffice to a
+blank page. The inline editable stops plain link clicks from propagating (`#keepLinkClicksInEditor`), only for links
+in its own content: a block's Edit link reaches that listener retargeted to the block element, so it still goes to
+the router and opens the block. Classic mode's iframe never needed this. Check: click a link in a focused inline
+editor - the page must not change - then use a block's Edit action in the same editor.
 
 A second side effect: TinyMCE's sink (dialogs and menus) now sits *inside* `.inline-toolbar`, and a sticky element
 is always a stacking context, so everything in the sink is stacked at the toolbar's `z-index` (1) rather than the
@@ -505,6 +516,16 @@ native `<dialog>` closes on Escape), with "Discard unsaved changes" if the block
 Check on each TinyMCE upgrade that modal dialogs still render a `.tox-dialog-wrap` inside a sink carrying
 `tox-silver-sink tox-tinymce-aux`; the tests are quickstart D1 in a small block panel and opening Ask AI (an inline
 dialog), which must appear under the toolbar.
+
+### Plugins insert with `insertAtCaret`, never `selection.setContent` (both modes)
+
+After a block is inserted the caret sits on TinyMCE's **fake caret** beside it, a
+`<p data-mce-caret data-mce-bogus="all">` that serialisation strips. `editor.selection.setContent()` - and
+`selection.setNode()`, which is the same thing - writes into that element as if it were content, so whatever a plugin
+inserted next (a second block, an image, an embed) showed in the editor and was silently left out of the saved value.
+`editor.insertContent()` turns the fake caret into a real paragraph first. `plugins/core/insert-at-caret.ts` wraps it,
+and the block, media and embed plugins use it; `insert-at-caret.test.ts` boots a real TinyMCE and reproduces the loss.
+Any new plugin that inserts markup should use it too.
 
 ## Working with Components
 

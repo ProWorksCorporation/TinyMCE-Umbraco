@@ -144,7 +144,7 @@ keep the two in step.
 - Embedded media
 - Code editor
 
-These plugins use the base class in `src/TinyMCE.Umbraco.Client/src/plugins/core/` which provides common plugin infrastructure.
+These plugins use the base class in `src/TinyMCE.Umbraco.Client/src/plugins/core/` which provides common plugin infrastructure. A plugin that inserts markup must use `insertAtCaret` from there, never `editor.selection.setContent()`/`setNode()`: straight after a block the caret is TinyMCE's fake caret, and markup written into it is dropped on save (see the client CLAUDE.md).
 
 **Before changing how the editor renders content, read `src/TinyMCE.Umbraco.Client/CLAUDE.md`.** It carries
 three sections covering failure modes that produce **no error at all** — blank UI, missing chrome, dropped
