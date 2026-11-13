@@ -144,7 +144,7 @@ keep the two in step.
 - Embedded media
 - Code editor
 
-These plugins use the base class in `src/TinyMCE.Umbraco.Client/src/plugins/core/` which provides common plugin infrastructure.
+These plugins use the base class in `src/TinyMCE.Umbraco.Client/src/plugins/core/` which provides common plugin infrastructure. A plugin that inserts markup must use `insertAtCaret` from there, never `editor.selection.setContent()`/`setNode()`: straight after a block the caret is TinyMCE's fake caret, and markup written into it is dropped on save (see the client CLAUDE.md).
 
 **Before changing how the editor renders content, read `src/TinyMCE.Umbraco.Client/CLAUDE.md`.** It carries
 three sections covering failure modes that produce **no error at all** — blank UI, missing chrome, dropped
@@ -158,7 +158,8 @@ keystrokes — and that this repository has now hit repeatedly:
   definitions all have to be bridged across explicitly.
 - **Inline Mode and Shadow DOM** — inline mode has no iframe, so none of the above applies; instead the
   editable element sits deep in the backoffice's shadow DOM, where several DOM APIs TinyMCE relies on
-  silently do not reach it.
+  silently do not reach it, and where its floating toolbar cannot be positioned (so it renders into a
+  container of ours).
 
 The last two are mirror images, and a fix for one is usually irrelevant or actively wrong for the other.
 All three carry a per-upgrade checklist, including which tests actually exercise them — several

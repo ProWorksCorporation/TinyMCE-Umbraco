@@ -35,6 +35,15 @@ follow the Umbraco CMS major version they support.
   `UmbracoCssPath` on the Umbraco server.
 - Switching the culture of a document no longer copies the previous culture's text into the editor of the new one
   (Umbraco 17.8 rebuilds the editor on a culture switch).
+- In inline mode the toolbar no longer appears for a moment on focus and then disappears (reliably on a short or
+  empty editor). It now sits above the editor while it has focus, pushing the content down, and stays at the top
+  of the workspace as you scroll.
+- A block, image or embed inserted straight after a block is saved; it showed in the editor but was left out of
+  the saved content (long-standing).
+- Ask AI's dialog is never wider than the editor, so its send button stays on screen in narrow windows and in
+  block side panels (long-standing).
+- In inline mode, clicking a link in the text to edit it no longer takes the backoffice to a blank page
+  (long-standing).
 
 ### Security
 

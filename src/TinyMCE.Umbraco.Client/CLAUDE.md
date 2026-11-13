@@ -428,6 +428,67 @@ and in a browser: type, paste, press Enter twice, apply a list and a block forma
 `editor.getBody().querySelectorAll('[data-mce-type="bookmark"]').length === 0`. Nothing here throws when it
 regresses.
 
+### The inline toolbar renders into our own container
+
+TinyMCE's **floating** inline toolbar cannot work this deep in shadow DOM, so `#setTinyConfig` passes
+`fixed_toolbar_container_target` (the `.inline-toolbar` div rendered just before the editable) and TinyMCE renders
+the toolbar there instead. Its whole floating-toolbar machinery assumes at most one shadow boundary, and fails here
+in three compounding ways, all silent:
+
+1. **Position.** With the default `ui_mode: 'combined'`, `updateChromePosition` writes page coordinates
+   (`left = targetBounds.x`), assuming the toolbar's containing block is `<body>`. It is really the nearest positioned
+   flat-tree ancestor, Umbraco's `div#editor` (`position: relative`) in `umb-property-layout`, so the offset is
+   applied twice. Removing that one does not help: a stack of `umb-router-slot`s (all `position: relative`) is next.
+2. **Wrapping.** At a doubled `left`, the absolutely positioned toolbar shrinks to fit what is left of the
+   containing block (179px in a 752px field), and a full toolbar wraps into a column several hundred pixels tall.
+3. **Fade-out.** Inline mode forces a sticky toolbar. Docking's visibility check (`lazyContext`) subtracts the header
+   height from the content area's height; with an empty editor (100px) that is negative, the toolbar is judged
+   off screen, and `.tox-editor-header` gets `tox-editor-dock-fadeout`. Symptom: **the toolbar appears for a moment on
+   focus, then disappears**, reliably on a short editor and only sometimes on a long one. Note the outer
+   `.tox-tinymce-inline` keeps an inline `visibility: hidden` throughout; that is normal (the skin's
+   `visibility: inherit !important` overrides it), so check the header's class and opacity, not the container's.
+
+**Why not `ui_mode: 'split'`.** Split mode positions against `offsetParent` and does work once `:host` is
+`position: relative` (without that, Chromium retargets `offsetParent` across the slot to a different element than the
+real containing block). But its scroll-container detection (`detect`) crosses only one shadow boundary and its scroll
+listener sits on the editor's own root node, so it never finds `uui-scroll-container`, never docks, and a page-level
+editor's top toolbar row is clipped behind the workspace header.
+
+**Consequences of the fixed container.** TinyMCE turns its sticky docking off for a fixed container
+(`isStickyToolbar`); `.inline-toolbar { position: sticky }` replaces it, and works because CSS layout follows the flat
+tree. The toolbar is in the document flow, so **the editable moves down by the toolbar's height while focused**. The
+container also becomes TinyMCE's UI container (`getUiContainer`), so the dialog/popup sink now lives inside
+`.inline-toolbar` - still in our shadow root, so the #238 rule below still matches.
+
+**Checklist** (manual, in the TestSite's *Test Empty* and *Inline Test* documents): on focus the full toolbar shows
+above the editable and stays; scrolling keeps it pinned at the top of the workspace; on blur it hides; the Format
+and Table menus open directly under their buttons; Word count (a modal dialog) is centred; Ask AI (an inline
+dialog) opens under the toolbar, no wider than the editor, with its send button on screen. Then the bookmark check
+above.
+
+That last check guards against inline dialogs running off the right edge. TinyMCE never lets one start left of
+the editor (inline mode: layout `northwest` inside the editable area, whose bounds restriction pins it; classic
+mode: anchored to the editor container), so a dialog wider than the editor - Ask AI is 800px - ran off the right of
+the window, or of a block side panel, in **both** modes. `:host` is therefore a size container (`container-type:
+inline-size`, which needs `display: block`; the host used to be inline) and `.tox-dialog-inline` is capped at
+`100cqw`. The host, not an inner wrapper, because it is the only ancestor both sinks share: classic mode attaches
+its sink straight to the shadow root, inline mode inside `.inline-toolbar`.
+
+Clicks on links. Umbraco's router (`ensureAnchorHistory` in router-slot) listens on `window` and turns a plain click
+on any same-origin `<a>` in the composed path into a `pushState`, without checking for editable content. A document
+link in inline content (`/{localLink:...}`) counts as same-origin, so clicking it to edit it took the backoffice to a
+blank page. The inline editable stops plain link clicks from propagating (`#keepLinkClicksInEditor`), only for links
+in its own content: a block's Edit link reaches that listener retargeted to the block element, so it still goes to
+the router and opens the block. Classic mode's iframe never needed this. Check: click a link in a focused inline
+editor - the page must not change - then use a block's Edit action in the same editor.
+
+A second side effect: TinyMCE's sink (dialogs and menus) now sits *inside* `.inline-toolbar`, and a sticky element
+is always a stacking context, so everything in the sink is stacked at the toolbar's `z-index` (1) rather than the
+sink's own (1300). Menus and inline dialogs stay within the editor's column and are unaffected; a wide modal
+dialog, pinned to the viewport by the #238 rule and centred, reaches over the content tree (`umb-section-sidebar`,
+`z-index: 10`) and was drawn underneath it. `.inline-toolbar:has(.tox-dialog-wrap)` lifts the toolbar to 1300
+while a modal is open. Check: Insert template in a window about 600px wide must cover the tree and dim it.
+
 ### TinyMCE's UI sink lives inside the side panel (#238, both modes)
 
 TinyMCE attaches its UI sink (`.tox-silver-sink`: dialogs, the dropdowns inside them and, with the default
@@ -442,7 +503,8 @@ The fix pins the sink to the viewport **only while it holds a modal dialog**: a
 `position: relative` inline). Three approaches that look right and are not:
 - **`ui_mode: 'split'`** doesn't help: dialog dropdowns stay in the dialog sink in both modes. It also moves
   the *inline* toolbar next to the editable element, where a page-level inline editor's top toolbar row ends
-  up under the workspace header.
+  up under the workspace header (why: *The inline toolbar renders into our own container*, above). In inline
+  mode the sink now sits inside `.inline-toolbar` rather than directly in the shadow root; the rule is unaffected.
 - **Pinning the sink permanently** detaches toolbar menus and context toolbars from content that scrolls
   inside the panel, because with `combined` they share that sink.
 - **Pinning while *any* dialog is open** (`OpenWindow`/`CloseWindow`, the first version of this fix) throws
@@ -454,6 +516,16 @@ native `<dialog>` closes on Escape), with "Discard unsaved changes" if the block
 Check on each TinyMCE upgrade that modal dialogs still render a `.tox-dialog-wrap` inside a sink carrying
 `tox-silver-sink tox-tinymce-aux`; the tests are quickstart D1 in a small block panel and opening Ask AI (an inline
 dialog), which must appear under the toolbar.
+
+### Plugins insert with `insertAtCaret`, never `selection.setContent` (both modes)
+
+After a block is inserted the caret sits on TinyMCE's **fake caret** beside it, a
+`<p data-mce-caret data-mce-bogus="all">` that serialisation strips. `editor.selection.setContent()` - and
+`selection.setNode()`, which is the same thing - writes into that element as if it were content, so whatever a plugin
+inserted next (a second block, an image, an embed) showed in the editor and was silently left out of the saved value.
+`editor.insertContent()` turns the fake caret into a real paragraph first. `plugins/core/insert-at-caret.ts` wraps it,
+and the block, media and embed plugins use it; `insert-at-caret.test.ts` boots a real TinyMCE and reproduces the loss.
+Any new plugin that inserts markup should use it too.
 
 ## Working with Components
 
