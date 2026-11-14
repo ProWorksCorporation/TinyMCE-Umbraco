@@ -35,7 +35,7 @@ export const defaultPremiumPluginsList = [
 export const defaultFallbackConfig: RawEditorOptions = {
 	plugins: ['anchor', 'charmap', 'table', 'lists', 'advlist', 'autolink', 'directionality', 'searchreplace'],
 	valid_elements:
-		'+a[id|style|rel|data-id|data-udi|rev|charset|hreflang|dir|lang|tabindex|accesskey|type|name|href|target|title|class|onfocus|onblur|onclick|ondblclick|onmousedown|onmouseup|onmouseover|onmousemove|onmouseout|onkeypress|onkeydown|onkeyup],-strong/-b[class|style],-em/-i[class|style],-strike[class|style],-s[class|style],-u[class|style],#p[id|style|dir|class|align],-ol[class|reversed|start|style|type],-ul[class|style],-li[class|style],br[class],img[id|dir|lang|longdesc|usemap|style|class|src|onmouseover|onmouseout|border|alt=|title|hspace|vspace|width|height|align|umbracoorgwidth|umbracoorgheight|onresize|onresizestart|onresizeend|rel|data-id],-sub[style|class],-sup[style|class],-blockquote[dir|style|class],-table[border=0|cellspacing|cellpadding|width|height|class|align|summary|style|dir|id|lang|bgcolor|background|bordercolor],-tr[id|lang|dir|class|rowspan|width|height|align|valign|style|bgcolor|background|bordercolor],tbody[id|class],thead[id|class],tfoot[id|class],#td[id|lang|dir|class|colspan|rowspan|width|height|align|valign|style|bgcolor|background|bordercolor|scope],-th[id|lang|dir|class|colspan|rowspan|width|height|align|valign|style|scope],caption[id|lang|dir|class|style],-div[id|dir|class|align|style|contenteditable|data-embed-url|data-embed-height|data-embed-width|data-embed-constrain],-span[class|align|style|lang],-pre[class|align|style],address[class|align|style],-h1[id|dir|class|align|style],-h2[id|dir|class|align|style],-h3[id|dir|class|align|style],-h4[id|dir|class|align|style],-h5[id|dir|class|align|style],-h6[id|style|dir|class|align|style],hr[class|style],small[class|style],dd[id|class|title|style|dir|lang],dl[id|class|title|style|dir|lang],dt[id|class|title|style|dir|lang],object[class|id|width|height|codebase|*],param[name|value|_value|class],embed[type|width|height|src|class|*],map[name|class],area[shape|coords|href|alt|target|class],bdo[class],button[class],iframe[*],figure,figcaption,cite,video[*],audio[*],picture[*],source[*],canvas[*],details[*],summary[*],-code',
+		'+a[id|style|rel|data-id|data-udi|data-anchor|data-culture|rev|charset|hreflang|dir|lang|tabindex|accesskey|type|name|href|target|title|class|onfocus|onblur|onclick|ondblclick|onmousedown|onmouseup|onmouseover|onmousemove|onmouseout|onkeypress|onkeydown|onkeyup],-strong/-b[class|style],-em/-i[class|style],-strike[class|style],-s[class|style],-u[class|style],#p[id|style|dir|class|align],-ol[class|reversed|start|style|type],-ul[class|style],-li[class|style],br[class],img[id|dir|lang|longdesc|usemap|style|class|src|onmouseover|onmouseout|border|alt=|title|hspace|vspace|width|height|align|umbracoorgwidth|umbracoorgheight|onresize|onresizestart|onresizeend|rel|data-id],-sub[style|class],-sup[style|class],-blockquote[dir|style|class],-table[border=0|cellspacing|cellpadding|width|height|class|align|summary|style|dir|id|lang|bgcolor|background|bordercolor],-tr[id|lang|dir|class|rowspan|width|height|align|valign|style|bgcolor|background|bordercolor],tbody[id|class],thead[id|class],tfoot[id|class],#td[id|lang|dir|class|colspan|rowspan|width|height|align|valign|style|bgcolor|background|bordercolor|scope],-th[id|lang|dir|class|colspan|rowspan|width|height|align|valign|style|scope],caption[id|lang|dir|class|style],-div[id|dir|class|align|style|contenteditable|data-embed-url|data-embed-height|data-embed-width|data-embed-constrain],-span[class|align|style|lang],-pre[class|align|style],address[class|align|style],-h1[id|dir|class|align|style],-h2[id|dir|class|align|style],-h3[id|dir|class|align|style],-h4[id|dir|class|align|style],-h5[id|dir|class|align|style],-h6[id|style|dir|class|align|style],hr[class|style],small[class|style],dd[id|class|title|style|dir|lang],dl[id|class|title|style|dir|lang],dt[id|class|title|style|dir|lang],object[class|id|width|height|codebase|*],param[name|value|_value|class],embed[type|width|height|src|class|*],map[name|class],area[shape|coords|href|alt|target|class],bdo[class],button[class],iframe[*],figure,figcaption,cite,video[*],audio[*],picture[*],source[*],canvas[*],details[*],summary[*],-code',
 	invalid_elements: 'font',
 	extended_valid_elements:
 		'@[id|class|style],+umb-rte-block[!data-content-key],+umb-rte-block-inline[!data-content-key],ins[datetime|cite],figure,figcaption,iframe[*]',
@@ -267,7 +267,6 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		script.text = `
 			import { umbExtensionsRegistry } from "@umbraco-cms/backoffice/extension-registry";
 			import { UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST } from "@umbraco-cms/backoffice/block";
-			import "${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}";
 			// Defines <umb-icon>, which umb-ref-rte-block renders for the block's element-type icon.
 			// block-rte does not pull it in transitively, so without this it stays an un-upgraded
 			// unknown element: the .name property binding still lands, but nothing ever renders.
@@ -313,9 +312,12 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			// each ufmComponent manifest's api(). Two constraints when editing this:
 			//   1. The manifests are on the package's \`manifests\` export, NOT \`extensions\`, which is a
 			//      single bundle wrapper - filtering that matches nothing and fails silently.
-			//   2. This is the only top-level await in the script, so it must stay LAST or everything
-			//      above it waits on the ufm package plus one dynamic import per component. Custom
-			//      element upgrade is retroactive, so defining these last costs nothing.
+			//   2. They must be defined BEFORE the block components below. Since Umbraco 17.8 a block's
+			//      name (delete dialog, clipboard entry) comes only from the umb-ufm-resolved event of
+			//      the label's <umb-ufm-render>, which watches the shadow roots of its children as they
+			//      are inserted. A <ufm-label-value> inserted undefined and upgraded later gets its
+			//      shadow root after that, so the label shows but the event never carries it and the
+			//      name stays empty - on most blocks, depending on timing.
 			try {
 				const ufmPkg = await import("/umbraco/backoffice/packages/ufm/umbraco-package.js");
 				const loaded = new Set();
@@ -332,6 +334,11 @@ export const defaultFallbackConfig: RawEditorOptions = {
 				// If the ufm package is ever restructured, block labels degrade back to empty
 				// rather than breaking the editor.
 			}
+
+			// Registers <umb-rte-block> and the elements it renders in this realm; the blocks already in
+			// the content upgrade now. Last, after the ufm-* definitions above (see 2.), and outside
+			// their try so a ufm failure never leaves the blocks unrendered.
+			await import("${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}");
 		`;
 		editor.dom.doc.head.appendChild(script);
 	},

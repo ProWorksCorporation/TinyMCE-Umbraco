@@ -7,6 +7,7 @@ import type { TinyMcePluginArguments } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbBlockDataModel } from '@umbraco-cms/backoffice/block';
 import type { UmbBlockTypeBaseModel } from '@umbraco-cms/backoffice/block-type';
 import type { UmbBlockRteLayoutModel } from '@umbraco-cms/backoffice/block-rte';
+import { insertAtCaret } from './core/insert-at-caret.js';
 
 export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase {
 	readonly #localize = new UmbLocalizationController(this._host);
@@ -140,7 +141,9 @@ export default class UmbTinyMceMultiUrlPickerPlugin extends UmbTinyMcePluginBase
 
 			const blockEl = `<${blockTag} ${UMB_BLOCK_RTE_DATA_CONTENT_KEY}="${block.key}"></${blockTag}>`;
 
-			editor.selection.setContent(blockEl);
+			// Not selection.setContent(): a second block inserted straight after this one would land in the
+			// fake caret beside it and be dropped on save. See insertAtCaret.
+			insertAtCaret(editor, blockEl);
 			editor.setDirty(true);
 			editor.dispatch('Change');
 		});

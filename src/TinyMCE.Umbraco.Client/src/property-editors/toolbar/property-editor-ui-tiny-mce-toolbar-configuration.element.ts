@@ -75,7 +75,6 @@ export class UmbPropertyEditorUITinyMceToolbarConfigurationElement
 	private _tinyIconSet?: Record<string, string>;
 
 	async #getTinyMceConfig() {
-		// @ts-ignore
 		const { data } = await tryExecute(this, TinyMceService.getConfig({ client: umbHttpClient }));
 		if (!data) return;
 

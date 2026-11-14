@@ -43,8 +43,9 @@
  * This is arguably an Umbraco defect: the router should not attempt to route non-`http(s)` schemes
  * at all, which would also cover `mailto:` and `tel:`. It affects any blob-based download in the
  * backoffice, not only TinyMCE. Verified present in Umbraco 17.6.2, and `anchor.ts` is byte-identical
- * back to at least 17.5.0 — so this is long-standing, not a regression. Remove this workaround once
- * the router gains a scheme guard.
+ * back to at least 17.5.0 — so this is long-standing, not a regression. Re-verified 2026-11:
+ * `anchor.ts` is byte-identical in Umbraco 17.8.1. Remove this workaround once the router gains a
+ * scheme guard.
  */
 
 /** Schemes that must never be handed to `history.pushState`. */

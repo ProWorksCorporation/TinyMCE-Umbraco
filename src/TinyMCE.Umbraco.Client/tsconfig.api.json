@@ -8,6 +8,14 @@
 		"declarationMap": true,
 		"allowJs": true,
 		"noEmit": false,
-		"allowImportingTsExtensions": false
-	}
+		// Always a full build. Incremental state lives in tsconfig.api.tsbuildinfo, outside dist-cms, so with it on a
+		// build after dist-cms was emptied emitted only the files changed since the last one, and npm pack shipped a
+		// package without index.js. build:api also empties dist-cms first, so files of deleted sources never ship.
+		"incremental": false,
+		"allowImportingTsExtensions": false,
+		// Test globals stay out of the published typings.
+		"types": ["@umbraco-cms/backoffice/extension-types"]
+	},
+	// Tests and their fixtures are not part of the npm package.
+	"exclude": ["src/**/*.test.ts", "src/test-utils/**"]
 }
