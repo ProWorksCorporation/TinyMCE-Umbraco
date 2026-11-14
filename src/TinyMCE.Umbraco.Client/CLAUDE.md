@@ -22,7 +22,7 @@ npm run dev
 # Production build (outputs to ../TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE.Umbraco)
 npm run build
 
-# Build API types from OpenAPI spec (requires test site running at https://localhost:44308)
+# Build the npm package (@tiny-mce-umbraco/backoffice) into dist-cms: always a clean, full tsc build
 npm run build:api
 
 # Generate OpenAPI TypeScript client
@@ -319,9 +319,15 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
   things to know before touching it:
   1. The manifests are on that package's **`manifests`** export, **not `extensions`**, which is a single
      `bundle` wrapper. Filtering `extensions` for `ufmComponent` matches nothing and fails silently.
-  2. It is the only **top-level `await`** in the injected script, so it must stay **last**: anything
-     after it waits on a dynamic import plus one `api()` call per component. Custom element upgrade is
-     retroactive, so defining these after the registry syncs costs nothing.
+  2. **These must be defined before the block components.** `block-rte` is therefore not a static import
+     but an `await import()` at the very end of the script, after this loop and outside its try. Since
+     Umbraco 17.8 a block's name (the delete dialog, clipboard entries) comes only from the
+     `umb-ufm-resolved` event of the label's `<umb-ufm-render>`, which picks up its children's shadow roots
+     as they are inserted. A `<ufm-label-value>` that is inserted undefined and upgraded later gets its
+     shadow root after that: the label still shows, but the event never carries it, so `getName()` stays
+     `""` - on most blocks, depending on timing (F-G2, fixed 2026-11-14). "Upgrade is retroactive, so
+     define them last" was true before 17.8 and is not any more. The registry syncs above don't wait for
+     any of this; only block rendering does, by the time the ufm chunks take to load.
   3. It is wrapped in try/catch at both levels, so a restructured `ufm` package degrades labels back to
      blank rather than breaking the editor. **That means a regression here is silent** — see the testing
      note in the checklist below.
@@ -333,6 +339,8 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
 - No new `localize.term(` keys in `block-rte`/`block`. `blockEditor_confirmDeleteBlockMessage` now wraps its
   argument in `escapeHTML`, which happens in the outer-realm `block-entry.context.ts` and doesn't change the key.
 - The `@customElement` set in `block-rte` (including `umb-rte-block`) is identical to 17.6.2.
+- **Block names now come from `<umb-ref-rte-block>`'s `umb-ufm-resolved` event** (`setName`), not a hidden renderer
+  in the entry context. That is what made the `ufm-*` definition order matter; see point 2 of the `ufm-*` notes above.
 - `blockAction`'s API interface gained only the optional `getHrefObservable` / `getValidationDataPathObservable`.
   Conditions are covered by the alias-derived copy.
 - The `ufm` package still exports `manifests`, with the same five `ufmComponent`s.
@@ -360,7 +368,9 @@ Umbraco minor, for anything rendered inside the editor:
    Only `{=alias}` in classic mode touches the iframe's custom element registry. Checking the label
    merely *appears* is not enough either — confirm the element upgraded **and** resolved its value, e.g.
    `editor.iframeElement.contentWindow.customElements.get('ufm-label-value')` is defined and the
-   rendered text is the property's value, not empty.
+   rendered text is the property's value, not empty. Then check the block *name* too, on a fresh page load:
+   a block's Delete action must ask "Are you sure you want to delete this <label>?", not "… this ?". A
+   visible label does not prove it (see point 2 above).
 
 **Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
 
@@ -562,13 +572,18 @@ Umbraco's own backoffice tests (`@open-wc/testing`: Mocha, Chai, `fixture`/`html
 **They cannot reach the editor's rendering.** A component test has no TinyMCE iframe (a separate module realm) and
 no backoffice shadow-DOM tree around an inline editor. So nothing in *TinyMCE iframe Module Scope* or *Inline Mode
 and Shadow DOM* is covered by them, and those sections' checklists, run by hand in the TestSite, remain the only
-defence there. The server-side tests are in `src/TinyMCE.Umbraco.Tests` (`dotnet test`); see
+defence there. One narrow exception: `input-tiny-mce.defaults.test.ts` checks the *text* of the module script the
+iframe bootstrap injects (the `ufm-*` definitions before the `block-rte` import, and the inline-mode guard). It
+proves the order, not that the iframe behaves, so the Delete-dialog check in that section's checklist still applies. The server-side tests are in `src/TinyMCE.Umbraco.Tests` (`dotnet test`); see
 `.github/CONTRIBUTING.md`.
 
 ## Publishing NPM Package
 
 1. Update version in `package.json`
-2. Run `npm run build:api` to build distributable
+2. Run `npm run build:api` to build distributable. It empties `dist-cms` and always does a full build (`incremental:
+   false` in `tsconfig.api.json`): with incremental state kept outside `dist-cms`, a build into an emptied folder used to
+   emit only the changed files, and the package shipped without `index.js`. Check `npm pack`'s file count (290 for
+   17.8.0) before publishing
 3. Run `npm pack` to create tarball
 4. Publish to NPM registry
 

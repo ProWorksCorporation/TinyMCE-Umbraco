@@ -47,7 +47,7 @@ npm run dev
 # Production build
 npm run build
 
-# Build API types (regenerate OpenAPI client)
+# Build the npm package (@tiny-mce-umbraco/backoffice) into dist-cms (clean, full build)
 npm run build:api
 
 # Generate OpenAPI client from Swagger endpoint (test site must be running)
