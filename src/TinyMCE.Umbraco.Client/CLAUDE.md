@@ -527,6 +527,14 @@ inserted next (a second block, an image, an embed) showed in the editor and was 
 and the block, media and embed plugins use it; `insert-at-caret.test.ts` boots a real TinyMCE and reproduces the loss.
 Any new plugin that inserts markup should use it too.
 
+The media picker then finds the image it inserted by a temporary id, to size it. That id is unique per insert
+(`newImageMarkerId` in `plugins/core/new-image-marker.ts`) and a serializer filter keeps every `__mcenew*` id out of
+the saved value. It used to be the fixed `__mcenew`, and inline content saved before the 17.6.2 shadow-DOM fixes still
+carries it (inline mode could not find the image again, so never removed the id). With a fixed id the lookup found
+that old image first: it was resized to the new image's proportions and the new image kept the id, so the next insert
+did the same. `new-image-marker.test.ts` reproduces it with a leftover `__mcenew` image (the *Inline Test* fixture
+carried one until 2026-11-14).
+
 ## Working with Components
 
 All components use Lit web components with Umbraco's extension system:

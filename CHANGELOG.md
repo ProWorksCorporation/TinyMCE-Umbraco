@@ -44,6 +44,9 @@ follow the Umbraco CMS major version they support.
   block side panels (long-standing).
 - In inline mode, clicking a link in the text to edit it no longer takes the backoffice to a blank page
   (long-standing).
+- Inserting an image from the media picker no longer resizes a different image to the new one's proportions. Text
+  saved in inline mode before 17.6.2 can carry the picker's temporary `id="__mcenew"` on an image, and the next
+  insert sized that image instead; the id is now removed when the text is saved.
 
 ### Security
 

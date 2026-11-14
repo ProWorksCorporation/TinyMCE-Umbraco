@@ -9,6 +9,7 @@ import { UMB_MEDIA_PICKER_MODAL, UMB_MEDIA_CAPTION_ALT_TEXT_MODAL } from '@umbra
 import { UMB_MODAL_MANAGER_CONTEXT } from '@umbraco-cms/backoffice/modal';
 import type { RawEditorOptions } from '@umbraco-cms/backoffice/external/tinymce';
 import { insertAtCaret } from './core/insert-at-caret.js';
+import { newImageMarkerId, stripNewImageMarkers } from './core/new-image-marker.js';
 
 interface MediaPickerTargetData {
 	altText?: string;
@@ -59,6 +60,8 @@ export default class UmbTinyMceMediaPickerPlugin extends UmbTinyMcePluginBase {
 		this.consumeContext(UMB_MODAL_MANAGER_CONTEXT, (instance) => {
 			this.#modalManager = instance;
 		});
+
+		stripNewImageMarkers(this.editor);
 
 		this.editor.ui.registry.addToggleButton('umbmediapicker', {
 			icon: 'image',
@@ -249,8 +252,10 @@ export default class UmbTinyMceMediaPickerPlugin extends UmbTinyMcePluginBase {
 	async #insertInEditor(media: MediaPickerTargetData) {
 		if (!media) return;
 
-		// We need to create a NEW DOM <img> element to insert
-		// setting an attribute of ID to __mcenew, so we can gather a reference to the node, to be able to update its size accordingly to the size of the image.
+		// The new <img> gets a temporary id, unique to this insert, so it can be found again below and sized. See
+		// newImageMarkerId for why it must not be a fixed id.
+		const markerId = newImageMarkerId();
+
 		// An explicit size from the dialog is authoritative. Stamping it on the markup up front means
 		// the editor never briefly renders at the wrong size, and it tells the post-insert sizing step
 		// below to leave the dimensions alone.
@@ -260,7 +265,7 @@ export default class UmbTinyMceMediaPickerPlugin extends UmbTinyMcePluginBase {
 		const img: MediaPickerResultData = {
 			alt: media.altText,
 			src: media.url ? media.url : 'nothing.jpg',
-			id: '__mcenew',
+			id: markerId,
 			'data-udi': media.udi,
 			'data-caption': media.caption,
 			...(explicitSize
@@ -342,7 +347,7 @@ export default class UmbTinyMceMediaPickerPlugin extends UmbTinyMcePluginBase {
 
 		// Using settimeout to wait for a DoM-render, so we can find the new element by ID.
 		setTimeout(() => {
-			const imgElm = this.editor.dom.get('__mcenew') as HTMLImageElement;
+			const imgElm = this.editor.dom.get(markerId) as HTMLImageElement;
 			if (!imgElm) return;
 
 			this.editor.dom.setAttrib(imgElm, 'id', null);
