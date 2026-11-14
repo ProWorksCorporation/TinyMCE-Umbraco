@@ -57,9 +57,28 @@ npm pack
 
 ## 3. Publish
 
-1. **NuGet:** `dotnet nuget push artifacts/TinyMCE.Umbraco.X.Y.Z.nupkg -k <api key> -s https://api.nuget.org/v3/index.json`
-2. **npm:** in `src/TinyMCE.Umbraco.Client`, `npm publish`. It needs an npm login with publish rights on the
-   `@tiny-mce-umbraco` scope; the package is public (`publishConfig`).
+1. **NuGet:** `dotnet nuget push artifacts/TinyMCE.Umbraco.X.Y.Z.nupkg -k <api key> -s https://api.nuget.org/v3/index.json`.
+   NuGet validates and indexes a new version before it can be installed, which can take a while; it appears on the
+   package page as soon as it's listed.
+2. **npm:** publish the tarball checked in step 2, from a normal PowerShell or Windows Terminal window:
+
+   ```powershell
+   cd src/TinyMCE.Umbraco.Client
+   npm login     # once; an account that can publish @tiny-mce-umbraco (the package owner is proworkscorporation)
+   npm whoami
+   npm publish tiny-mce-umbraco-backoffice-X.Y.Z.tgz --access public --tag version17
+   ```
+
+   - **`--tag`**: use `version<major>` (e.g. `version17`) for any release that is not on the newest major line, so
+     `latest` stays on the newest major. Only a release of the newest major line takes `latest` (no `--tag`).
+   - **Two-factor authentication**: npm prints a `https://www.npmjs.com/login/...` link and waits. Open it while the
+     command is still waiting and approve with your security key. This only works in an interactive terminal; from an
+     IDE output panel or a chat tool's shell, npm can't wait and stops with `EOTP`. With an authenticator app instead,
+     add `--otp=<code>`.
+   - **Keep tokens out of the repository.** `npm login` saves the login in your user `.npmrc`. The project's
+     `src/TinyMCE.Umbraco.Client/.npmrc` is tracked (and committed empty): a token pasted there could be committed, and
+     it overrides your login, so an expired one makes publishing fail with a misleading `404 Not Found`.
+   - **Check:** `npm view @tiny-mce-umbraco/backoffice dist-tags` shows the new version on the intended tag.
 3. **GitHub release:** tag `release-X.Y.Z` on the `v17/main` merge commit, title `X.Y.Z`, and the release notes as
    the body.
 
