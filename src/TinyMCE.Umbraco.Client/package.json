@@ -27,7 +27,7 @@
 	"scripts": {
 		"dev": "tsc && vite build --watch",
 		"build": "tsc && vite build",
-		"build:api": "tsc -p tsconfig.api.json",
+		"build:api": "node -e \"require('fs').rmSync('dist-cms', { recursive: true, force: true })\" && tsc -p tsconfig.api.json",
 		"test": "web-test-runner",
 		"test:watch": "web-test-runner --watch",
 		"pack:api": "npm pack",

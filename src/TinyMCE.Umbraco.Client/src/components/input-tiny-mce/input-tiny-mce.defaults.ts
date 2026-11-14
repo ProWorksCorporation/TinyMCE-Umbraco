@@ -267,7 +267,6 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		script.text = `
 			import { umbExtensionsRegistry } from "@umbraco-cms/backoffice/extension-registry";
 			import { UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST } from "@umbraco-cms/backoffice/block";
-			import "${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}";
 			// Defines <umb-icon>, which umb-ref-rte-block renders for the block's element-type icon.
 			// block-rte does not pull it in transitively, so without this it stays an un-upgraded
 			// unknown element: the .name property binding still lands, but nothing ever renders.
@@ -313,9 +312,12 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			// each ufmComponent manifest's api(). Two constraints when editing this:
 			//   1. The manifests are on the package's \`manifests\` export, NOT \`extensions\`, which is a
 			//      single bundle wrapper - filtering that matches nothing and fails silently.
-			//   2. This is the only top-level await in the script, so it must stay LAST or everything
-			//      above it waits on the ufm package plus one dynamic import per component. Custom
-			//      element upgrade is retroactive, so defining these last costs nothing.
+			//   2. They must be defined BEFORE the block components below. Since Umbraco 17.8 a block's
+			//      name (delete dialog, clipboard entry) comes only from the umb-ufm-resolved event of
+			//      the label's <umb-ufm-render>, which watches the shadow roots of its children as they
+			//      are inserted. A <ufm-label-value> inserted undefined and upgraded later gets its
+			//      shadow root after that, so the label shows but the event never carries it and the
+			//      name stays empty - on most blocks, depending on timing.
 			try {
 				const ufmPkg = await import("/umbraco/backoffice/packages/ufm/umbraco-package.js");
 				const loaded = new Set();
@@ -332,6 +334,11 @@ export const defaultFallbackConfig: RawEditorOptions = {
 				// If the ufm package is ever restructured, block labels degrade back to empty
 				// rather than breaking the editor.
 			}
+
+			// Registers <umb-rte-block> and the elements it renders in this realm; the blocks already in
+			// the content upgrade now. Last, after the ufm-* definitions above (see 2.), and outside
+			// their try so a ufm failure never leaves the blocks unrendered.
+			await import("${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}");
 		`;
 		editor.dom.doc.head.appendChild(script);
 	},

@@ -6,7 +6,7 @@ and the npm package (`@tiny-mce-umbraco/backoffice`) share a version number, and
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project's version numbers
 follow the Umbraco CMS major version they support.
 
-## [Unreleased]
+## [17.8.0] - 2026-11-14
 
 ### Added
 
@@ -47,6 +47,8 @@ follow the Umbraco CMS major version they support.
 - Inserting an image from the media picker no longer resizes a different image to the new one's proportions. Text
   saved in inline mode before 17.6.2 can carry the picker's temporary `id="__mcenew"` on an image, and the next
   insert sized that image instead; the id is now removed when the text is saved.
+- In classic mode, block names reach the delete-block dialog and block clipboard entries again; with Umbraco 17.8
+  they were empty ("Are you sure you want to delete this ?").
 
 ### Security
 
