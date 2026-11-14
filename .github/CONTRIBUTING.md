@@ -53,3 +53,7 @@ still needs a pass in the test site.
 **Write the test first.** The project's constitution (Principle II, Testing Standards) expects a new test to be
 written and seen failing before the change it covers. A new Management API endpoint needs at least one happy-path
 and one error-path integration test.
+
+## Releasing
+
+The release steps are in [RELEASING.md](RELEASING.md).
