@@ -12,6 +12,9 @@ follow the Umbraco CMS major version they support.
 
 - The version number follows Umbraco 17.8.1. The package still requires Umbraco 17.8.0 or later: Umbraco 17.8.1
   changes only a database library (NPoco), so there is no need to upgrade Umbraco for this release.
+- npm package: `availableLanguages` now lists exactly the language packs the package ships (66; it named 23 that
+  didn't exist and missed 13 that did). New exports `resolveTinyMceLanguage()`, `addLanguagePackUrl()` and
+  `LANGUAGE_PACK_PATH`.
 
 ### Fixed
 

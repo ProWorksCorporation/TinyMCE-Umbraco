@@ -307,6 +307,23 @@ culture when the link is changed to media or an external URL. The link picker do
 rich text editor, though: in Umbraco 17.8 only the Multi URL Picker does, and Umbraco's own rich text editor behaves
 the same way.
 
+##### Editor language
+
+The editor's toolbar, menus and dialogs follow each backoffice user's language (from 17.8.1; before that they were
+always English). The translations are the community language packs from
+[tinymce-i18n](https://github.com/mklkj/tinymce-i18n) that ship with the package, and they are loaded from
+the package even when TinyMCE itself comes from Tiny Cloud or a configured `tinyMceUrl`. A language without a pack, and
+English, show TinyMCE's built-in English. With Tiny Cloud, premium plugins load their own translations from the Cloud.
+
+To use a different language or pack, set `language` (and, for a pack hosted elsewhere, `language_url`) in a
+`customConfig`; configuration wins over the user's language. For example, to show every user the French UI:
+
+```json
+"customConfig": {
+  "language": "fr_FR"
+}
+```
+
 ##### Inline mode caveats
 
 > **Inline mode is verified in Chromium-based browsers (Chrome, Edge, Brave, Opera) and in Firefox.**
