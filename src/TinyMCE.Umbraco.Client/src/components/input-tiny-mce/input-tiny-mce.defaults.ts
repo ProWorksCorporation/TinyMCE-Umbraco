@@ -2,6 +2,8 @@ import { UMB_CONTEXT_REQUEST_EVENT_TYPE, type UmbContextRequestEvent } from '@um
 //import { UmbContextProxyController } from '@umbraco-cms/backoffice/context-proxy';
 import type { RawEditorOptions } from '@umbraco-cms/backoffice/external/tinymce';
 import { umbExtensionsRegistry } from '@umbraco-cms/backoffice/extension-registry';
+import { iframeManifests } from './iframe-manifests.js';
+import { allowStyleSheetsAcrossDocuments } from './cross-document-stylesheets.js';
 import { UUIIconRequestEvent } from '@umbraco-cms/backoffice/external/uui';
 import { umbLocalizationManager } from '@umbraco-cms/backoffice/localization-api';
 
@@ -72,6 +74,10 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		// inject a duplicate import map and re-register live manifests into the running registry - and
 		// none of it is needed there, since the components it bootstraps already live in this realm.
 		if (!editor.iframeElement) return;
+
+		// Elements from this realm placed in the iframe (custom block views registered from a bundle) would
+		// otherwise fail to render: the browser refuses this document's stylesheets in the iframe's (#206).
+		allowStyleSheetsAcrossDocuments();
 
 		// The following code is the context api proxy. [NL]
 		// It re-dispatches the context api request event to the origin target of this modal, in other words the element that initiated the modal. [NL]
@@ -246,11 +252,12 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			editor.dom.doc.head.appendChild(locScript);
 		}
 
-		// Expose the outer extension registry on the outer window so the injected module
-		// script below can sync blockAction manifests into the iframe's per-realm instance.
-		// umb-block-action-list reads umbExtensionsRegistry as a module-level singleton
-		// (not via context), so the context proxy alone cannot bridge it across realms.
-		(window as Window & { _umbOuterExtReg?: typeof umbExtensionsRegistry })._umbOuterExtReg = umbExtensionsRegistry;
+		// The manifests the block components look up in the iframe's own extension registry (block actions, custom
+		// block views and the conditions they name), for the injected module script below to register there. The
+		// block components read umbExtensionsRegistry as a module-level singleton (not via context), so the context
+		// proxy alone cannot bridge it across realms. See iframeManifests.
+		(window as Window & { _umbTinyMceIframeManifests?: unknown[] })._umbTinyMceIframeManifests =
+			iframeManifests(umbExtensionsRegistry);
 
 		// Load backoffice JS so we can get the umb-rte-block component registered inside the iframe.
 		// Also:
@@ -258,10 +265,10 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		//    and the <umb-block-action> custom element in the iframe's realm. These are NOT
 		//    transitively imported by block-rte, but umb-block-action-list needs them to
 		//    instantiate block action extensions (kind: 'default').
-		// 2. Sync blockAction manifests from the outer registry into the iframe's registry.
-		//    Umbraco registers manifests via umbraco-package.json (not module imports), so they
-		//    only exist in the outer registry — we must copy them into the iframe's per-realm
-		//    umbExtensionsRegistry so umb-block-action-list can discover them.
+		// 2. Register the manifests picked by iframeManifests (block actions, custom block views and
+		//    their conditions) in the iframe's per-realm umbExtensionsRegistry. Umbraco registers them
+		//    from umbraco-package.json files and bundles, not module imports, so they only exist in
+		//    the outer registry.
 		const script = document.createElement('script');
 		script.setAttribute('type', 'module');
 		script.text = `
@@ -283,29 +290,13 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			// in the inner customElements registry.
 			umbExtensionsRegistry.registerMany([UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST]);
 
-			// Sync blockAction manifests from the outer registry into the inner realm's registry.
-			// Umbraco registers these via umbraco-package.json at backoffice startup; they only
-			// exist in the outer registry and must be copied so umb-block-action-list can discover them.
-			const outerReg = window.parent?._umbOuterExtReg;
-			if (outerReg) {
-				const blockActions = outerReg.getByType('blockAction') ?? [];
-				if (blockActions.length) umbExtensionsRegistry.registerMany(blockActions);
-
-				// Block actions declare their \`conditions\` by alias, and the extension system resolves
-				// each alias against the registry the action was registered in. Copying the actions
-				// without the condition manifests they name leaves every conditional action permanently
-				// un-initialized — delete, edit content, edit settings and expose content all have
-				// conditions, copy-to-clipboard does not, which is why it was the only one that rendered.
-				// Derived from the copied manifests rather than hard-coded, so an action that gains a
-				// new condition in a future Umbraco version is covered without another fix here.
-				const conditionAliases = new Set(
-					blockActions.flatMap((a) => (a.conditions ?? []).map((c) => c.alias)),
-				);
-				const conditions = (outerReg.getByType('condition') ?? []).filter((c) =>
-					conditionAliases.has(c.alias),
-				);
-				if (conditions.length) umbExtensionsRegistry.registerMany(conditions);
-			}
+			// The block actions, custom block views and the conditions they name, picked in the backoffice's realm
+			// (iframeManifests). Umbraco registers them from umbraco-package.json files and bundles at backoffice
+			// startup, so they exist only in the outer registry until copied here. Without the conditions every
+			// conditional action stays un-initialized (only copy-to-clipboard has none); without the custom views
+			// every block renders its standard look (#206).
+			const manifests = window.parent?._umbTinyMceIframeManifests ?? [];
+			if (manifests.length) umbExtensionsRegistry.registerMany(manifests);
 
 			// Define the ufm-* elements in the inner realm so {=alias} block labels interpolate. Unlike
 			// umb-icon these are in no importable barrel - the outer document defines them by running

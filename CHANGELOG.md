@@ -26,6 +26,9 @@ follow the Umbraco CMS major version they support.
 - A block whose type has **Display inline** switched on is inserted inline, in the text (`<umb-rte-block-inline>`),
   as in Umbraco's own editor; since Umbraco 17.6 every new block was inserted as a separate block (#224, PR #239).
   Blocks already in your content keep how they were inserted.
+- Custom block views (`blockEditorCustomView` extensions) now show for rich text blocks in classic mode, as they
+  already did in inline mode and in Umbraco's own editor; classic mode always showed the standard block (#206). Views
+  registered from a bundle (`element: () => import(...)`) also render with their styles there.
 - The block delete dialog's heading names the block in Danish ("Slet %0" before). The package no longer replaces
   Umbraco's own wording for this dialog in any language.
 

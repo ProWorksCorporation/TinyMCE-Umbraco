@@ -294,20 +294,36 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
   realm, where no `localization` manifests are registered. Symptom when this regresses: the iframe is
   English while the rest of the backoffice is translated — invisible to an English-only test pass.
 
-**2. `umbExtensionsRegistry`** (extension manifests for block actions):
-- `umb-block-action-list` (new in Umbraco 17.5.0) reads `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
-- Two things are required in the injected module script:
+**2. `umbExtensionsRegistry`** (extension manifests for block actions and custom block views):
+- `umb-block-action-list` (new in Umbraco 17.5.0) and the `blockEditorCustomView` extension slot in `umb-rte-block`
+  read `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
+- Three things are required:
   1. Import `UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST` from `@umbraco-cms/backoffice/block` **in the inner realm** and register it into the inner registry. Because the import runs in the inner realm, the manifest's `element` factory (`() => import('./block-action.element.js')`) captures the inner realm's module URL — so when the extension system later calls it, `<umb-block-action>` is lazily registered in the inner `customElements`.
-  2. The outer `umbExtensionsRegistry` reference is exposed on `window._umbOuterExtReg`, then read via `window.parent._umbOuterExtReg` in the injected script. The `blockAction` manifests (registered by Umbraco's package loader, not by module import) are copied into the inner registry so `umb-block-action-list` can discover them.
-  3. **The `condition` extensions those actions name must be copied too.** A `blockAction` manifest
-     declares its `conditions` by alias, and the extension system resolves each alias against the
-     registry the action was registered in. Copy the actions without the conditions and every
-     *conditional* action stays permanently un-initialized, with no error: `delete`, `edit-content`,
-     `edit-settings` and `expose-content` all have conditions and silently vanish, while
-     `copy-to-clipboard` (the only one with none) renders — so the action bar looks present but
-     nearly empty. Derive the aliases from the copied manifests
-     (`blockActions.flatMap(a => (a.conditions ?? []).map(c => c.alias))`) rather than hard-coding
-     them, so an action that gains a condition in a later Umbraco version needs no change here.
+  2. **Copy the manifests the block components look up**, picked by `iframeManifests()` (`iframe-manifests.ts`,
+     unit-tested) in the outer realm and handed over on `window._umbTinyMceIframeManifests`; the injected script
+     registers them. Site packages register them (from `umbraco-package.json` or a bundle), so they exist only in the
+     outer registry:
+     - `blockAction`, for the action bar;
+     - `blockEditorCustomView` for `block-rte` (or no `forBlockEditor`). Without them the slot finds nothing and
+       falls back to `umb-ref-rte-block`, so in classic mode a block never showed its custom view and nothing errored
+       (#206, fixed in 17.8.1; inline mode always worked, being in the outer realm);
+     - **the `condition` manifests either of them names.** The extension system resolves a condition alias against
+       the registry the extension was registered in. Copy the actions without them and every *conditional* action
+       stays permanently un-initialized, with no error: `delete`, `edit-content`, `edit-settings` and
+       `expose-content` all have conditions and silently vanish, while `copy-to-clipboard` (the only one with none)
+       renders — so the action bar looks present but nearly empty. The aliases are derived from the copied
+       manifests, not hard-coded, so an extension that gains a condition in a later Umbraco version needs no change.
+  3. **Elements from the outer realm need their stylesheets copied** (`cross-document-stylesheets.ts`, installed
+     from `init_instance_callback`). A custom view registered from a bundle has `element: () => import(...)`, a
+     function created in the outer realm, so its element module loads *there* and the element is placed in the
+     iframe's document. Lit then sets `adoptedStyleSheets` to the outer document's constructed stylesheets, which the
+     browser refuses ("Sharing constructed stylesheets in multiple documents is not allowed"): the render throws and
+     the view stays empty. `allowStyleSheetsAcrossDocuments()` retries only such an assignment with copies made in the
+     shadow root's own document. A view with `element` as a URL string loads in the inner realm and never needs it.
+     The TestSite fixture `wwwroot/App_Plugins/test-block-custom-view` registers the bundle kind for H Block.
+     Conditions on custom views work in the iframe too, but **a custom view whose condition says no leaves the block
+     blank** rather than falling back to the standard look. That is Umbraco 17.8's own slot (seen in inline mode, with
+     no iframe involved), so a condition can't be used to show the standard look on some pages.
 - **Custom elements that Umbraco's components render must be *defined* in the inner realm.** Element
   registration is per-realm just like module singletons, and an undefined custom element is inert
   rather than an error: lit property bindings (`.name=${...}`) still set their expandos, so the element
@@ -381,6 +397,13 @@ Umbraco minor, for anything rendered inside the editor:
    rendered text is the property's value, not empty. Then check the block *name* too, on a fresh page load:
    a block's Delete action must ask "Are you sure you want to delete this <label>?", not "… this ?". A
    visible label does not prove it (see point 2 above).
+
+   Use Test Block (*Full Configuration*): the TestSite's custom view fixture gives H Block a custom view, which
+   replaces the standard look (`umb-ref-rte-block`) and its visible label.
+7. **Custom block views in classic mode** (#206): *H Child 1* must show H Block as the fixture's dashed "Custom
+   view" box with the block's text (registered from a bundle, so this needs both the manifest copy and the
+   stylesheet copies), and the action bar must keep all its actions. Test Block on *Full Configuration* must still
+   show the standard look.
 
 **Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
 
