@@ -1,4 +1,4 @@
-import { availableLanguages } from '@tiny-mce-umbraco/backoffice/core';
+import { addLanguagePackUrl, resolveTinyMceLanguage } from '@tiny-mce-umbraco/backoffice/core';
 import { defaultFallbackConfig, defaultPremiumPluginsList } from '@tiny-mce-umbraco/backoffice/core';
 import { pastePreProcessHandler } from '@tiny-mce-umbraco/backoffice/core';
 import { uriAttributeSanitizer } from '@tiny-mce-umbraco/backoffice/core';
@@ -8,6 +8,7 @@ import { css, customElement, html, property, query, state } from '@umbraco-cms/b
 import type { PropertyValues } from '@umbraco-cms/backoffice/external/lit';
 import { loadManifestApi } from '@umbraco-cms/backoffice/extension-api';
 import { getProcessedImageUrl, umbDeepMerge } from '@umbraco-cms/backoffice/utils';
+import { preventEscapeCloseRequest } from './escape-close-request.js';
 import { loadTinyMce, renderEditor } from '@umbraco-cms/backoffice/external/tinymce';
 import { umbExtensionsRegistry } from '@umbraco-cms/backoffice/extension-registry';
 import { ImageCropModeModel } from '@umbraco-cms/backoffice/external/backend-api';
@@ -191,6 +192,8 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	}
 
 	override firstUpdated() {
+		// So Escape in a TinyMCE dialog doesn't also close the block side panel around the editor.
+		this.addEventListener('keydown', preventEscapeCloseRequest);
 		this.#loadStylesheetRootPath();
 		this.#loadEditor();
 	}
@@ -427,6 +430,8 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		//console.log('#setTinyConfig 2', [configurationOptions]);
 
+		const language = resolveTinyMceLanguage(this.localize.lang());
+
 		// set the default values that will not be modified via configuration
 		let config: RawEditorOptions = {
 			autoresize_bottom_margin: 10,
@@ -442,7 +447,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 			setup: (editor: Editor) => this.#editorSetup(editor),
 			target: this._editorElement,
 			paste_data_images: false,
-			language: this.#getLanguage(),
+			language,
 			promotion: false,
 			convert_unsafe_embeds: true, // [JOV] Workaround for CVE-2024-29881
 			readonly: this.#readonly,
@@ -498,6 +503,9 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 			config = umbDeepMerge(preValueCustomConfig, config);
 		}
 
+		// After every merge, so a `language` or `language_url` set in configuration still wins.
+		addLanguagePackUrl(config, language, this.#serverUrl);
+
 		// Ensure the TinyMCE core exists before any plugin's `extendEditorConfig` runs.
 		//
 		// `renderEditor` below loads it on demand, which would otherwise be the first thing to do so -
@@ -532,25 +540,6 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		this.#editorRef = editors.pop();
 
 		//	console.log('#setTinyConfig end');
-	}
-
-	/**
-	 * Gets the language to use for TinyMCE
-	 */
-	#getLanguage() {
-		const localeId = this.localize.lang();
-		//try matching the language using full locale format
-		let languageMatch = availableLanguages.find((x) => localeId?.localeCompare(x) === 0);
-
-		//if no matches, try matching using only the language
-		if (!languageMatch) {
-			const localeParts = localeId?.split('_');
-			if (localeParts) {
-				languageMatch = availableLanguages.find((x) => x === localeParts[0]);
-			}
-		}
-
-		return languageMatch;
 	}
 
 	async #editorSetup(editor: Editor) {

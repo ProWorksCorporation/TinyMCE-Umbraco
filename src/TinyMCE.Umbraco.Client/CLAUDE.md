@@ -82,6 +82,16 @@ src/
 - `node_modules/tinymce/*` → `lib/`
 - `node_modules/tinymce-i18n/langs6/*` → `lib/langs/`
 
+**TinyMCE's UI language** follows the backoffice user's language, through `resolveTinyMceLanguage` in
+`input-tiny-mce.languages.ts`. Umbraco reports `da-dk`, `pt-br`, `zh-cn`, while the packs are named `da`, `pt_BR`,
+`zh-Hans`. Until 17.8.1 the lookup compared those as strings, never matched, and every editor was English. The
+editor always loads the pack from `lib/langs/` (`language_url`), even with Tiny Cloud or a `tinyMceUrl` core, because
+those hosts name packs differently (Tiny Cloud has `zh_CN`) or may not have them. A `language` or `language_url` set in
+configuration still wins. Tiny Cloud's premium plugins load their own strings from the Cloud by language code. Nothing
+errors when this breaks: the editor is English. **When tinymce-i18n is upgraded**, make `availableLanguages` match
+the `langs6` folder again; `input-tiny-mce.languages.test.ts` fails for a listed code with no file, but not for a new
+file that isn't listed.
+
 **External Dependencies**: `@umbraco-cms/backoffice` is marked external and not bundled
 
 ### NPM Package Exports
@@ -521,8 +531,17 @@ The fix pins the sink to the viewport **only while it holds a modal dialog**: a
   *inline* dialogs (`.tox-dialog-inline`, no `.tox-dialog-wrap`; Ask AI is one) off screen: TinyMCE places them
   with coordinates computed against the sink's normal position.
 
-Separately, and not fixed: **Escape in any TinyMCE dialog inside a side panel also closes the panel** (the
-native `<dialog>` closes on Escape), with "Discard unsaved changes" if the block was edited.
+Separately: **Escape in a TinyMCE dialog inside a side panel used to close the panel too**, with "Discard unsaved
+changes" if the block had been edited (F-D, fixed in 17.8.1). TinyMCE closes its dialogs on Escape *keyup* (the
+`exit` rule in its keying's `getKeyupRules`), so the keydown went uncancelled, Chromium turned it into a close
+request, and the panel's native `<dialog>` fired `cancel`, which `uui-modal-*` closes on. `preventEscapeCloseRequest`
+(`escape-close-request.ts`, a keydown listener on the host) cancels Escape keydowns from inside the sink
+(`.tox-tinymce-aux`), which is what Umbraco's own `umb-persistent-modal-dialog` does. Escape anywhere else, the
+editable content included, still closes the panel. `escape-close-request.test.ts` reproduces it with a real
+TinyMCE and real key presses (`sendKeys`; a synthetic event never makes a close request). Its assertions are booleans
+on purpose: a failing Chai assertion on a live TinyMCE element hung the test browser while serialising it. Check on
+each TinyMCE upgrade that Escape still closes a dialog in a block panel without closing the panel, and that the sink
+still carries `tox-tinymce-aux`.
 Check on each TinyMCE upgrade that modal dialogs still render a `.tox-dialog-wrap` inside a sink carrying
 `tox-silver-sink tox-tinymce-aux`; the tests are quickstart D1 in a small block panel and opening Ask AI (an inline
 dialog), which must appear under the toolbar.
@@ -536,6 +555,12 @@ inserted next (a second block, an image, an embed) showed in the editor and was 
 `editor.insertContent()` turns the fake caret into a real paragraph first. `plugins/core/insert-at-caret.ts` wraps it,
 and the block, media and embed plugins use it; `insert-at-caret.test.ts` boots a real TinyMCE and reproduces the loss.
 Any new plugin that inserts markup should use it too.
+
+The same switch fixed F-A2: with the caret inside the end of a link (TinyMCE's inline-boundary caret, e.g. End then
+Left after making a link), `selection.setContent()` put a block inside the `<a>`, where the schema doesn't allow it,
+so it was dropped on save. `insertContent()` places it after the paragraph and leaves the link alone. The link cases
+in `insert-at-caret.test.ts` cover it. Note `CreateLink` leaves the linked word *selected*, and inserting then
+replaces it, as typing would; that is expected, not F-A2.
 
 The media picker then finds the image it inserted by a temporary id, to size it. That id is unique per insert
 (`newImageMarkerId` in `plugins/core/new-image-marker.ts`) and a serializer filter keeps every `__mcenew*` id out of
@@ -630,6 +655,14 @@ Three things to get right in the manifest:
 
 Keep the open-source list in `.github/README.md` in step — it is the only place users can see what is
 selectable.
+
+### Adding a Localization Term
+
+Our `localization` manifests (`src/localizations/`) are merged into Umbraco's set for the same culture, and **ours
+win**, so redefining a key Umbraco already translates replaces Umbraco's text. Add only keys Umbraco doesn't have
+(ours live under `tinyMce`, plus `create_newRteStyleSheetFile`). The package used to redefine Umbraco's block-delete
+terms (#172), and the Danish heading's broken placeholder (`'Slet %0'`) showed as "Slet %0" in the delete dialog until
+17.8.1. `localizations.test.ts` fails for any key Umbraco's own file for that language already defines.
 
 ### Adding Configuration Option
 

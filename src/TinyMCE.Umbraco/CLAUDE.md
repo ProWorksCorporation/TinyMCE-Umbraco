@@ -19,7 +19,7 @@ dotnet build TinyMCE.Umbraco.csproj -c Release
 dotnet pack TinyMCE.Umbraco.csproj -c Release
 
 # Pack with specific version
-dotnet pack TinyMCE.Umbraco.csproj -c Release /p:Version=17.8.0
+dotnet pack TinyMCE.Umbraco.csproj -c Release /p:Version=17.8.1
 ```
 
 ## Project Structure

@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Umbraco CMS package that brings TinyMCE Rich Text Editor back to Umbraco. This branch targets Umbraco 17.8.0; the published package requires Umbraco 17.8.0 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It replaces the default TipTap editor and supports both open-source and premium TinyMCE plugins. The package consists of three main projects:
+This is an Umbraco CMS package that brings TinyMCE Rich Text Editor back to Umbraco. This branch builds the package against Umbraco 17.8.0, its minimum (the TestSite and `TinyMCE.Umbraco.Tests` run on the latest 17.x patch, 17.8.1 — keep the package's own `Umbraco.Cms.*` references at the minimum); the published package requires Umbraco 17.8.0 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It replaces the default TipTap editor and supports both open-source and premium TinyMCE plugins. The package consists of three main projects:
 
 - **TinyMCE.Umbraco** (.NET 10.0 / Razor SDK): Main NuGet package containing C# backend, API controllers, configuration, and compiled frontend assets
 - **TinyMCE.Umbraco.Client** (TypeScript/Vite): Frontend backoffice package built with Lit elements and Umbraco's extension system
