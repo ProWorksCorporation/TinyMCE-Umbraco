@@ -23,6 +23,9 @@ follow the Umbraco CMS major version they support.
   configured `tinyMceUrl`. A `language` set in custom configuration still takes precedence.
 - Pressing Escape in an editor dialog or menu inside a block's side panel closes only the dialog or menu; it also
   closed the side panel, asking to discard the block's changes if it had been edited (long-standing).
+- A block whose type has **Display inline** switched on is inserted inline, in the text (`<umb-rte-block-inline>`),
+  as in Umbraco's own editor; since Umbraco 17.6 every new block was inserted as a separate block (#224, PR #239).
+  Blocks already in your content keep how they were inserted.
 - The block delete dialog's heading names the block in Danish ("Slet %0" before). The package no longer replaces
   Umbraco's own wording for this dialog in any language.
 

@@ -142,6 +142,20 @@ describe('insertAtCaret', () => {
 		});
 	}
 
+	// PR #239: blocks whose type has "Display inline" on are now written as <umb-rte-block-inline>, which goes in the
+	// text rather than between paragraphs.
+	it('keeps an inline block inserted mid-sentence, inside its paragraph', () => {
+		editor.setContent('<p>Before after</p>');
+		const text = editor.getBody().querySelector('p')!.firstChild!;
+		editor.selection.setCursorLocation(text, 7);
+
+		insertAtCaret(editor, '<umb-rte-block-inline data-content-key="inline"></umb-rte-block-inline>');
+
+		expect(editor.getContent()).to.equal(
+			'<p>Before <umb-rte-block-inline data-content-key="inline"></umb-rte-block-inline>after</p>'
+		);
+	});
+
 	it('inserts at the caret in ordinary text', () => {
 		insertAtCaret(editor, image('in text'));
 
