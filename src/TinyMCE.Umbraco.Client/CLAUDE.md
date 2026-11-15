@@ -556,6 +556,12 @@ inserted next (a second block, an image, an embed) showed in the editor and was 
 and the block, media and embed plugins use it; `insert-at-caret.test.ts` boots a real TinyMCE and reproduces the loss.
 Any new plugin that inserts markup should use it too.
 
+The same switch fixed F-A2: with the caret inside the end of a link (TinyMCE's inline-boundary caret, e.g. End then
+Left after making a link), `selection.setContent()` put a block inside the `<a>`, where the schema doesn't allow it,
+so it was dropped on save. `insertContent()` places it after the paragraph and leaves the link alone. The link cases
+in `insert-at-caret.test.ts` cover it. Note `CreateLink` leaves the linked word *selected*, and inserting then
+replaces it, as typing would; that is expected, not F-A2.
+
 The media picker then finds the image it inserted by a temporary id, to size it. That id is unique per insert
 (`newImageMarkerId` in `plugins/core/new-image-marker.ts`) and a serializer filter keeps every `__mcenew*` id out of
 the saved value. It used to be the fixed `__mcenew`, and inline content saved before the 17.6.2 shadow-DOM fixes still
@@ -649,6 +655,14 @@ Three things to get right in the manifest:
 
 Keep the open-source list in `.github/README.md` in step — it is the only place users can see what is
 selectable.
+
+### Adding a Localization Term
+
+Our `localization` manifests (`src/localizations/`) are merged into Umbraco's set for the same culture, and **ours
+win**, so redefining a key Umbraco already translates replaces Umbraco's text. Add only keys Umbraco doesn't have
+(ours live under `tinyMce`, plus `create_newRteStyleSheetFile`). The package used to redefine Umbraco's block-delete
+terms (#172), and the Danish heading's broken placeholder (`'Slet %0'`) showed as "Slet %0" in the delete dialog until
+17.8.1. `localizations.test.ts` fails for any key Umbraco's own file for that language already defines.
 
 ### Adding Configuration Option
 

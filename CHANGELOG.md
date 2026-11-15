@@ -20,6 +20,8 @@ follow the Umbraco CMS major version they support.
   configured `tinyMceUrl`. A `language` set in custom configuration still takes precedence.
 - Pressing Escape in an editor dialog or menu inside a block's side panel closes only the dialog or menu; it also
   closed the side panel, asking to discard the block's changes if it had been edited (long-standing).
+- The block delete dialog's heading names the block in Danish ("Slet %0" before). The package no longer replaces
+  Umbraco's own wording for this dialog in any language.
 
 ## [17.8.0] - 2026-11-14
 
