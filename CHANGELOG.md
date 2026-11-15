@@ -6,6 +6,21 @@ and the npm package (`@tiny-mce-umbraco/backoffice`) share a version number, and
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project's version numbers
 follow the Umbraco CMS major version they support.
 
+## [Unreleased]
+
+### Changed
+
+- The version number follows Umbraco 17.8.1. The package still requires Umbraco 17.8.0 or later: Umbraco 17.8.1
+  changes only a database library (NPoco), so there is no need to upgrade Umbraco for this release.
+
+### Fixed
+
+- The editor's toolbar, menus and dialogs now follow the backoffice user's language; they were always in English
+  (long-standing). The translations come from the package itself, also when TinyMCE comes from Tiny Cloud or a
+  configured `tinyMceUrl`. A `language` set in custom configuration still takes precedence.
+- Pressing Escape in an editor dialog or menu inside a block's side panel closes only the dialog or menu; it also
+  closed the side panel, asking to discard the block's changes if it had been edited (long-standing).
+
 ## [17.8.0] - 2026-11-14
 
 ### Added
