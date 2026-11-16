@@ -8,6 +8,8 @@ follow the Umbraco CMS major version they support.
 
 ## [Unreleased]
 
+## [17.8.1] - 2026-11-15
+
 ### Changed
 
 - The version number follows Umbraco 17.8.1. The package still requires Umbraco 17.8.0 or later: Umbraco 17.8.1
