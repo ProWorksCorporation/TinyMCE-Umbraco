@@ -25,6 +25,10 @@ public sealed class TinyMceConfigApiController : TinyMceManagementApiControllerB
         _tinyMceConfig.customConfig ??= new Dictionary<string, object>();
     }
 
+    /// <summary>
+    ///     Returns the editor configuration as an allow-list projection of both configuration sections (constitution
+    ///     1.2.0). The AI provider key is never included; see <see cref="TinyMceClientConfigModel"/>.
+    /// </summary>
     [HttpGet("config", Name = "GetConfig")]
     [MapToApiVersion("1.0")]
     [ProducesResponseType(typeof(TinyMceConfigResponseModel), StatusCodes.Status200OK)]
@@ -35,10 +39,13 @@ public sealed class TinyMceConfigApiController : TinyMceManagementApiControllerB
         RichTextEditorSettings.NormalizeBooleanCustomConfig(_richTextEditorSettings.CustomConfig);
         RichTextEditorSettings.NormalizeBooleanCustomConfig(_tinyMceConfig.customConfig);
 
+        // An allow-list projection (constitution 1.2.0): only fields the editor needs and that are safe in a browser
+        // are copied, so the AI provider key, and any setting added later, stays on the server unless it is added to
+        // the projection models on purpose.
         var result = new TinyMceConfigResponseModel
         {
-            RichTextEditor = this._richTextEditorSettings,
-            Config = this._tinyMceConfig,
+            RichTextEditor = TinyMceRichTextEditorClientModel.From(_richTextEditorSettings),
+            Config = TinyMceClientConfigModel.From(_tinyMceConfig),
         };
 
         return Ok(result);

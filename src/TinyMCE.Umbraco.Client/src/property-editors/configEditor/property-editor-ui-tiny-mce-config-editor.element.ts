@@ -58,7 +58,6 @@ export class UmbPropertyEditorUITinyMceConfigEditorElement extends UmbLitElement
 		} else {
 			try {
 				this._customConfig = JSON.parse(value.content.toString());
-				console.log('Parsed object:', this._customConfig);
 				// Proceed with using jsonObj
 			} catch (err) {
 				console.error('Invalid JSON:', err);

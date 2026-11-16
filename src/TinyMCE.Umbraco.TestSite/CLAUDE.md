@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the **TinyMCE.Umbra
 
 ## Project Overview
 
-This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 18.0.0 with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
+This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 17.8.1 (the latest 17.x patch; the package itself is built against its minimum, 17.8.0) with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
 
 ## Running the Test Site
 
@@ -91,12 +91,22 @@ TinyMCE.Umbraco.TestSite/
     └── App_Plugins/             # Plugin assets (includes TinyMCE after build)
 ```
 
+`wwwroot/App_Plugins/tinymce-mentions-plugin/` is built from `examples/tinymce-mentions-plugin/` at the repository
+root (`npm run build` there); only its `umbraco-package.json` and `package.manifest` are maintained here by hand.
+
+`wwwroot/App_Plugins/test-block-custom-view/` is a test fixture for custom block views (#206): H Block (on the H
+pages) gets one, registered from a bundle, and renders as a dashed "Custom view" box. Test Block keeps the standard
+block look everywhere. Plain JavaScript, no build step. To try a view registered directly in `umbraco-package.json`
+instead, add a `blockEditorCustomView` entry there with `"element": "/App_Plugins/test-block-custom-view/test-block-custom-view.element.js"`
+and restart the site. Don't scope one with a condition to keep the standard look elsewhere: in Umbraco 17.8 a
+custom view whose condition isn't met leaves the block blank.
+
 ## Dependencies
 
-- `Umbraco.Cms` 18.0.0 - Main Umbraco CMS package
+- `Umbraco.Cms` 17.8.1 - Main Umbraco CMS package
 - Umbraco API packages (Common, Management, Website)
-- `Umbraco.Cms.DevelopmentMode.Backoffice` 18.0.0 - Development tools
-- `uSync` 18.0.0 - Content synchronization
+- `Umbraco.Cms.DevelopmentMode.Backoffice` 17.8.1 - Development tools
+- `uSync` 17.3.5 - Content synchronization
 - Project reference to `../TinyMCE.Umbraco/TinyMCE.Umbraco.csproj`
 
 ## Program.cs
@@ -212,10 +222,10 @@ The nested JSON structure supports complex configurations as demonstrated in the
 
 ### API Debugging
 
-The OpenAPI UI is available at:
-- `https://localhost:44308/umbraco/openapi/`
+The Swagger UI is available at:
+- `https://localhost:44308/umbraco/swagger/`
 
-TinyMCE endpoints are under the "TinyMCE" group (document selector: `tiny-mce`).
+TinyMCE endpoints are under the "TinyMCE" group.
 
 ## Common Issues
 

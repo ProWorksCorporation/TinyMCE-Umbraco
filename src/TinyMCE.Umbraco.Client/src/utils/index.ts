@@ -6,14 +6,45 @@ import { getProcessedImageUrl } from '@umbraco-cms/backoffice/utils';
 import type { Editor } from '@umbraco-cms/backoffice/external/tinymce';
 
 /**
- * Sizes an image in the editor
- * @param editor
- * @param imageDomElement
- * @param imgUrl
+ * Sizes an image in the editor.
+ *
+ * By default the image is scaled down to the editor's `maxImageSize`, which is what pasted and
+ * dragged images need. Pass `explicitSize` when the size has already been chosen deliberately (for
+ * example in the media picker's caption/alt-text dialog) — those dimensions are then used as-is and
+ * only the processed image URL is refreshed. Without it, a deliberately chosen size is silently
+ * overwritten by the max-size scaling.
+ * @param editor The TinyMCE editor instance.
+ * @param imageDomElement The image element to size.
+ * @param imgUrl Source URL, used to generate a resized `data-mce-src`.
+ * @param explicitSize Dimensions to apply verbatim instead of scaling to `maxImageSize`.
  */
-export async function sizeImageInEditor(editor: Editor, imageDomElement: HTMLElement, imgUrl?: string) {
+export async function sizeImageInEditor(
+	editor: Editor,
+	imageDomElement: HTMLElement,
+	imgUrl?: string,
+	explicitSize?: { width: number; height: number },
+) {
 	const size = editor.dom.getSize(imageDomElement);
 	const maxImageSize = editor.options.get('maxImageSize');
+
+	if (explicitSize) {
+		editor.dom.setAttribs(imageDomElement, {
+			width: Math.round(explicitSize.width),
+			height: Math.round(explicitSize.height),
+		});
+
+		if (imgUrl) {
+			const resizedImgUrl = await getProcessedImageUrl(imgUrl, {
+				width: Math.round(explicitSize.width),
+				height: Math.round(explicitSize.height),
+			});
+
+			editor.dom.setAttrib(imageDomElement, 'data-mce-src', resizedImgUrl);
+		}
+
+		editor.execCommand('mceAutoResize', false);
+		return;
+	}
 
 	if (maxImageSize && maxImageSize > 0) {
 		const newSize = scaleToMaxSize(maxImageSize, size.w, size.h);

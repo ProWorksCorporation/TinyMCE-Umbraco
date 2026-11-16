@@ -2,6 +2,8 @@ import { UMB_CONTEXT_REQUEST_EVENT_TYPE, type UmbContextRequestEvent } from '@um
 //import { UmbContextProxyController } from '@umbraco-cms/backoffice/context-proxy';
 import type { RawEditorOptions } from '@umbraco-cms/backoffice/external/tinymce';
 import { umbExtensionsRegistry } from '@umbraco-cms/backoffice/extension-registry';
+import { iframeManifests } from './iframe-manifests.js';
+import { allowStyleSheetsAcrossDocuments } from './cross-document-stylesheets.js';
 import { UUIIconRequestEvent } from '@umbraco-cms/backoffice/external/uui';
 import { umbLocalizationManager } from '@umbraco-cms/backoffice/localization-api';
 
@@ -35,7 +37,7 @@ export const defaultPremiumPluginsList = [
 export const defaultFallbackConfig: RawEditorOptions = {
 	plugins: ['anchor', 'charmap', 'table', 'lists', 'advlist', 'autolink', 'directionality', 'searchreplace'],
 	valid_elements:
-		'+a[id|style|rel|data-id|data-udi|rev|charset|hreflang|dir|lang|tabindex|accesskey|type|name|href|target|title|class|onfocus|onblur|onclick|ondblclick|onmousedown|onmouseup|onmouseover|onmousemove|onmouseout|onkeypress|onkeydown|onkeyup],-strong/-b[class|style],-em/-i[class|style],-strike[class|style],-s[class|style],-u[class|style],#p[id|style|dir|class|align],-ol[class|reversed|start|style|type],-ul[class|style],-li[class|style],br[class],img[id|dir|lang|longdesc|usemap|style|class|src|onmouseover|onmouseout|border|alt=|title|hspace|vspace|width|height|align|umbracoorgwidth|umbracoorgheight|onresize|onresizestart|onresizeend|rel|data-id],-sub[style|class],-sup[style|class],-blockquote[dir|style|class],-table[border=0|cellspacing|cellpadding|width|height|class|align|summary|style|dir|id|lang|bgcolor|background|bordercolor],-tr[id|lang|dir|class|rowspan|width|height|align|valign|style|bgcolor|background|bordercolor],tbody[id|class],thead[id|class],tfoot[id|class],#td[id|lang|dir|class|colspan|rowspan|width|height|align|valign|style|bgcolor|background|bordercolor|scope],-th[id|lang|dir|class|colspan|rowspan|width|height|align|valign|style|scope],caption[id|lang|dir|class|style],-div[id|dir|class|align|style|contenteditable|data-embed-url|data-embed-height|data-embed-width|data-embed-constrain],-span[class|align|style|lang],-pre[class|align|style],address[class|align|style],-h1[id|dir|class|align|style],-h2[id|dir|class|align|style],-h3[id|dir|class|align|style],-h4[id|dir|class|align|style],-h5[id|dir|class|align|style],-h6[id|style|dir|class|align|style],hr[class|style],small[class|style],dd[id|class|title|style|dir|lang],dl[id|class|title|style|dir|lang],dt[id|class|title|style|dir|lang],object[class|id|width|height|codebase|*],param[name|value|_value|class],embed[type|width|height|src|class|*],map[name|class],area[shape|coords|href|alt|target|class],bdo[class],button[class],iframe[*],figure,figcaption,cite,video[*],audio[*],picture[*],source[*],canvas[*],details[*],summary[*],-code',
+		'+a[id|style|rel|data-id|data-udi|data-anchor|data-culture|rev|charset|hreflang|dir|lang|tabindex|accesskey|type|name|href|target|title|class|onfocus|onblur|onclick|ondblclick|onmousedown|onmouseup|onmouseover|onmousemove|onmouseout|onkeypress|onkeydown|onkeyup],-strong/-b[class|style],-em/-i[class|style],-strike[class|style],-s[class|style],-u[class|style],#p[id|style|dir|class|align],-ol[class|reversed|start|style|type],-ul[class|style],-li[class|style],br[class],img[id|dir|lang|longdesc|usemap|style|class|src|onmouseover|onmouseout|border|alt=|title|hspace|vspace|width|height|align|umbracoorgwidth|umbracoorgheight|onresize|onresizestart|onresizeend|rel|data-id],-sub[style|class],-sup[style|class],-blockquote[dir|style|class],-table[border=0|cellspacing|cellpadding|width|height|class|align|summary|style|dir|id|lang|bgcolor|background|bordercolor],-tr[id|lang|dir|class|rowspan|width|height|align|valign|style|bgcolor|background|bordercolor],tbody[id|class],thead[id|class],tfoot[id|class],#td[id|lang|dir|class|colspan|rowspan|width|height|align|valign|style|bgcolor|background|bordercolor|scope],-th[id|lang|dir|class|colspan|rowspan|width|height|align|valign|style|scope],caption[id|lang|dir|class|style],-div[id|dir|class|align|style|contenteditable|data-embed-url|data-embed-height|data-embed-width|data-embed-constrain],-span[class|align|style|lang],-pre[class|align|style],address[class|align|style],-h1[id|dir|class|align|style],-h2[id|dir|class|align|style],-h3[id|dir|class|align|style],-h4[id|dir|class|align|style],-h5[id|dir|class|align|style],-h6[id|style|dir|class|align|style],hr[class|style],small[class|style],dd[id|class|title|style|dir|lang],dl[id|class|title|style|dir|lang],dt[id|class|title|style|dir|lang],object[class|id|width|height|codebase|*],param[name|value|_value|class],embed[type|width|height|src|class|*],map[name|class],area[shape|coords|href|alt|target|class],bdo[class],button[class],iframe[*],figure,figcaption,cite,video[*],audio[*],picture[*],source[*],canvas[*],details[*],summary[*],-code',
 	invalid_elements: 'font',
 	extended_valid_elements:
 		'@[id|class|style],+umb-rte-block[!data-content-key],+umb-rte-block-inline[!data-content-key],ins[datetime|cite],figure,figcaption,iframe[*]',
@@ -67,6 +69,16 @@ export const defaultFallbackConfig: RawEditorOptions = {
 	//},
 
 	init_instance_callback: function (editor) {
+		// Everything below bootstraps the editor's *iframe* realm through `editor.dom.doc.head`. Inline
+		// mode has no iframe and `editor.dom.doc` IS the backoffice document, so running any of it would
+		// inject a duplicate import map and re-register live manifests into the running registry - and
+		// none of it is needed there, since the components it bootstraps already live in this realm.
+		if (!editor.iframeElement) return;
+
+		// Elements from this realm placed in the iframe (custom block views registered from a bundle) would
+		// otherwise fail to render: the browser refuses this document's stylesheets in the iframe's (#206).
+		allowStyleSheetsAcrossDocuments();
+
 		// The following code is the context api proxy. [NL]
 		// It re-dispatches the context api request event to the origin target of this modal, in other words the element that initiated the modal. [NL]
 		editor.dom.doc.addEventListener(UMB_CONTEXT_REQUEST_EVENT_TYPE, ((event: UmbContextRequestEvent) => {
@@ -162,7 +174,25 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		// instance) from the outer document. Without this, requestDelete() in UmbBlockEntryContext
 		// falls back to returning raw keys because the iframe's manager has no registered translations.
 		const locSetsToSync: Array<Record<string, string>> = [];
-		const BLOCK_LOC_KEYS = ['blockEditor_confirmDeleteBlockTitle', 'blockEditor_confirmDeleteBlockMessage'];
+		// Keys needed by components that render INSIDE the TinyMCE iframe. The iframe has its own
+		// per-realm umbLocalizationManager, so anything not copied across renders blank there.
+		// The unsupported-block pair is read by Umbraco 17.6's <umb-unsupported-rte-block>.
+		const BLOCK_LOC_KEYS = [
+			// Rendered by the block components themselves.
+			'blockEditor_confirmDeleteBlockTitle',
+			'blockEditor_confirmDeleteBlockMessage',
+			'blockEditor_unsupportedBlockName',
+			'blockEditor_unsupportedBlockDescription',
+			// Labels declared by Umbraco's `blockAction` manifests, which `umb-block-action-list`
+			// renders inside the iframe. Enumerated from
+			// `packages/block/block/action/common/*/manifests.ts` — kept complete deliberately, so a
+			// newly reachable action does not show a raw `#key` the way copy-to-clipboard did.
+			'clipboard_labelForCopyToClipboard',
+			'general_delete',
+			'general_edit',
+			'general_settings',
+			'actions_create',
+		];
 		umbLocalizationManager.localizations.forEach((locSet, code) => {
 			const locSetAny = locSet as unknown as Record<string, string>;
 			const entry: Record<string, string> = {
@@ -180,21 +210,54 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			if (hasKey) locSetsToSync.push(entry);
 		});
 
+		// The active language must cross the realm boundary too, not just the dictionaries.
+		// Without this the iframe resolves every term through UmbLocalizationController's
+		// primary -> secondary -> `en` fallback chain, so the synced Danish set sits in the
+		// iframe's map unused and the placeholder renders in English.
+		//
+		// This must go through `umbLocalizationRegistry.loadLanguage()`, not a direct write to
+		// `umbLocalizationManager.documentLanguage`. The registry is a module side-effect
+		// (`export const umbLocalizationRegistry = new UmbLocalizationRegistry(...)`), and the
+		// block script below imports `@umbraco-cms/backoffice/block-rte`, whose module graph pulls
+		// the localization package into the iframe realm. Constructing the registry there emits
+		// its `UMB_DEFAULT_LOCALIZATION_CULTURE` bootstrap value synchronously, whose `tap` stamps
+		// `'en'` onto the manager — overwriting a direct assignment. Both scripts are dynamically
+		// inserted and therefore `async` with no guaranteed order, and the block script's larger
+		// graph reliably lands last. Importing the registry here instead means it is constructed
+		// before this script's body runs, so `loadLanguage()` always wins regardless of order.
+		// Nothing inside the iframe ever calls `loadLanguage()` otherwise — that is driven by
+		// `<umb-app>` and the current-user context, neither of which exists in this realm.
+		const outerLang = umbLocalizationManager.documentLanguage;
+		const outerDir = umbLocalizationManager.documentDirection;
+
 		if (locSetsToSync.length > 0) {
 			const locScript = document.createElement('script');
 			locScript.setAttribute('type', 'module');
 			locScript.text = `
 				import { umbLocalizationManager } from "@umbraco-cms/backoffice/localization-api";
+				import { umbLocalizationRegistry } from "@umbraco-cms/backoffice/localization";
+
+				// Sets documentLanguage via the registry's synchronous \`tap\`. The load that
+				// follows finds no localization extensions in this realm's registry, so the
+				// pipeline stops at its own length guard and never writes the language again.
+				umbLocalizationRegistry.loadLanguage(${JSON.stringify(outerLang)});
+				// Direction is only set by #setBrowserLanguage, which that stalled pipeline never
+				// reaches, so carry it across by hand — it matters for an RTL backoffice.
+				umbLocalizationManager.documentDirection = ${JSON.stringify(outerDir)};
+				// Register last: registerLocalization's keysChanged pass is what re-renders any
+				// consumer that connected before this script ran, and setting the language
+				// notifies nobody on its own.
 				${JSON.stringify(locSetsToSync)}.forEach(s => umbLocalizationManager.registerLocalization(s));
 			`;
 			editor.dom.doc.head.appendChild(locScript);
 		}
 
-		// Expose the outer extension registry on the outer window so the injected module
-		// script below can sync blockAction manifests into the iframe's per-realm instance.
-		// umb-block-action-list reads umbExtensionsRegistry as a module-level singleton
-		// (not via context), so the context proxy alone cannot bridge it across realms.
-		(window as Window & { _umbOuterExtReg?: typeof umbExtensionsRegistry })._umbOuterExtReg = umbExtensionsRegistry;
+		// The manifests the block components look up in the iframe's own extension registry (block actions, custom
+		// block views and the conditions they name), for the injected module script below to register there. The
+		// block components read umbExtensionsRegistry as a module-level singleton (not via context), so the context
+		// proxy alone cannot bridge it across realms. See iframeManifests.
+		(window as Window & { _umbTinyMceIframeManifests?: unknown[] })._umbTinyMceIframeManifests =
+			iframeManifests(umbExtensionsRegistry);
 
 		// Load backoffice JS so we can get the umb-rte-block component registered inside the iframe.
 		// Also:
@@ -202,16 +265,22 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		//    and the <umb-block-action> custom element in the iframe's realm. These are NOT
 		//    transitively imported by block-rte, but umb-block-action-list needs them to
 		//    instantiate block action extensions (kind: 'default').
-		// 2. Sync blockAction manifests from the outer registry into the iframe's registry.
-		//    Umbraco registers manifests via umbraco-package.json (not module imports), so they
-		//    only exist in the outer registry — we must copy them into the iframe's per-realm
-		//    umbExtensionsRegistry so umb-block-action-list can discover them.
+		// 2. Register the manifests picked by iframeManifests (block actions, custom block views and
+		//    their conditions) in the iframe's per-realm umbExtensionsRegistry. Umbraco registers them
+		//    from umbraco-package.json files and bundles, not module imports, so they only exist in
+		//    the outer registry.
 		const script = document.createElement('script');
 		script.setAttribute('type', 'module');
 		script.text = `
 			import { umbExtensionsRegistry } from "@umbraco-cms/backoffice/extension-registry";
 			import { UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST } from "@umbraco-cms/backoffice/block";
-			import "${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}";
+			// Defines <umb-icon>, which umb-ref-rte-block renders for the block's element-type icon.
+			// block-rte does not pull it in transitively, so without this it stays an un-upgraded
+			// unknown element: the .name property binding still lands, but nothing ever renders.
+			// The existing UUIIconRequestEvent proxy is not involved — uui-icon is already defined
+			// in this realm, and the action-bar icons resolve through that proxy correctly.
+			// This is the whole components barrel because the export map exposes no narrower path.
+			import "@umbraco-cms/backoffice/components";
 
 			// Register the blockAction default kind definition in the inner realm's registry.
 			// UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST is imported here (inner realm), so its
@@ -221,14 +290,46 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			// in the inner customElements registry.
 			umbExtensionsRegistry.registerMany([UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST]);
 
-			// Sync blockAction manifests from the outer registry into the inner realm's registry.
-			// Umbraco registers these via umbraco-package.json at backoffice startup; they only
-			// exist in the outer registry and must be copied so umb-block-action-list can discover them.
-			const outerReg = window.parent?._umbOuterExtReg;
-			if (outerReg) {
-				const blockActions = outerReg.getByType('blockAction') ?? [];
-				if (blockActions.length) umbExtensionsRegistry.registerMany(blockActions);
+			// The block actions, custom block views and the conditions they name, picked in the backoffice's realm
+			// (iframeManifests). Umbraco registers them from umbraco-package.json files and bundles at backoffice
+			// startup, so they exist only in the outer registry until copied here. Without the conditions every
+			// conditional action stays un-initialized (only copy-to-clipboard has none); without the custom views
+			// every block renders its standard look (#206).
+			const manifests = window.parent?._umbTinyMceIframeManifests ?? [];
+			if (manifests.length) umbExtensionsRegistry.registerMany(manifests);
+
+			// Define the ufm-* elements in the inner realm so {=alias} block labels interpolate. Unlike
+			// umb-icon these are in no importable barrel - the outer document defines them by running
+			// each ufmComponent manifest's api(). Two constraints when editing this:
+			//   1. The manifests are on the package's \`manifests\` export, NOT \`extensions\`, which is a
+			//      single bundle wrapper - filtering that matches nothing and fails silently.
+			//   2. They must be defined BEFORE the block components below. Since Umbraco 17.8 a block's
+			//      name (delete dialog, clipboard entry) comes only from the umb-ufm-resolved event of
+			//      the label's <umb-ufm-render>, which watches the shadow roots of its children as they
+			//      are inserted. A <ufm-label-value> inserted undefined and upgraded later gets its
+			//      shadow root after that, so the label shows but the event never carries it and the
+			//      name stays empty - on most blocks, depending on timing.
+			try {
+				const ufmPkg = await import("/umbraco/backoffice/packages/ufm/umbraco-package.js");
+				const loaded = new Set();
+				for (const manifest of (ufmPkg.manifests ?? []).filter((m) => m.type === "ufmComponent")) {
+					if (loaded.has(manifest.alias)) continue;
+					loaded.add(manifest.alias);
+					try {
+						await manifest.api?.();
+					} catch {
+						// A single component failing to load should not break the rest.
+					}
+				}
+			} catch {
+				// If the ufm package is ever restructured, block labels degrade back to empty
+				// rather than breaking the editor.
 			}
+
+			// Registers <umb-rte-block> and the elements it renders in this realm; the blocks already in
+			// the content upgrade now. Last, after the ufm-* definitions above (see 2.), and outside
+			// their try so a ufm failure never leaves the blocks unrendered.
+			await import("${UMB_BLOCK_ENTRY_WEB_COMPONENTS_ABSOLUTE_PATH}");
 		`;
 		editor.dom.doc.head.appendChild(script);
 	},
