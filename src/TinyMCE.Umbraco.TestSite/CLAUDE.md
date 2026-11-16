@@ -94,6 +94,13 @@ TinyMCE.Umbraco.TestSite/
 `wwwroot/App_Plugins/tinymce-mentions-plugin/` is built from `examples/tinymce-mentions-plugin/` at the repository
 root (`npm run build` there); only its `umbraco-package.json` and `package.manifest` are maintained here by hand.
 
+`wwwroot/App_Plugins/test-block-custom-view/` is a test fixture for custom block views (#206): H Block (on the H
+pages) gets one, registered from a bundle, and renders as a dashed "Custom view" box. Test Block keeps the standard
+block look everywhere. Plain JavaScript, no build step. To try a view registered directly in `umbraco-package.json`
+instead, add a `blockEditorCustomView` entry there with `"element": "/App_Plugins/test-block-custom-view/test-block-custom-view.element.js"`
+and restart the site. Don't scope one with a condition to keep the standard look elsewhere: in Umbraco 17.8 a
+custom view whose condition isn't met leaves the block blank.
+
 ## Dependencies
 
 - `Umbraco.Cms` 17.8.1 - Main Umbraco CMS package

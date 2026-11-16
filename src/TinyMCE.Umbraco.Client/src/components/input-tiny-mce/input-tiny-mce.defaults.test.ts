@@ -66,6 +66,35 @@ describe('init_instance_callback (classic iframe bootstrap)', () => {
 		expect(indent(blockImport)).to.equal(indent(ufmTry));
 	});
 
+	it('hands the iframe the manifests its registry needs, and registers them there (#206)', () => {
+		const { editor, doc } = fakeEditor(true);
+		runCallback(editor);
+
+		const handedOver = (window as Window & { _umbTinyMceIframeManifests?: unknown[] })._umbTinyMceIframeManifests;
+		expect(Array.isArray(handedOver), 'manifests picked by iframeManifests').to.equal(true);
+		expect(blockScript(doc)).to.contain('window.parent?._umbTinyMceIframeManifests');
+		expect(blockScript(doc)).to.contain('umbExtensionsRegistry.registerMany(manifests)');
+	});
+
+	it("lets the iframe's shadow roots adopt this document's stylesheets (#206, bundle-registered custom views)", () => {
+		// Each test file runs in its own page, so nothing else has installed it here.
+		const { editor } = fakeEditor(true);
+		runCallback(editor);
+
+		const iframe = document.createElement('iframe');
+		document.body.append(iframe);
+		try {
+			const host = document.createElement('div');
+			iframe.contentDocument!.body.append(host);
+			const root = host.attachShadow({ mode: 'open' });
+			expect(() => {
+				root.adoptedStyleSheets = [new CSSStyleSheet()];
+			}).to.not.throw();
+		} finally {
+			iframe.remove();
+		}
+	});
+
 	it('does nothing in inline mode, where the editor document is the backoffice document', () => {
 		const { editor, doc } = fakeEditor(false);
 		runCallback(editor);
