@@ -88,6 +88,74 @@ describe('insertAtCaret', () => {
 		expect(editor.getContent()).to.contain('data-embed-url="https://example.com/v"');
 	});
 
+	// F-A2 (specs/004-upgrade-umbraco-17-8/smoke-test-outcome.md): with the caret inside the end of a link, a block
+	// landed inside the <a>, which the schema doesn't allow, so it showed in the editor but was left out of the saved
+	// content. The link is made the way the link picker plugin (tiny-mce-multi-url-picker.plugin.ts) makes it: `CreateLink` on
+	// the selected last word, or `mceInsertContent` of a new <a> when nothing is selected. `CreateLink` leaves the word
+	// selected (and inserting then replaces it, as typing would), so the caret is moved to the end of the link first,
+	// inside the <a>: where F-A2 lost the block. These fail with `selection.setContent()`, which the block picker used
+	// until the F-1 fix; checked in the backoffice too, with TinyMCE's own inline-boundary caret (End, then Left).
+	const linkInserts: Array<[string, () => void]> = [
+		[
+			'CreateLink on the last word',
+			() => {
+				editor.setContent('<p>Intro link</p>');
+				const text = editor.getBody().querySelector('p')!.firstChild!;
+				const range = editor.dom.createRng();
+				range.setStart(text, 6);
+				range.setEnd(text, 10);
+				editor.selection.setRng(range);
+				editor.execCommand('CreateLink', false, { href: 'https://example.com/' } as unknown as string);
+				const linkText = editor.getBody().querySelector('a')!.firstChild!;
+				editor.selection.setCursorLocation(linkText, linkText.textContent!.length);
+			},
+		],
+		[
+			'mceInsertContent of a new link',
+			() => {
+				editor.setContent('<p>Intro </p>');
+				editor.selection.select(editor.getBody().querySelector('p')!, true);
+				editor.selection.collapse(false);
+				editor.execCommand('mceInsertContent', false, '<a href="https://example.com/">link</a>');
+			},
+		],
+	];
+
+	for (const [how, insertLink] of linkInserts) {
+		describe(`straight after a link is inserted (${how})`, () => {
+			beforeEach(insertLink);
+
+			it('keeps a block, outside the link', () => {
+				insertAtCaret(editor, block('after-link'));
+
+				const saved = editor.getContent();
+				expect(saved).to.contain('data-content-key="after-link"');
+				expect(saved, 'the link is unchanged').to.contain('<a href="https://example.com/">link</a>');
+				expect(!!editor.getBody().querySelector('a umb-rte-block'), 'not inside the link').to.equal(false);
+			});
+
+			it('keeps an image', () => {
+				insertAtCaret(editor, image('after the link'));
+
+				expect(editor.getContent()).to.contain('alt="after the link"');
+			});
+		});
+	}
+
+	// PR #239: blocks whose type has "Display inline" on are now written as <umb-rte-block-inline>, which goes in the
+	// text rather than between paragraphs.
+	it('keeps an inline block inserted mid-sentence, inside its paragraph', () => {
+		editor.setContent('<p>Before after</p>');
+		const text = editor.getBody().querySelector('p')!.firstChild!;
+		editor.selection.setCursorLocation(text, 7);
+
+		insertAtCaret(editor, '<umb-rte-block-inline data-content-key="inline"></umb-rte-block-inline>');
+
+		expect(editor.getContent()).to.equal(
+			'<p>Before <umb-rte-block-inline data-content-key="inline"></umb-rte-block-inline>after</p>'
+		);
+	});
+
 	it('inserts at the caret in ordinary text', () => {
 		insertAtCaret(editor, image('in text'));
 

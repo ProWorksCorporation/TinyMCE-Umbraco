@@ -82,6 +82,16 @@ src/
 - `node_modules/tinymce/*` → `lib/`
 - `node_modules/tinymce-i18n/langs6/*` → `lib/langs/`
 
+**TinyMCE's UI language** follows the backoffice user's language, through `resolveTinyMceLanguage` in
+`input-tiny-mce.languages.ts`. Umbraco reports `da-dk`, `pt-br`, `zh-cn`, while the packs are named `da`, `pt_BR`,
+`zh-Hans`. Until 17.8.1 the lookup compared those as strings, never matched, and every editor was English. The
+editor always loads the pack from `lib/langs/` (`language_url`), even with Tiny Cloud or a `tinyMceUrl` core, because
+those hosts name packs differently (Tiny Cloud has `zh_CN`) or may not have them. A `language` or `language_url` set in
+configuration still wins. Tiny Cloud's premium plugins load their own strings from the Cloud by language code. Nothing
+errors when this breaks: the editor is English. **When tinymce-i18n is upgraded**, make `availableLanguages` match
+the `langs6` folder again; `input-tiny-mce.languages.test.ts` fails for a listed code with no file, but not for a new
+file that isn't listed.
+
 **External Dependencies**: `@umbraco-cms/backoffice` is marked external and not bundled
 
 ### NPM Package Exports
@@ -284,20 +294,36 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
   realm, where no `localization` manifests are registered. Symptom when this regresses: the iframe is
   English while the rest of the backoffice is translated — invisible to an English-only test pass.
 
-**2. `umbExtensionsRegistry`** (extension manifests for block actions):
-- `umb-block-action-list` (new in Umbraco 17.5.0) reads `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
-- Two things are required in the injected module script:
+**2. `umbExtensionsRegistry`** (extension manifests for block actions and custom block views):
+- `umb-block-action-list` (new in Umbraco 17.5.0) and the `blockEditorCustomView` extension slot in `umb-rte-block`
+  read `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
+- Three things are required:
   1. Import `UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST` from `@umbraco-cms/backoffice/block` **in the inner realm** and register it into the inner registry. Because the import runs in the inner realm, the manifest's `element` factory (`() => import('./block-action.element.js')`) captures the inner realm's module URL — so when the extension system later calls it, `<umb-block-action>` is lazily registered in the inner `customElements`.
-  2. The outer `umbExtensionsRegistry` reference is exposed on `window._umbOuterExtReg`, then read via `window.parent._umbOuterExtReg` in the injected script. The `blockAction` manifests (registered by Umbraco's package loader, not by module import) are copied into the inner registry so `umb-block-action-list` can discover them.
-  3. **The `condition` extensions those actions name must be copied too.** A `blockAction` manifest
-     declares its `conditions` by alias, and the extension system resolves each alias against the
-     registry the action was registered in. Copy the actions without the conditions and every
-     *conditional* action stays permanently un-initialized, with no error: `delete`, `edit-content`,
-     `edit-settings` and `expose-content` all have conditions and silently vanish, while
-     `copy-to-clipboard` (the only one with none) renders — so the action bar looks present but
-     nearly empty. Derive the aliases from the copied manifests
-     (`blockActions.flatMap(a => (a.conditions ?? []).map(c => c.alias))`) rather than hard-coding
-     them, so an action that gains a condition in a later Umbraco version needs no change here.
+  2. **Copy the manifests the block components look up**, picked by `iframeManifests()` (`iframe-manifests.ts`,
+     unit-tested) in the outer realm and handed over on `window._umbTinyMceIframeManifests`; the injected script
+     registers them. Site packages register them (from `umbraco-package.json` or a bundle), so they exist only in the
+     outer registry:
+     - `blockAction`, for the action bar;
+     - `blockEditorCustomView` for `block-rte` (or no `forBlockEditor`). Without them the slot finds nothing and
+       falls back to `umb-ref-rte-block`, so in classic mode a block never showed its custom view and nothing errored
+       (#206, fixed in 17.8.1; inline mode always worked, being in the outer realm);
+     - **the `condition` manifests either of them names.** The extension system resolves a condition alias against
+       the registry the extension was registered in. Copy the actions without them and every *conditional* action
+       stays permanently un-initialized, with no error: `delete`, `edit-content`, `edit-settings` and
+       `expose-content` all have conditions and silently vanish, while `copy-to-clipboard` (the only one with none)
+       renders — so the action bar looks present but nearly empty. The aliases are derived from the copied
+       manifests, not hard-coded, so an extension that gains a condition in a later Umbraco version needs no change.
+  3. **Elements from the outer realm need their stylesheets copied** (`cross-document-stylesheets.ts`, installed
+     from `init_instance_callback`). A custom view registered from a bundle has `element: () => import(...)`, a
+     function created in the outer realm, so its element module loads *there* and the element is placed in the
+     iframe's document. Lit then sets `adoptedStyleSheets` to the outer document's constructed stylesheets, which the
+     browser refuses ("Sharing constructed stylesheets in multiple documents is not allowed"): the render throws and
+     the view stays empty. `allowStyleSheetsAcrossDocuments()` retries only such an assignment with copies made in the
+     shadow root's own document. A view with `element` as a URL string loads in the inner realm and never needs it.
+     The TestSite fixture `wwwroot/App_Plugins/test-block-custom-view` registers the bundle kind for H Block.
+     Conditions on custom views work in the iframe too, but **a custom view whose condition says no leaves the block
+     blank** rather than falling back to the standard look. That is Umbraco 17.8's own slot (seen in inline mode, with
+     no iframe involved), so a condition can't be used to show the standard look on some pages.
 - **Custom elements that Umbraco's components render must be *defined* in the inner realm.** Element
   registration is per-realm just like module singletons, and an undefined custom element is inert
   rather than an error: lit property bindings (`.name=${...}`) still set their expandos, so the element
@@ -371,6 +397,13 @@ Umbraco minor, for anything rendered inside the editor:
    rendered text is the property's value, not empty. Then check the block *name* too, on a fresh page load:
    a block's Delete action must ask "Are you sure you want to delete this <label>?", not "… this ?". A
    visible label does not prove it (see point 2 above).
+
+   Use Test Block (*Full Configuration*): the TestSite's custom view fixture gives H Block a custom view, which
+   replaces the standard look (`umb-ref-rte-block`) and its visible label.
+7. **Custom block views in classic mode** (#206): *H Child 1* must show H Block as the fixture's dashed "Custom
+   view" box with the block's text (registered from a bundle, so this needs both the manifest copy and the
+   stylesheet copies), and the action bar must keep all its actions. Test Block on *Full Configuration* must still
+   show the standard look.
 
 **Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
 
@@ -521,8 +554,17 @@ The fix pins the sink to the viewport **only while it holds a modal dialog**: a
   *inline* dialogs (`.tox-dialog-inline`, no `.tox-dialog-wrap`; Ask AI is one) off screen: TinyMCE places them
   with coordinates computed against the sink's normal position.
 
-Separately, and not fixed: **Escape in any TinyMCE dialog inside a side panel also closes the panel** (the
-native `<dialog>` closes on Escape), with "Discard unsaved changes" if the block was edited.
+Separately: **Escape in a TinyMCE dialog inside a side panel used to close the panel too**, with "Discard unsaved
+changes" if the block had been edited (F-D, fixed in 17.8.1). TinyMCE closes its dialogs on Escape *keyup* (the
+`exit` rule in its keying's `getKeyupRules`), so the keydown went uncancelled, Chromium turned it into a close
+request, and the panel's native `<dialog>` fired `cancel`, which `uui-modal-*` closes on. `preventEscapeCloseRequest`
+(`escape-close-request.ts`, a keydown listener on the host) cancels Escape keydowns from inside the sink
+(`.tox-tinymce-aux`), which is what Umbraco's own `umb-persistent-modal-dialog` does. Escape anywhere else, the
+editable content included, still closes the panel. `escape-close-request.test.ts` reproduces it with a real
+TinyMCE and real key presses (`sendKeys`; a synthetic event never makes a close request). Its assertions are booleans
+on purpose: a failing Chai assertion on a live TinyMCE element hung the test browser while serialising it. Check on
+each TinyMCE upgrade that Escape still closes a dialog in a block panel without closing the panel, and that the sink
+still carries `tox-tinymce-aux`.
 Check on each TinyMCE upgrade that modal dialogs still render a `.tox-dialog-wrap` inside a sink carrying
 `tox-silver-sink tox-tinymce-aux`; the tests are quickstart D1 in a small block panel and opening Ask AI (an inline
 dialog), which must appear under the toolbar.
@@ -536,6 +578,12 @@ inserted next (a second block, an image, an embed) showed in the editor and was 
 `editor.insertContent()` turns the fake caret into a real paragraph first. `plugins/core/insert-at-caret.ts` wraps it,
 and the block, media and embed plugins use it; `insert-at-caret.test.ts` boots a real TinyMCE and reproduces the loss.
 Any new plugin that inserts markup should use it too.
+
+The same switch fixed F-A2: with the caret inside the end of a link (TinyMCE's inline-boundary caret, e.g. End then
+Left after making a link), `selection.setContent()` put a block inside the `<a>`, where the schema doesn't allow it,
+so it was dropped on save. `insertContent()` places it after the paragraph and leaves the link alone. The link cases
+in `insert-at-caret.test.ts` cover it. Note `CreateLink` leaves the linked word *selected*, and inserting then
+replaces it, as typing would; that is expected, not F-A2.
 
 The media picker then finds the image it inserted by a temporary id, to size it. That id is unique per insert
 (`newImageMarkerId` in `plugins/core/new-image-marker.ts`) and a serializer filter keeps every `__mcenew*` id out of
@@ -630,6 +678,14 @@ Three things to get right in the manifest:
 
 Keep the open-source list in `.github/README.md` in step — it is the only place users can see what is
 selectable.
+
+### Adding a Localization Term
+
+Our `localization` manifests (`src/localizations/`) are merged into Umbraco's set for the same culture, and **ours
+win**, so redefining a key Umbraco already translates replaces Umbraco's text. Add only keys Umbraco doesn't have
+(ours live under `tinyMce`, plus `create_newRteStyleSheetFile`). The package used to redefine Umbraco's block-delete
+terms (#172), and the Danish heading's broken placeholder (`'Slet %0'`) showed as "Slet %0" in the delete dialog until
+17.8.1. `localizations.test.ts` fails for any key Umbraco's own file for that language already defines.
 
 ### Adding Configuration Option
 

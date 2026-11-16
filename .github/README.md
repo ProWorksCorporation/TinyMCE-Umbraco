@@ -307,6 +307,50 @@ culture when the link is changed to media or an external URL. The link picker do
 rich text editor, though: in Umbraco 17.8 only the Multi URL Picker does, and Umbraco's own rich text editor behaves
 the same way.
 
+##### Editor language
+
+The editor's toolbar, menus and dialogs follow each backoffice user's language (from 17.8.1; before that they were
+always English). The translations are the community language packs from
+[tinymce-i18n](https://github.com/mklkj/tinymce-i18n) that ship with the package, and they are loaded from
+the package even when TinyMCE itself comes from Tiny Cloud or a configured `tinyMceUrl`. A language without a pack, and
+English, show TinyMCE's built-in English. With Tiny Cloud, premium plugins load their own translations from the Cloud.
+
+To use a different language or pack, set `language` (and, for a pack hosted elsewhere, `language_url`) in a
+`customConfig`; configuration wins over the user's language. For example, to show every user the French UI:
+
+```json
+"customConfig": {
+  "language": "fr_FR"
+}
+```
+
+##### Custom block views
+
+Umbraco 13's per-block "Custom view" setting has no Data Type setting since Umbraco 14: a custom view is now an
+extension of type `blockEditorCustomView`, registered by a package of your own, and it works for blocks in this editor
+in both Classic and Inline mode (from 17.8.1; before that, Classic mode ignored them). For example, in your package's
+`umbraco-package.json`:
+
+```json
+{
+  "type": "blockEditorCustomView",
+  "alias": "My.BlockView.Quote",
+  "name": "Quote block view",
+  "element": "/App_Plugins/my-package/quote-block-view.js",
+  "forContentTypeAlias": "quoteBlock",
+  "forBlockEditor": "block-rte"
+}
+```
+
+The element receives the block's `content` and `settings` as properties. See Umbraco's documentation on custom block
+views for writing the element. Two things are particular to Classic mode, where the content area is an iframe: give the
+view its styles itself (Lit's `static styles`), because the backoffice's global CSS doesn't reach into the iframe, and
+expect it to render inside the iframe's document.
+
+A view applies to every block of its `forContentTypeAlias`. Avoid giving it `conditions` to show it only in some
+places: in Umbraco 17.8 a custom view whose condition isn't met leaves the block blank rather than showing the
+standard block. That comes from Umbraco's rich text block component, which Umbraco's own editor uses too.
+
 ##### Inline mode caveats
 
 > **Inline mode is verified in Chromium-based browsers (Chrome, Edge, Brave, Opera) and in Firefox.**

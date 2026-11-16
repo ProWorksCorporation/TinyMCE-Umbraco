@@ -6,6 +6,32 @@ and the npm package (`@tiny-mce-umbraco/backoffice`) share a version number, and
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project's version numbers
 follow the Umbraco CMS major version they support.
 
+## [Unreleased]
+
+### Changed
+
+- The version number follows Umbraco 17.8.1. The package still requires Umbraco 17.8.0 or later: Umbraco 17.8.1
+  changes only a database library (NPoco), so there is no need to upgrade Umbraco for this release.
+- npm package: `availableLanguages` now lists exactly the language packs the package ships (66; it named 23 that
+  didn't exist and missed 13 that did). New exports `resolveTinyMceLanguage()`, `addLanguagePackUrl()` and
+  `LANGUAGE_PACK_PATH`.
+
+### Fixed
+
+- The editor's toolbar, menus and dialogs now follow the backoffice user's language; they were always in English
+  (long-standing). The translations come from the package itself, also when TinyMCE comes from Tiny Cloud or a
+  configured `tinyMceUrl`. A `language` set in custom configuration still takes precedence.
+- Pressing Escape in an editor dialog or menu inside a block's side panel closes only the dialog or menu; it also
+  closed the side panel, asking to discard the block's changes if it had been edited (long-standing).
+- A block whose type has **Display inline** switched on is inserted inline, in the text (`<umb-rte-block-inline>`),
+  as in Umbraco's own editor; since Umbraco 17.6 every new block was inserted as a separate block (#224, PR #239).
+  Blocks already in your content keep how they were inserted.
+- Custom block views (`blockEditorCustomView` extensions) now show for rich text blocks in classic mode, as they
+  already did in inline mode and in Umbraco's own editor; classic mode always showed the standard block (#206). Views
+  registered from a bundle (`element: () => import(...)`) also render with their styles there.
+- The block delete dialog's heading names the block in Danish ("Slet %0" before). The package no longer replaces
+  Umbraco's own wording for this dialog in any language.
+
 ## [17.8.0] - 2026-11-14
 
 ### Added
