@@ -70,5 +70,10 @@
 		"@umbraco-cms/backoffice": "^18.3.0",
 		"tinymce": "^6.8.5",
 		"tinymce-i18n": "^24.12.30"
+	},
+	"overrides": {
+		"monaco-editor": {
+			"dompurify": "3.4.18"
+		}
 	}
 }

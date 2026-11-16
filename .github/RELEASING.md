@@ -3,9 +3,22 @@
 How a release of TinyMCE for Umbraco is made. Both packages share one version number: the NuGet package
 `TinyMCE.Umbraco` and the npm package `@tiny-mce-umbraco/backoffice`.
 
-**Both are published by hand.** `.github/workflows/release.yml` triggers only on a bare version tag (`17.8.0`), but
-releases are tagged `release-17.8.0`, so it has never run. Don't push a bare version tag: if the `NUGET_API_KEY`
+**Both are published by hand.** `.github/workflows/release.yml` triggers only on a bare version tag (`18.3.1`), but
+releases are tagged `release-18.3.1`, so it has never run. Don't push a bare version tag: if the `NUGET_API_KEY`
 secret is set, the workflow would push to NuGet.
+
+## Release lines
+
+Two lines are maintained. Each release comes from its own line's branches, and the steps below are the same for both.
+
+| Line | Umbraco | Branches (pull requests in this order) | Release tag | npm dist-tag |
+|---|---|---|---|---|
+| **18.x** (newest major) | 18.3.0+ | feature → `v18/dev` → `v18/main` → `main` | `release-18.x.y` on the `v18/main` merge commit | `latest` (publish **without** `--tag`) |
+| **17.x** | 17.8.0+ | feature → `v17/dev` → `v17/main` | `release-17.x.y` on the `v17/main` merge commit | `version17` |
+
+**Fixes flow forward from 17 to 18 by merge.** After a 17.x release, merge its `release-17.x.y` tag into the 18 line
+(as `release-17.8.1` was), rather than cherry-picking. Resolve conflicts as "17.x for behaviour, 18.x for platform":
+the 18 line keeps its Umbraco version ranges, OpenAPI set-up and `uSync/v18` folder.
 
 ## 1. Prepare
 
@@ -20,12 +33,13 @@ secret is set, the workflow would push to NuGet.
    `CLAUDE.md` files. The npm peer dependency on `@umbraco-cms/backoffice` is in `package.json`.
 4. **Draft the release notes** from the changelog entry: what's new, what's fixed, anything that needs action before
    upgrading, and known issues.
-5. **Merge** through pull requests: the feature branch into `v17/dev`, then `v17/dev` into `v17/main`. CI
-   (`build-and-test`) must pass on each.
+5. **Merge** through pull requests along the line's branches (see [Release lines](#release-lines)): for 18.x, the
+   feature branch into `v18/dev`, then `v18/dev` into `v18/main`, then `v18/main` into `main`; for 17.x, into `v17/dev`
+   and then `v17/main`. CI (`build-and-test`) must pass on each.
 
 ## 2. Build and check
 
-From the merged `v17/main` commit, with a clean working tree.
+From the merged `v18/main` commit (17.x: `v17/main`), with a clean working tree.
 
 ```bash
 cd src/TinyMCE.Umbraco.Client
@@ -66,6 +80,9 @@ npm pack
    cd src/TinyMCE.Umbraco.Client
    npm login     # once; an account that can publish @tiny-mce-umbraco (the package owner is proworkscorporation)
    npm whoami
+   # 18.x, the newest major: it becomes `latest`
+   npm publish tiny-mce-umbraco-backoffice-X.Y.Z.tgz --access public
+   # 17.x: keep `latest` on 18.x
    npm publish tiny-mce-umbraco-backoffice-X.Y.Z.tgz --access public --tag version17
    ```
 
@@ -79,8 +96,9 @@ npm pack
      `src/TinyMCE.Umbraco.Client/.npmrc` is tracked (and committed empty): a token pasted there could be committed, and
      it overrides your login, so an expired one makes publishing fail with a misleading `404 Not Found`.
    - **Check:** `npm view @tiny-mce-umbraco/backoffice dist-tags` shows the new version on the intended tag.
-3. **GitHub release:** tag `release-X.Y.Z` on the `v17/main` merge commit, title `X.Y.Z`, and the release notes as
-   the body.
+3. **GitHub release:** tag `release-X.Y.Z` on the line's merge commit (`v18/main` or `v17/main`), title `X.Y.Z`, and
+   the release notes as the body. For a 17.x release, then merge the tag forward into the 18 line (see
+   [Release lines](#release-lines)).
 
 The Umbraco Marketplace listing follows the NuGet package (tagged `umbraco-marketplace`). The listing's metadata is in
 `umbraco-marketplace-tinymce.umbraco.json` and its readme; they only need changing when the description, screenshots

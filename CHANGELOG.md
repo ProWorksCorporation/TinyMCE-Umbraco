@@ -16,6 +16,12 @@ follow the Umbraco CMS major version they support.
   itself is unchanged. The npm package's generated `RichTextEditorCommandModeModel` type changes from `number` to a
   string enum accordingly.
 
+### Changed
+
+- Development dependencies were updated to clear the npm audit findings that have a non-major fix, including the
+  critical `dompurify` advisory in the copy `monaco-editor` pins (overridden to 3.4.18). None of these reach the
+  shipped package. The bundled TinyMCE 6 advisories are unchanged and still documented in the README.
+
 ## [17.8.1] - 2026-11-15
 
 ### Changed
