@@ -6,21 +6,88 @@ and the npm package (`@tiny-mce-umbraco/backoffice`) share a version number, and
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project's version numbers
 follow the Umbraco CMS major version they support.
 
-## [Unreleased]
+## [18.3.1] - 2026-11-16
 
-### Fixed
+Brings the 18 line up to 17.8.1: every fix and feature from the 17.6.2, 17.6.3, 17.8.0 and 17.8.1 releases, on
+Umbraco 18.3. The version number follows Umbraco 18.3.1; the package requires Umbraco 18.3.0 or later.
 
-- The package's OpenAPI document (`/umbraco/openapi/tiny-mce.json`) now describes `RichTextEditorCommand.mode` as
-  the string enum the server actually sends (`Insert`, `Selection`, `All`) instead of an integer. The document is
-  generated with Umbraco's backoffice JSON options, as Umbraco's own Management API document is. The response
-  itself is unchanged. The npm package's generated `RichTextEditorCommandModeModel` type changes from `number` to a
-  string enum accordingly.
+### Breaking / upgrade notes
+
+- **Requires Umbraco 18.3.0 or later** (was 18.0.0); the Umbraco package range is `[18.3.0, 19.0.0)`, and the npm
+  package's peer is `@umbraco-cms/backoffice ^18.3.0`. Upgrade `Umbraco.Cms` first: NuGet refuses this release on an
+  older 18.x site (NU1605), and npm refuses it next to an older backoffice (ERESOLVE).
+- **AI assistant requests now leave from the web server**, not the browser. Allow outbound access to `api.openai.com`.
+  `openAiApikey` and the `openAi` settings are no longer part of the configuration response the backoffice receives.
+- **npm package**: new exports `loadTinyMce()`, `resolveTinyMceLanguage()`, `addLanguagePackUrl()` and
+  `LANGUAGE_PACK_PATH`; `tinymce` from `/external/tinymce` is now a live proxy of the global rather than a snapshot
+  taken at import; `availableLanguages` now lists exactly the 66 language packs the package ships. The generated
+  `RichTextEditorCommandModeModel` type changes from `number` to a string enum (`Insert`, `Selection`, `All`).
+- **Upgrading a site from Umbraco 17 to 18 with this package isn't verified yet.** Upgrading from 18.0 is: Data
+  Types and content come through unchanged. Until the 17 → 18 path is verified, try it on a copy of your database
+  first.
+
+### Added
+
+- Automated server-side (NUnit) and in-browser editor test suites (`dotnet test`, `npm test`).
+- The editor's toolbar, menus and dialogs follow the backoffice user's language (they were always in English). The
+  translations come from the package itself, also when TinyMCE comes from Tiny Cloud or a configured `tinyMceUrl`. A
+  `language` set in custom configuration still takes precedence.
+- Inline mode works: text can be typed and pasted, and the toolbar sits above the editor while it has focus, staying
+  at the top of the workspace as you scroll. Supported in Chromium-based browsers and Firefox; not in Safari.
+- The `fullscreen` plugin can be selected in the Data Type plugin and toolbar pickers.
+- Custom block views (`blockEditorCustomView` extensions) show for rich text blocks in classic mode too, including
+  views registered from a bundle (#206).
+- Document links keep their culture (`data-culture`): it is saved, reopens in the link picker on that language
+  version, and is removed when the link changes to media or an external URL.
+- The media picker remembers the last folder used from each TinyMCE Data Type for the rest of the backoffice session.
 
 ### Changed
 
+- The bundled TinyMCE 6 core is loaded only when an editor needs it, and only if no other TinyMCE is already
+  present, so a site that supplies its own TinyMCE (Tiny Cloud or `tinyMceUrl`) no longer has two cores racing (#225).
+- A block whose type has **Display inline** switched on is inserted inline, in the text (`<umb-rte-block-inline>`),
+  as in Umbraco's own editor (#224, PR #239). Blocks already in your content keep how they were inserted.
+- API client authentication uses Umbraco's `configureClient` from a user entry point, so it follows token refreshes
+  and re-logins.
+- Picked stylesheets resolve against `Global:UmbracoCssPath` (default `/css`), as in Umbraco's own editor, and
+  protocol-relative stylesheets (`//cdn…`) load (#222).
+- TinyMCE editors appear in Umbraco's "Rich Content" group in the property editor picker, in every backoffice
+  language.
 - Development dependencies were updated to clear the npm audit findings that have a non-major fix, including the
   critical `dompurify` advisory in the copy `monaco-editor` pins (overridden to 3.4.18). None of these reach the
   shipped package. The bundled TinyMCE 6 advisories are unchanged and still documented in the README.
+
+### Fixed
+
+- The package's OpenAPI document (`/umbraco/openapi/tiny-mce.json`) describes `RichTextEditorCommand.mode` as the
+  string enum the server actually sends instead of an integer. The document is generated with Umbraco's backoffice
+  JSON options, as Umbraco's own Management API document is. The response itself is unchanged.
+- Block icons, `{=alias}` labels, the Edit/Delete buttons and block names (in the delete dialog and clipboard
+  entries) render inside the classic-mode editor (#227, #228).
+- The block delete dialog uses Umbraco's own wording in every language (in Danish it read "Slet %0").
+- The placeholder for a block whose element type was deleted shows its text.
+- Pressing Escape in an editor dialog or menu inside a block's side panel closes only the dialog or menu, not the
+  side panel.
+- Table property dialog dropdowns are no longer clipped inside block side panels (#238).
+- Media: dimensions chosen in "Edit selected media" are kept (#229); a caption edited in the editor is used;
+  re-picking a captioned or linked image no longer wipes the surrounding content or drops the link; inserting an
+  image no longer resizes a different image (a leftover `id="__mcenew"` is removed on save).
+- A block, image or embed inserted straight after a block is saved; it showed in the editor but was left out of the
+  saved content.
+- Links: external links no longer store an invalid `type="external"`; local links written with URL-encoded braces
+  reopen correctly in the link picker; editing a link through the picker is saved (also in inline mode) and can be
+  undone; clicking a link in inline mode no longer takes the backoffice to a blank page.
+- Switching a document's culture no longer copies the previous culture's text into the new culture's editor.
+- Plugins declared only in `Umbraco:CMS:RichTextEditor:CustomConfig` load (#223), and a plugin listed in both
+  configuration and a package manifest appears once in the Data Type plugin picker.
+- PDF export and other downloads started in the editor work (they failed with a `SecurityError`).
+- Ask AI's dialog is never wider than the editor, so its send button stays on screen.
+
+### Security
+
+- The OpenAI API key is no longer sent to the browser. AI assistant requests go through a backoffice-only server
+  endpoint (CL-001).
+- Documented the known advisories affecting the bundled TinyMCE 6 core, and how to opt into TinyMCE 7/8.
 
 ## [17.8.1] - 2026-11-15
 
