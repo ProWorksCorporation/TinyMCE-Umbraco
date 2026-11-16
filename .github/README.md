@@ -4,7 +4,7 @@
 [![NuGet](https://img.shields.io/nuget/vpre/TinyMCE.Umbraco?color=0273B3)](https://www.nuget.org/packages/TinyMCE.Umbraco)
 [![GitHub license](https://img.shields.io/github/license/ProWorksCorporation/TinyMCE-Umbraco?color=8AB803)](../LICENSE)
 
-This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE) back to [Umbraco CMS](https://umbraco.com/). It requires Umbraco 17.8.0 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x.
+This package brings the [TinyMCE](https://www.tiny.cloud/) Rich Text Editor (RTE) back to [Umbraco CMS](https://umbraco.com/). This version requires Umbraco 18.3.0 or later (and below 19) — for Umbraco 17 use the 17.x package versions, for Umbraco 16 use 16.x.
 
 It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (`appsettings.json`).
 
@@ -25,14 +25,22 @@ To [install from NuGet](https://www.nuget.org/packages/TinyMCE.Umbraco), you can
 
 In addition, you can install packages via the Visual Studio NuGet Package Manager.  This can be found in the Tools menu of Visual Studio.
 
-> **Upgrade Umbraco to 17.8.0 first.** NuGet does not refuse this package on an older 17.x site. Instead it quietly
-> lifts the few Umbraco packages this one depends on to 17.8.0 and leaves the rest of Umbraco where it was, so the
-> site ends up running a mix of Umbraco versions without any warning. Upgrade `Umbraco.Cms` to 17.8.0 or later, then
+> **Upgrade Umbraco to 18.3.0 first.** NuGet does not refuse this package on an older 18.x site. Instead it quietly
+> lifts the few Umbraco packages this one depends on to 18.3.0 and leaves the rest of Umbraco where it was, so the
+> site ends up running a mix of Umbraco versions without any warning. Upgrade `Umbraco.Cms` to 18.3.0 or later, then
 > install or update this package.
+
+### Upgrading from Umbraco 17
+
+Upgrading a site from Umbraco 17 to Umbraco 18 together with this package **hasn't been verified yet**. Upgrading an
+existing Umbraco 18.0.x site to 18.3 with this release has been verified. If you plan a 17 → 18 upgrade, back up
+the database and media first, and check your TinyMCE Data Types and rich text content (including blocks) afterwards;
+the package still prevents Umbraco from converting TinyMCE properties to its default editor. Until then, the 17.x
+versions of this package remain supported on Umbraco 17.8.
 
 ### Upgrading from v15
 
-If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16. Use a **16.x** version of this package for that migration — the current release requires Umbraco 17.8.0 or later.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
+If you are upgrading from Umbraco version 15, install this package before beginning the migration / upgrade process to version 16. Use a **16.x** version of this package for that migration — this release requires Umbraco 18.3.0 or later.  If installed before the upgrade migration, this package will prevent the conversion to the TipTap editor and keep the TinyMCE RTE in place.
 
 ### Looking for the v13 version?
 
@@ -304,12 +312,12 @@ caveats below.
 A document link that carries a culture (`data-culture`, for example in content created elsewhere) keeps it: it
 reopens in the link picker on that language version, resolves to that language's URL on the website, and loses the
 culture when the link is changed to media or an external URL. The link picker doesn't offer a culture choice in a
-rich text editor, though: in Umbraco 17.8 only the Multi URL Picker does, and Umbraco's own rich text editor behaves
+rich text editor, though: in Umbraco 17.8+ and 18.3+ only the Multi URL Picker does, and Umbraco's own rich text editor behaves
 the same way.
 
 ##### Editor language
 
-The editor's toolbar, menus and dialogs follow each backoffice user's language (from 17.8.1; before that they were
+The editor's toolbar, menus and dialogs follow each backoffice user's language (from 17.8.1 and 18.3.1; before that they were
 always English). The translations are the community language packs from
 [tinymce-i18n](https://github.com/mklkj/tinymce-i18n) that ship with the package, and they are loaded from
 the package even when TinyMCE itself comes from Tiny Cloud or a configured `tinyMceUrl`. A language without a pack, and
@@ -328,7 +336,7 @@ To use a different language or pack, set `language` (and, for a pack hosted else
 
 Umbraco 13's per-block "Custom view" setting has no Data Type setting since Umbraco 14: a custom view is now an
 extension of type `blockEditorCustomView`, registered by a package of your own, and it works for blocks in this editor
-in both Classic and Inline mode (from 17.8.1; before that, Classic mode ignored them). For example, in your package's
+in both Classic and Inline mode (from 17.8.1 and 18.3.1; before that, Classic mode ignored them). For example, in your package's
 `umbraco-package.json`:
 
 ```json
@@ -348,7 +356,7 @@ view its styles itself (Lit's `static styles`), because the backoffice's global 
 expect it to render inside the iframe's document.
 
 A view applies to every block of its `forContentTypeAlias`. Avoid giving it `conditions` to show it only in some
-places: in Umbraco 17.8 a custom view whose condition isn't met leaves the block blank rather than showing the
+places: in Umbraco 17.8+ and 18.3+ a custom view whose condition isn't met leaves the block blank rather than showing the
 standard block. That comes from Umbraco's rich text block component, which Umbraco's own editor uses too.
 
 ##### Inline mode caveats
@@ -366,7 +374,7 @@ If you would like to extend the TinyMCE for Umbraco CMS package, there is an [np
 
     npm install --save-dev @tiny-mce-umbraco/backoffice
 
-> **Requirements for extension projects:** this package declares `@umbraco-cms/backoffice` `^17.8.0` as a **peer dependency**, so your project needs a matching backoffice version installed alongside it — building against an older backoffice will produce a peer dependency conflict. Building also requires Node.js 24.13+ and npm 11+.
+> **Requirements for extension projects:** this package declares `@umbraco-cms/backoffice` `^18.3.0` as a **peer dependency**, so your project needs a matching backoffice version installed alongside it — building against an older backoffice will produce a peer dependency conflict. Building also requires Node.js 24.13+ and npm 11+.
 
 Creating an extension to this package aligns with how [Umbraco CMS allowed custom packages in version 15](https://docs.umbraco.com/umbraco-cms/fundamentals/backoffice/property-editors/built-in-umbraco-property-editors/rich-text-editor-tinymce/plugins).  
 

@@ -88,7 +88,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	readonly #umbStylesheetRuleManager = new UmbStylesheetRuleManager();
 
 	// Holds what the modals opened from this input remember between opens, such as the media picker's last folder
-	// (as Tiptap does since Umbraco 17.8). The modals render in the modal portal, not below this element, so
+	// (as Tiptap does since Umbraco 17.8 and 18.2). The modals render in the modal portal, not below this element, so
 	// context is the only channel that reaches them; upwards it is a property and an `interaction-memories-change`
 	// event, which the property editor UI stores per Data Type for the rest of the backoffice session.
 	readonly #interactionMemoryScope = new UmbInteractionMemoryScopeContext(this);
@@ -325,7 +325,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		const preValueCustomConfig = this.configuration?.getValueByAlias<JSON>('customConfig') ?? {};
 
-		// Resolve the stylesheets to absolute URLs on the Umbraco server, as Umbraco 17.8's own rich text editor does
+		// Resolve the stylesheets to absolute URLs on the Umbraco server, as Umbraco's own rich text editor does (17.8+, 18.3+)
 		// (`resolve-stylesheet-href.function.ts`, ported in `input-tiny-mce.stylesheet-href.ts`, which explains why
 		// the root path is not prefixed unconditionally). Waits for the configured root path first: TinyMCE takes
 		// `content_css` once, so building it early would silently fall back to `/css`.

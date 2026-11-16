@@ -126,7 +126,7 @@ describe('UmbPropertyEditorUITinyMceElement interaction memory', () => {
 	});
 });
 
-// FR-042 (quickstart H9): on a culture switch, Umbraco 17.8's umb-property points its data path at the new culture,
+// FR-042 (quickstart H9): on a culture switch, Umbraco's umb-property (17.8+, 18.3+) points its data path at the new culture,
 // pushes that culture's value into the *old* editor element, and only then replaces the element. TinyMCE's block
 // picker reacts to the new block contents by inserting the new culture's blocks into the old editor and firing a
 // change, which umb-property stored under the new culture: the old culture's text leaked into the new one.

@@ -30,7 +30,7 @@ function blockScript(doc: Document): string {
 
 describe('init_instance_callback (classic iframe bootstrap)', () => {
 	it('defines the ufm-* label elements before it loads the block components', () => {
-		// Since Umbraco 17.8 a block's name (delete dialog, clipboard entry) comes only from the label's
+		// Since Umbraco 17.8 (18.1 on the 18 line) a block's name (delete dialog, clipboard entry) comes only from the label's
 		// umb-ufm-resolved event, which misses a <ufm-label-value> upgraded after the blocks rendered (F-G2).
 		const { editor, doc } = fakeEditor(true);
 		runCallback(editor);

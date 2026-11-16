@@ -25,7 +25,7 @@ export class UmbPropertyEditorUITinyMceElement extends UmbPropertyEditorUiRteEle
 
 	/**
 	 * True while a value is being set from outside. Changes the editor reports meanwhile are echoes of that value,
-	 * not edits, and must not be reported back (FR-042). On a culture switch Umbraco 17.8's `umb-property` points
+	 * not edits, and must not be reported back (FR-042). On a culture switch Umbraco's `umb-property` (17.8+, 18.3+) points
 	 * its data path at the new culture, sets that culture's value on this (old) element, and only then replaces the
 	 * element. The block picker reacts to the new block contents by inserting them into the old editor and firing a
 	 * change, which `umb-property` would store under the new culture: the old culture's text leaked into it.

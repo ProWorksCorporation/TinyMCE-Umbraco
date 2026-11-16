@@ -44,7 +44,7 @@
  * at all, which would also cover `mailto:` and `tel:`. It affects any blob-based download in the
  * backoffice, not only TinyMCE. Verified present in Umbraco 17.6.2, and `anchor.ts` is byte-identical
  * back to at least 17.5.0 — so this is long-standing, not a regression. Re-verified 2026-11:
- * `anchor.ts` is byte-identical in Umbraco 17.8.1. Remove this workaround once the router gains a
+ * `anchor.ts` is byte-identical in Umbraco 17.8.1, 18.0.0 and 18.3.1. Remove this workaround once the router gains a
  * scheme guard.
  */
 

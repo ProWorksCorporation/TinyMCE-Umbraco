@@ -1,7 +1,7 @@
 // Our localization manifests add terms on top of Umbraco's own for the same culture, and where both define a key, ours
 // wins. The package used to redefine Umbraco's block-delete terms (added for #172), and the Danish heading had a broken
 // placeholder ('Slet %0' for Umbraco's 'Slet %0%?'), so Danish users saw "Slet %0" instead of the block's name.
-// Umbraco 17.8 ships those terms itself, so the package should only add keys Umbraco doesn't have.
+// Umbraco (17.8+, 18.3+) ships those terms itself, so the package should only add keys Umbraco doesn't have.
 import { expect } from '@open-wc/testing';
 import { manifests } from './manifests.js';
 

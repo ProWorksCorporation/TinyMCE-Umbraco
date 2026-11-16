@@ -176,7 +176,7 @@ export const defaultFallbackConfig: RawEditorOptions = {
 		const locSetsToSync: Array<Record<string, string>> = [];
 		// Keys needed by components that render INSIDE the TinyMCE iframe. The iframe has its own
 		// per-realm umbLocalizationManager, so anything not copied across renders blank there.
-		// The unsupported-block pair is read by Umbraco 17.6's <umb-unsupported-rte-block>.
+		// The unsupported-block pair is read by Umbraco's <umb-unsupported-rte-block> (17.6+; 18.1+ on the 18 line).
 		const BLOCK_LOC_KEYS = [
 			// Rendered by the block components themselves.
 			'blockEditor_confirmDeleteBlockTitle',
@@ -303,7 +303,7 @@ export const defaultFallbackConfig: RawEditorOptions = {
 			// each ufmComponent manifest's api(). Two constraints when editing this:
 			//   1. The manifests are on the package's \`manifests\` export, NOT \`extensions\`, which is a
 			//      single bundle wrapper - filtering that matches nothing and fails silently.
-			//   2. They must be defined BEFORE the block components below. Since Umbraco 17.8 a block's
+			//   2. They must be defined BEFORE the block components below. Since Umbraco 17.8 (18.1) a block's
 			//      name (delete dialog, clipboard entry) comes only from the umb-ufm-resolved event of
 			//      the label's <umb-ufm-render>, which watches the shadow roots of its children as they
 			//      are inserted. A <ufm-label-value> inserted undefined and upgraded later gets its

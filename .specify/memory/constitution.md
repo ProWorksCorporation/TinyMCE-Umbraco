@@ -1,25 +1,17 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.2.0 (MINOR: materially expanded guidance in one section;
-  no principle removed or redefined)
-Version number: 1.1.0 and 1.1.1 are deliberately skipped. Local plans (specs/002 cites
-  "constitution v1.1.1") and an earlier session note refer to 1.1.x amendments that were never
-  committed (git holds only 1.0.0, commit f7e7865). Reusing those numbers would make those
-  citations look valid.
-Modified principles: none (Core Principles I–VI unchanged)
-Modified sections:
-  - Security Requirements: the single API-key rule ("`apikey`, `openAiApikey` MUST NOT
-    be exposed to the browser") is replaced by a classification rule. Provider secrets
-    stay server-side, including out of logs; public client identifiers may reach
-    authenticated backoffice users only; any credential not yet classified is treated
-    as a secret.
-  - Security Requirements: new rule that browser-bound configuration responses MUST be
-    explicit allow-list projections.
-  Why: the 1.0.0 rule classed the TinyMCE Cloud key as a secret. That key is a CDN URL
-  path segment protected by Tiny's approved-domain list, and the editor cannot load
-  from TinyMCE Cloud without it, so the 1.0.0 rule could not be satisfied by any
-  working implementation. Found while specifying feature 004 (CL-001).
+Version change: 1.2.0 → 1.2.1 (PATCH: wording only; no rule added, removed or changed)
+Modified principles:
+  - VI. Umbraco Extension Best Practices (title unchanged). Two statements named Umbraco 17
+    as if it were the only current major: the opening "follow Umbraco 17's extension system
+    conventions" and "New Umbraco backoffice APIs introduced in v17 MUST be preferred …".
+    They now name the supported majors (the 17 and 18 release lines). The obligations are
+    identical: follow the host major's extension conventions, prefer its new backoffice APIs
+    over deprecated v14/v15 ones, and keep deprecated APIs until the floor is raised.
+  Why: the constitution is tracked on both release lines (17.x on v17/*, 18.x on main and
+  v18/*). On the 18 line it presented Umbraco 17 as current, which feature 005
+  (specs/005-upgrade-umbraco-18-3, FR-031, research R13) forbids for project documents.
 Added sections: none
 Removed sections: none
 Templates requiring updates:
@@ -30,25 +22,15 @@ Templates requiring updates:
   - .specify/templates/checklist-template.md ✅ no change
   - .claude/commands/speckit.*.md ✅ no principle-specific references
 Dependent artifacts:
-  - specs/004-upgrade-umbraco-17-8/spec.md ✅ updated (the API-key conflict is marked
-    resolved by 1.2.0)
-  - specs/001-tinymce-ai-assistant/plan.md, specs/002-document-conversion/plan.md ⚠ pending:
-    their Constitution Check tables cite "II. Security-First API Design", a principle
-    that does not exist in this constitution (II is Testing Standards). This
-    pre-existing mismatch predates 1.2.0. Their conclusions match the 1.2.0 rules (the
-    Tiny key is semi-public; private keys stay server-side), but the tables should be
-    re-run against this file before implementation. specs/002 also relies on a
-    "v1.1.1 Principle IV exception clause" that exempts manifest metadata from
-    localization. No such clause exists here (IV is Performance; localization is in
-    III, with no exemption), so that PASS is unsupported until the clause is either
-    adopted by amendment or the strings are localized.
-  - .github/README.md ⚠ pending (owned by feature 004): the security note "the OpenAI key
-    reaches the browser" must be rewritten when the CL-001 relay ships. Credential
-    settings there also need their provider-secret / public-identifier classification.
-  - Code: `TinyMceConfigResponseModel` serialises `TinyMceConfig` and
-    `RichTextEditorSettings` wholesale, which violates the new projection rule. That was
-    already non-compliant under 1.0.0 (CL-001) and is remedied by feature 004
-    FR-012/FR-017.
+  - specs/005-upgrade-umbraco-18-3/plan.md ✅ its Constitution Check row for Principle VI's
+    "Umbraco 17" wording ("FIX IN FEATURE") is satisfied by this amendment
+  - CLAUDE.md files ✅ no change needed (they cite principles by number/name, not this
+    wording)
+  - The 17 line (v17/*) keeps 1.2.0 until this amendment reaches it; the wording change has
+    no effect on 17.x obligations.
+Previous amendment: 1.0.0 → 1.2.0 (2026-11-08: credential classification and allow-list
+  projections in Security Requirements; 1.1.x numbers deliberately skipped). Its full report
+  is in git history.
 Follow-up TODOs: none
 -->
 
@@ -148,7 +130,8 @@ Upgrade paths from Umbraco v13, v14, and v15 MUST remain functional.
 
 ### VI. Umbraco Extension Best Practices
 
-This package MUST follow Umbraco 17's extension system conventions precisely.
+This package MUST follow the extension system conventions of each Umbraco major it supports
+(currently the 17 and 18 release lines) precisely.
 
 - All extensions (property editors, plugins, icons, localizations) MUST be registered
   via the manifest system aggregated in `manifests.ts`; ad-hoc registration bypassing
@@ -158,8 +141,8 @@ This package MUST follow Umbraco 17's extension system conventions precisely.
 - The `@tiny-mce-umbraco/backoffice` NPM package MUST export stable contracts for
   third-party plugin authors; any breaking change to exported types or base classes
   requires a MAJOR version bump.
-- New Umbraco backoffice APIs introduced in v17 MUST be preferred over deprecated v14/
-  v15 equivalents, but deprecated APIs MUST NOT be removed until the minimum supported
+- New Umbraco backoffice APIs introduced in the supported majors (v17, v18) MUST be
+  preferred over deprecated v14/v15 equivalents, but deprecated APIs MUST NOT be removed until the minimum supported
   Umbraco version is raised.
 - `@umbraco-cms/backoffice` MUST remain an external dependency (not bundled) to avoid
   version conflicts with the host Umbraco installation.
@@ -234,4 +217,4 @@ documented in the PR's Complexity Tracking table with justification.
 Use `CLAUDE.md` for runtime AI-assisted development guidance. Use this constitution for
 governance and non-negotiable quality gates.
 
-**Version**: 1.2.0 | **Ratified**: 2026-03-13 | **Last Amended**: 2026-11-08
+**Version**: 1.2.1 | **Ratified**: 2026-03-13 | **Last Amended**: 2026-11-16

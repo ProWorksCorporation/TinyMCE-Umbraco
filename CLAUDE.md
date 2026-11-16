@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an Umbraco CMS package that brings TinyMCE Rich Text Editor back to Umbraco. This branch builds the package against Umbraco 17.8.0, its minimum (the TestSite and `TinyMCE.Umbraco.Tests` run on the latest 17.x patch, 17.8.1 — keep the package's own `Umbraco.Cms.*` references at the minimum); the published package requires Umbraco 17.8.0 or later — for Umbraco 16 use the 16.x package versions, for Umbraco 18 use 18.x. It replaces the default TipTap editor and supports both open-source and premium TinyMCE plugins. The package consists of three main projects:
+This is an Umbraco CMS package that brings TinyMCE Rich Text Editor back to Umbraco. This branch is the **18 line**: the package requires Umbraco 18.3.0 or later and below 19 (its own `Umbraco.Cms.*` references are the range `[18.3.0, 19.0.0)`; the TestSite and `TinyMCE.Umbraco.Tests` run on the latest 18.x patch, 18.3.1). For Umbraco 16 use the 16.x package versions, for Umbraco 17 use 17.x (the `v17/*` branches); 17.x fixes reach this line by merging the 17.x release tag forward (`.github/RELEASING.md`). It replaces the default TipTap editor and supports both open-source and premium TinyMCE plugins. The package consists of three main projects:
 
 - **TinyMCE.Umbraco** (.NET 10.0 / Razor SDK): Main NuGet package containing C# backend, API controllers, configuration, and compiled frontend assets
 - **TinyMCE.Umbraco.Client** (TypeScript/Vite): Frontend backoffice package built with Lit elements and Umbraco's extension system
@@ -33,7 +33,7 @@ dotnet build src/TinyMCE.Umbraco/TinyMCE.Umbraco.csproj
 
 ### Frontend Development
 
-**Requires Node.js 24.13+ and npm 11+** (floors raised by `@umbraco-cms/backoffice` 17.8.0). npm only warns on an older Node, it does not fail — so a stale toolchain shows up as a confusing build error rather than an install error.
+**Requires Node.js 24.13+ and npm 11+** (the `@umbraco-cms/backoffice` 18.x floors, unchanged since 17.8.0). npm only warns on an older Node, it does not fail — so a stale toolchain shows up as a confusing build error rather than an install error.
 
 ```bash
 cd src/TinyMCE.Umbraco.Client
@@ -50,7 +50,7 @@ npm run build
 # Build the npm package (@tiny-mce-umbraco/backoffice) into dist-cms (clean, full build)
 npm run build:api
 
-# Generate OpenAPI client from Swagger endpoint (test site must be running)
+# Generate the OpenAPI client from /umbraco/openapi/tiny-mce.json (test site must be running)
 npm run generate-client
 ```
 
@@ -110,7 +110,11 @@ sources by an explicit assignment after the merge. The user-facing statement of 
 [How CustomConfig combines with Data Type settings](.github/README.md#how-customconfig-combines-with-data-type-settings);
 keep the two in step.
 
-**API Controllers**: Located in `src/TinyMCE.Umbraco/Api/Management/Controllers/`, these expose Umbraco Management API endpoints for TinyMCE configuration. They inherit from `TinyMceManagementApiControllerBase` and use OpenAPI/Swagger for API documentation.
+**API Controllers**: Located in `src/TinyMCE.Umbraco/Api/Management/Controllers/`, these expose Umbraco Management API endpoints for TinyMCE configuration. They inherit from `TinyMceManagementApiControllerBase` and are described in the package's OpenAPI document (below).
+
+**OpenAPI (Umbraco 18)**: the document is registered in `TinyMceComposer` with Umbraco 18's own `builder.AddBackOfficeOpenApiDocument(Constants.ProjectAlias, …)` — Swashbuckle, `TinyMceConfigureSwaggerGenOptions` and `TinyMceOperationIdHandler` are gone. It is served at `/umbraco/openapi/tiny-mce.json` and listed as "TinyMCE Management API" in the UI at `/umbraco/openapi/` (there is no `/umbraco/swagger/` any more). The document is registered **`.WithJsonOptions(Constants.JsonOptionsNames.BackOffice)`**, the same JSON options the controllers respond with (`[JsonOptionsName]` on the base controller) — without it the schema is generated with default options and describes enums such as `RichTextEditorCommand.Mode` as integers while the server sends strings. Umbraco registers its own Management API document the same way. `OpenApiDocumentTests` pins this.
+
+**`SanitizeTinyMce`** is no longer read from `Umbraco:CMS:Global` (Umbraco 18 removed that setting); it is `TinyMceConfig:sanitizeTinyMce`.
 
 **Migrations**: The `TinyMceMigrationPlan` in `src/TinyMCE.Umbraco/Migrations/` handles installation steps when the package is first installed.
 
@@ -191,7 +195,7 @@ plausible-looking tests exercise neither of the rendering ones.
 
 ## Project-Specific Conventions
 
-- The package targets .NET 10.0 and Umbraco 17.8.0
+- The package targets .NET 10.0 and Umbraco 18.3.0+ (range `[18.3.0, 19.0.0)`); the TestSite runs 18.3.1
 - Uses TinyMCE v6 by default but supports v7/v8 via configuration
 - Frontend uses Lit elements and Umbraco's Web Components architecture
 - TypeScript is configured with strict mode and experimental decorators

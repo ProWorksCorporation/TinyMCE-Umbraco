@@ -5,11 +5,11 @@ Contributions to this package are most welcome!
 ## Prerequisites
 
 - **.NET SDK 10.0 or later** — the projects target `net10.0`.
-- **Node.js 24.13+ and npm 11+** — required by `@umbraco-cms/backoffice` 17.8.0, which the frontend
+- **Node.js 24.13+ and npm 11+** — required by `@umbraco-cms/backoffice` 18.x, which the frontend
   builds against. On an older Node, npm emits only an `EBADENGINE` *warning* rather than failing, so
   the install appears to succeed and the build breaks later in confusing ways. Check with
   `node --version` and `npm --version` before reporting a build problem.
-- **Umbraco 17.8.0 or later** if you are testing against your own site. The bundled test site is
+- **Umbraco 18.3.0 or later** (below 19) if you are testing against your own site on this branch (the `v17/*` branches need 17.8.0+). The bundled test site is
   already pinned to a supported version.
 
 ## Test site

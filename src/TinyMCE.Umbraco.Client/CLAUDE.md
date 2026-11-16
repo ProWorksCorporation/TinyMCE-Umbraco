@@ -10,7 +10,7 @@ This is the frontend backoffice package that provides the TinyMCE Rich Text Edit
 
 ## Common Commands
 
-**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 17.8.0. npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
+**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 18.x (unchanged since 17.8.0). npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
 
 ```bash
 # Install dependencies
@@ -181,7 +181,7 @@ The main property editor is `Umbraco.TinyMCE` (defined in Constants.cs in the C#
 - Handles initialization from configuration
 - Manages Umbraco-specific integrations
 
-**Culture switch (Umbraco 17.8+).** On a culture-variant document, `umb-property` switches its data path to the new
+**Culture switch (Umbraco 17.8+ / 18.3+).** On a culture-variant document, `umb-property` switches its data path to the new
 culture, sets that culture's value on the *current* editor element, and only then replaces the element (we don't
 declare `meta.supportsVariantChange`). Anything the old element reports as a change in between is stored under the
 new culture. The block picker plugin does exactly that: it inserts the new culture's blocks into the old editor and
@@ -206,10 +206,10 @@ edit; each culture must show only its own content).
 
 ## API Client Generation
 
-The `generate-client` script uses `@hey-api/openapi-ts` to generate TypeScript client from the Swagger endpoint:
+The `generate-client` script uses `@hey-api/openapi-ts` to generate the TypeScript client from the package's OpenAPI document (Umbraco 18 has no Swagger endpoint; the UI is at `/umbraco/openapi/`):
 
 ```bash
-npm run generate-client https://localhost:44308/umbraco/swagger/tiny-mce/swagger.json
+npm run generate-client https://localhost:44308/umbraco/openapi/tiny-mce.json
 ```
 
 This generates code in `src/api/` that provides type-safe API calls.
@@ -322,7 +322,7 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
      shadow root's own document. A view with `element` as a URL string loads in the inner realm and never needs it.
      The TestSite fixture `wwwroot/App_Plugins/test-block-custom-view` registers the bundle kind for H Block.
      Conditions on custom views work in the iframe too, but **a custom view whose condition says no leaves the block
-     blank** rather than falling back to the standard look. That is Umbraco 17.8's own slot (seen in inline mode, with
+     blank** rather than falling back to the standard look. That is Umbraco's own slot (17.8+ and 18.3+; seen in inline mode, with
      no iframe involved), so a condition can't be used to show the standard look on some pages.
 - **Custom elements that Umbraco's components render must be *defined* in the inner realm.** Element
   registration is per-realm just like module singletons, and an undefined custom element is inert
@@ -347,7 +347,7 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
      `bundle` wrapper. Filtering `extensions` for `ufmComponent` matches nothing and fails silently.
   2. **These must be defined before the block components.** `block-rte` is therefore not a static import
      but an `await import()` at the very end of the script, after this loop and outside its try. Since
-     Umbraco 17.8 a block's name (the delete dialog, clipboard entries) comes only from the
+     Umbraco 17.8 (and on the 18 line, 18.1) a block's name (the delete dialog, clipboard entries) comes only from the
      `umb-ufm-resolved` event of the label's `<umb-ufm-render>`, which picks up its children's shadow roots
      as they are inserted. A `<ufm-label-value>` that is inserted undefined and upgraded later gets its
      shadow root after that: the label still shows, but the event never carries it, so `getName()` stays
@@ -370,6 +370,12 @@ Two per-realm **singletons** are bridged in `init_instance_callback` in `src/com
 - `blockAction`'s API interface gained only the optional `getHrefObservable` / `getValidationDataPathObservable`.
   Conditions are covered by the alias-derived copy.
 - The `ufm` package still exports `manifests`, with the same five `ufmComponent`s.
+
+**Umbraco 18.3 check (2026-11, feature 005)**, from diffing Umbraco's 17.8.0/18.0.0 and 18.3.1 sources: `block-rte`,
+`block`, `rte`, interaction memory and the router are byte-identical between 17.8.0 and 18.3.1, so every 17.8
+statement above holds on 18.3. No new `localize.term` keys; `blockAction` conditions unchanged; `umb-rte-block`'s
+element set unchanged. The `ufm` package exports **six** `ufmComponent`s on 18.x (`element-name`,
+`Umb.Markdown.ElementName`, arrived in 18.1); the loop picks it up without changes.
 - **English users' `documentLanguage` is now `en-gb`** for "English (UK)" (Umbraco #23899). Re-test the language
   bridge with an English (UK) user, not only a non-English one.
 
@@ -381,7 +387,8 @@ Umbraco minor, for anything rendered inside the editor:
 3. New custom elements rendered by block components → confirm they are defined in the inner realm.
 4. New `ufmComponent` manifests in Umbraco's `ufm` package → nothing to change (the loop takes whatever
    the package exports), but confirm the export is still called `manifests` and still carries `api()`
-   closures. 17.8.x still ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`.
+   closures. 17.8.x ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`; 18.x ships
+   **six** (plus `element-name`, since 18.1).
 5. Test with a **non-English** backoffice. An English-only pass cannot distinguish a working
    localization bridge from a broken one.
 6. **Test block labels with `{=alias}` on a *classic* data type.** This one cost two false passes during
@@ -631,7 +638,7 @@ proves the order, not that the iframe behaves, so the Delete-dialog check in tha
 2. Run `npm run build:api` to build distributable. It empties `dist-cms` and always does a full build (`incremental:
    false` in `tsconfig.api.json`): with incremental state kept outside `dist-cms`, a build into an emptied folder used to
    emit only the changed files, and the package shipped without `index.js`. Check `npm pack`'s file count (290 for
-   17.8.0) before publishing
+   17.8.0, 302 for 18.3.1) before publishing
 3. Run `npm pack` to create tarball
 4. Publish to NPM registry
 
@@ -644,7 +651,7 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 - `tinymce-i18n` ^24.12.30 - Localization files
 
 **Peer Dependencies**:
-- `@umbraco-cms/backoffice` ^17.8.0
+- `@umbraco-cms/backoffice` ^18.3.0
 - `tinymce` and `tinymce-i18n` (ensures version compatibility)
 
 **Dev Dependencies**: Vite, TypeScript, Rollup plugins, OpenAPI generator, etc.
