@@ -7,7 +7,7 @@
 		"build": "vite build"
 	},
 	"devDependencies": {
-		"@tiny-mce-umbraco/backoffice": "17.8.0",
+		"@tiny-mce-umbraco/backoffice": "17.8.1",
 		"@umbraco-cms/backoffice": "17.8.1",
 		"typescript": "5.9.3",
 		"vite": "7.3.8"
