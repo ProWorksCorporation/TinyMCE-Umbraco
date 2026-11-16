@@ -8,6 +8,7 @@ using Umbraco.Cms.Api.Management.OpenApi;
 using Umbraco.Cms.Core.Composing;
 using Umbraco.Cms.Core.Configuration.Models;
 using Umbraco.Cms.Core.DependencyInjection;
+using UmbConstants = Umbraco.Cms.Core.Constants;
 
 namespace TinyMCE.Umbraco.Composing;
 
@@ -27,6 +28,11 @@ internal sealed class TinyMceComposer : IComposer
                 Constants.ProjectAlias,
                 doc => doc
                     .WithTitle($"{Constants.ProjectName} Management API")
+                    // The controllers respond with the backoffice JSON options ([JsonOptionsName] on
+                    // TinyMceManagementApiControllerBase), so the schema must be generated with them too. Without this,
+                    // enums such as RichTextEditorCommand.Mode are described as integers but sent as strings. Umbraco
+                    // registers its own Management API document the same way.
+                    .WithJsonOptions(UmbConstants.JsonOptionsNames.BackOffice)
                     .ConfigureOpenApiOptions(opts => opts.AddBackofficeSecurityRequirements()));
 
             builder

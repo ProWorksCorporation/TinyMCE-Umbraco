@@ -8,6 +8,14 @@ follow the Umbraco CMS major version they support.
 
 ## [Unreleased]
 
+### Fixed
+
+- The package's OpenAPI document (`/umbraco/openapi/tiny-mce.json`) now describes `RichTextEditorCommand.mode` as
+  the string enum the server actually sends (`Insert`, `Selection`, `All`) instead of an integer. The document is
+  generated with Umbraco's backoffice JSON options, as Umbraco's own Management API document is. The response
+  itself is unchanged. The npm package's generated `RichTextEditorCommandModeModel` type changes from `number` to a
+  string enum accordingly.
+
 ## [17.8.1] - 2026-11-15
 
 ### Changed

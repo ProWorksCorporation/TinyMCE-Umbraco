@@ -173,4 +173,23 @@ public class ConfigResponseTests : ManagementApiTest<TinyMceConfigApiController>
             Assert.That(command.TryGetProperty("mode", out _), Is.True);
         }
     }
+
+    /// <summary>
+    ///     C-OAS-4 (feature 005): <c>mode</c> goes over the wire as the enum's name. Correcting the OpenAPI description
+    ///     of this property must not change what the server actually sends.
+    /// </summary>
+    [Test]
+    public async Task GetConfig_CommandModeIsAString()
+    {
+        JsonElement root = await GetConfigAsAdminAsync();
+        JsonElement commands = root.GetProperty("richTextEditor").GetProperty("commands");
+
+        foreach (JsonElement command in commands.EnumerateArray())
+        {
+            Assert.That(command.GetProperty("mode").ValueKind, Is.EqualTo(JsonValueKind.String), command.ToString());
+        }
+
+        JsonElement ace = commands.EnumerateArray().First(command => command.GetProperty("alias").GetString() == "ace");
+        Assert.That(ace.GetProperty("mode").GetString(), Is.EqualTo("Insert"));
+    }
 }
