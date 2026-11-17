@@ -10,6 +10,8 @@ This is the frontend backoffice package that provides the TinyMCE Rich Text Edit
 
 ## Common Commands
 
+**Prerequisites**: Node.js 24.13+ and npm 11+, required by `@umbraco-cms/backoffice` 18.x (unchanged since 17.8.0). npm only emits an `EBADENGINE` warning on an older Node rather than failing, so verify with `node --version` before debugging a build failure.
+
 ```bash
 # Install dependencies
 npm install
@@ -20,7 +22,7 @@ npm run dev
 # Production build (outputs to ../TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE.Umbraco)
 npm run build
 
-# Build API types from OpenAPI spec (requires test site running at https://localhost:44308)
+# Build the npm package (@tiny-mce-umbraco/backoffice) into dist-cms: always a clean, full tsc build
 npm run build:api
 
 # Generate OpenAPI TypeScript client
@@ -72,13 +74,23 @@ src/
 - `src/index.ts` - Main exports for NPM package
 - `src/tinymce.ts` - TinyMCE library re-export
 - `src/manifests.ts` - Extension manifests
-- `src/tinymce-lib-manifests.ts` - TinyMCE library manifests
+- `src/tinymce-lib-manifests.ts` - the `TinyMCE.Lib` bundle. Deliberately inert since 17.6.3 — see *Which TinyMCE Core Wins*
 
 **Output**: `../TinyMCE.Umbraco/wwwroot/App_Plugins/TinyMCE.Umbraco`
 
 **Static Asset Copying**:
 - `node_modules/tinymce/*` → `lib/`
 - `node_modules/tinymce-i18n/langs6/*` → `lib/langs/`
+
+**TinyMCE's UI language** follows the backoffice user's language, through `resolveTinyMceLanguage` in
+`input-tiny-mce.languages.ts`. Umbraco reports `da-dk`, `pt-br`, `zh-cn`, while the packs are named `da`, `pt_BR`,
+`zh-Hans`. Until 17.8.1 the lookup compared those as strings, never matched, and every editor was English. The
+editor always loads the pack from `lib/langs/` (`language_url`), even with Tiny Cloud or a `tinyMceUrl` core, because
+those hosts name packs differently (Tiny Cloud has `zh_CN`) or may not have them. A `language` or `language_url` set in
+configuration still wins. Tiny Cloud's premium plugins load their own strings from the Cloud by language code. Nothing
+errors when this breaks: the editor is English. **When tinymce-i18n is upgraded**, make `availableLanguages` match
+the `langs6` folder again; `input-tiny-mce.languages.test.ts` fails for a listed code with no file, but not for a new
+file that isn't listed.
 
 **External Dependencies**: `@umbraco-cms/backoffice` is marked external and not bundled
 
@@ -121,15 +133,24 @@ export const manifests = [
 
 Umbraco's backoffice loads these manifests to discover and register extensions.
 
-### Entry Point (src/entry-points/entry-point.ts)
+### Entry Points (src/entry-points/)
 
-The `onInit` function:
-1. Consumes Umbraco's `UMB_AUTH_CONTEXT`
-2. Gets OAuth configuration from auth context
-3. Configures the OpenAPI client with base URL and credentials
-4. Adds request interceptor to inject Bearer token on every API call
+There are two, registered in `manifest.ts`, because they have different lifetimes:
 
-This enables authenticated API calls to `/umbraco/management/api/v1/tiny-mce/config`.
+- **`entry-point.ts`, a `backofficeEntryPoint` (app-scoped).** Turns on the blob/data download workaround
+  (`blob-download-router-fix.ts`, needed for TinyMCE's PDF export) for as long as the backoffice is loaded, and turns
+  it off in `onUnload`. Nothing user-specific belongs here: it does not re-run when someone signs in again.
+- **`user-entry-point.ts`, a `userEntryPoint` (session-scoped).** Runs after every sign-in, possibly as a different
+  user, and calls `authContext.configureClient(client)` for the package's generated API client. That is Umbraco's
+  documented way to authenticate an extension's own hey-api client: the token is read per request (so refreshes and
+  re-logins just work), Umbraco's 401-retry and ProblemDetails interceptors are attached, and repeated calls are
+  idempotent. Nothing is cached per user, so `onUnload` is a deliberate no-op.
+
+Before 17.8.0 the backoffice entry point instead did `client.setConfig(...)` plus a hand-written
+`client.interceptors.request.use(...)` adding the Bearer token. It was removed because it configured a client that no
+call site used: every call passes `umbHttpClient` (`TinyMceService.getConfig({ client: umbHttpClient })`,
+`postAiCompletion` likewise), which Umbraco already authenticates. Keep passing `umbHttpClient` at call sites; the
+user entry point only keeps the generated client correct as a fallback for anyone calling the services without one.
 
 ## Custom TinyMCE Plugins
 
@@ -160,6 +181,15 @@ The main property editor is `Umbraco.TinyMCE` (defined in Constants.cs in the C#
 - Handles initialization from configuration
 - Manages Umbraco-specific integrations
 
+**Culture switch (Umbraco 17.8+ / 18.3+).** On a culture-variant document, `umb-property` switches its data path to the new
+culture, sets that culture's value on the *current* editor element, and only then replaces the element (we don't
+declare `meta.supportsVariantChange`). Anything the old element reports as a change in between is stored under the
+new culture. The block picker plugin does exactly that: it inserts the new culture's blocks into the old editor and
+dispatches `Change`. So `property-editor-ui-tiny-mce.element.ts` ignores changes reported while its `value` setter
+runs (`#settingValue`); a value set from outside is never an edit. Nothing errors when this regresses: the old
+culture's text silently appears in the new one. Check with quickstart H9 (switch cultures with and without an unsaved
+edit; each culture must show only its own content).
+
 ## Utility Functions (src/utils/)
 
 **Image Handling**:
@@ -176,7 +206,7 @@ The main property editor is `Umbraco.TinyMCE` (defined in Constants.cs in the C#
 
 ## API Client Generation
 
-The `generate-client` script uses `@hey-api/openapi-ts` to generate TypeScript client from the Swagger endpoint:
+The `generate-client` script uses `@hey-api/openapi-ts` to generate the TypeScript client from the package's OpenAPI document (Umbraco 18 has no Swagger endpoint; the UI is at `/umbraco/openapi/`):
 
 ```bash
 npm run generate-client https://localhost:44308/umbraco/openapi/tiny-mce.json
@@ -184,25 +214,391 @@ npm run generate-client https://localhost:44308/umbraco/openapi/tiny-mce.json
 
 This generates code in `src/api/` that provides type-safe API calls.
 
+## Which TinyMCE Core Wins
+
+**`overwrites` does nothing for `type: "bundle"` extensions.** Only `UmbBaseExtensionsInitializer` — what
+extension *slots* use — honours it. `UmbBundleExtensionInitializer` subscribes straight to
+`extensionRegistry.byType('bundle')`, and `byType` → `#extensionsOfType` is a plain
+`exts.filter(ext => ext.type === type)`. So a site's on-premises/CDN bundle declaring
+`overwrites: "TinyMCE.Lib"` never suppressed ours; both loaded.
+
+This is not a recent regression and is not version-specific — do not "wait for Umbraco to fix it". The
+`bundle` extension type landed 2023-06-05 (`e5cdf7d369f`); `overwrites` landed 2023-07-27 (`2d686cf3212`)
+in the *extensions controller*, i.e. the slot side, and was never wired into any initializer. `git log -S
+overwrites` over `libs/extension-api/initializers/*` across all history returns nothing, and the bundle
+initializer reads `overwrites: 0` at 15.0.0, 16.0.0, 17.0.0 and 17.6.2. (14.x cannot be checked from the
+Umbraco-CMS clone — `Umbraco.Web.UI.Client` was still a submodule at `release-14.0.0` — but the file has
+no overwrites-related commit in its history, so it behaved the same.)
+
+That mattered because TinyMCE's UMD ends with an unconditional `window.tinymce = e, window.tinyMCE = e`,
+and bundles are imported concurrently from one `Promise.allSettled` in `UmbExtensionInitializerBase`. The
+last core to *finish downloading* silently won — a ~768KB local file against a CDN round trip, so it
+flipped with cache state. Symptom: a blank RTE on a cold start that a hard refresh fixed, with no error
+and no request for skin assets, because the packaged v6 core was handed the configured v8 `base_url`
+(issue #225).
+
+**The invariant now: nothing loads a TinyMCE core eagerly.** `src/tinymce-lib-manifests.ts` is inert, and
+`loadTinyMce()` in `src/external/tinymce/index.ts` imports the packaged core on demand *only if*
+`window.tinymce` is unset. This is safe precisely because Umbraco's app element gates its routes on
+`UmbBundleExtensionInitializer.loaded`, so every bundle has provably run before any property editor does.
+
+Two things to keep in step:
+- **Never reintroduce a top-level `import 'tinymce'`** anywhere reachable from a bundle or manifest entry.
+  Check after a build: only `tinymce.js` may reference the core chunk (`grep -l tinymce-<hash> *.js` in
+  `wwwroot/App_Plugins/TinyMCE.Umbraco`). If `manifests.js` or `tinymce-lib-manifests.js` reaches it, the
+  race is back and nothing will fail visibly on a default install — only on sites overriding the core.
+- **`#setTinyConfig` must `await loadTinyMce()` before the `extendEditorConfig` loop.** That hook is the
+  only plugin extension point that runs *before* `renderEditor`, so without the explicit load it would be
+  the one place a third-party plugin sees no core — a silent `undefined`, where every other hook is fine.
+  The eager `TinyMCE.Lib` bundle used to provide this guarantee implicitly. Do not "optimise" the call
+  away as redundant with `renderEditor`: it is ordering, not duplication, and the loader memoizes.
+- **`export const tinymce` is a `Proxy` over `window.tinymce`, not a snapshot.** It has to be: the core may
+  not exist when the module evaluates. Any consumer that reads it at *module scope* will get `undefined`
+  properties — that is what broke the toolbar-configuration property editor, which used to do
+  `tinymce.IconManager.get('default')` at the top of the file and now awaits `loadTinyMce()` in
+  `firstUpdated`. Read it from inside a method, or await the loader first.
+
 ## TinyMCE iframe Module Scope
 
 **CRITICAL**: TinyMCE renders its content area inside an **iframe**. ES modules are per-realm, so the iframe gets its own module-level singletons — completely separate from the outer document's instances. The `umb-rte-block` and `umb-rte-block-inline` custom elements (block editor entries) live inside this iframe.
 
-Two per-realm singletons are currently bridged in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`:
+Two per-realm **singletons** are bridged in `init_instance_callback` in `src/components/input-tiny-mce/input-tiny-mce.defaults.ts`, and — a separate concern with the same root cause — a set of **custom element definitions** has to be forced into the inner realm as well (covered under point 2):
 
 **1. `umbLocalizationManager`** (localization keys):
 - Any localization keys needed by code running inside the iframe must be explicitly synced into the iframe's `umbLocalizationManager`.
 - The sync reads from the outer `umbLocalizationManager.localizations` and injects a module script that calls `registerLocalization()` for each locale's relevant keys.
 - If you add new features inside `umb-rte-block` that depend on localization, add the required keys to `BLOCK_LOC_KEYS` in that function.
+- **Current members (4)**: `blockEditor_confirmDeleteBlockTitle`, `blockEditor_confirmDeleteBlockMessage`,
+  `blockEditor_unsupportedBlockName`, `blockEditor_unsupportedBlockDescription`.
+- The unsupported-block pair was added in the **Umbraco 17.6.2 upgrade**. Umbraco 17.6 completed a feature
+  that was stubbed in 17.5 (`// TODO: Missing unsupported rendering` in `block-rte-entry.element.ts`), so
+  `<umb-unsupported-rte-block>` now renders inside the iframe when a block's element type has been deleted.
+  It calls `localize.term()` for both keys; without them the placeholder rendered with a blank name and
+  blank description. The keys already existed in Umbraco's translation files — only the component reading
+  them was new, which is exactly the failure mode this warning is about.
+- **Check this list on every Umbraco minor upgrade.** Nothing automated catches a missing key: the sync
+  loop silently skips keys it does not find, so the symptom is blank UI inside the editor, never an error.
+  Diffing Umbraco's `block-rte` and `block` packages for new `localize.term(` calls is the reliable check.
+- **The active language is bridged separately from the dictionaries, and must go through the registry.**
+  Copying the locale sets across is only half the job — `UmbLocalizationController` picks a set using
+  `umbLocalizationManager.documentLanguage`, so if that is wrong inside the iframe every lookup falls
+  through `primary -> secondary -> en` and the synced translations render in English. Set it with
+  `umbLocalizationRegistry.loadLanguage(outerLang)`, importing `@umbraco-cms/backoffice/localization`
+  in the injected script, **not** by assigning `documentLanguage` directly. The registry is a module
+  side-effect; the sibling `block-rte` script pulls it into the iframe realm, and constructing it emits
+  its `'en'` bootstrap value, whose `tap` overwrites a direct assignment. Both injected scripts are
+  created with `createElement('script')` and are therefore `async` with no guaranteed execution order,
+  so importing the registry in our own script — which constructs it before our body runs — is what makes
+  the result deterministic rather than a race. `documentDirection` still needs a direct assignment:
+  only `#setBrowserLanguage` sets it, and that pipeline stops at its extension-length guard in this
+  realm, where no `localization` manifests are registered. Symptom when this regresses: the iframe is
+  English while the rest of the backoffice is translated — invisible to an English-only test pass.
 
-**2. `umbExtensionsRegistry`** (extension manifests for block actions):
-- `umb-block-action-list` reads `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
-- Two things are required in the injected module script:
+**2. `umbExtensionsRegistry`** (extension manifests for block actions and custom block views):
+- `umb-block-action-list` (new in Umbraco 17.5.0) and the `blockEditorCustomView` extension slot in `umb-rte-block`
+  read `umbExtensionsRegistry` as a direct module-level import — not via context — so the context proxy cannot bridge it.
+- Three things are required:
   1. Import `UMB_BLOCK_ACTION_DEFAULT_KIND_MANIFEST` from `@umbraco-cms/backoffice/block` **in the inner realm** and register it into the inner registry. Because the import runs in the inner realm, the manifest's `element` factory (`() => import('./block-action.element.js')`) captures the inner realm's module URL — so when the extension system later calls it, `<umb-block-action>` is lazily registered in the inner `customElements`.
-  2. The outer `umbExtensionsRegistry` reference is exposed on `window._umbOuterExtReg`, then read via `window.parent._umbOuterExtReg` in the injected script. The `blockAction` manifests (registered by Umbraco's package loader, not by module import) are copied into the inner registry so `umb-block-action-list` can discover them.
+  2. **Copy the manifests the block components look up**, picked by `iframeManifests()` (`iframe-manifests.ts`,
+     unit-tested) in the outer realm and handed over on `window._umbTinyMceIframeManifests`; the injected script
+     registers them. Site packages register them (from `umbraco-package.json` or a bundle), so they exist only in the
+     outer registry:
+     - `blockAction`, for the action bar;
+     - `blockEditorCustomView` for `block-rte` (or no `forBlockEditor`). Without them the slot finds nothing and
+       falls back to `umb-ref-rte-block`, so in classic mode a block never showed its custom view and nothing errored
+       (#206, fixed in 17.8.1; inline mode always worked, being in the outer realm);
+     - **the `condition` manifests either of them names.** The extension system resolves a condition alias against
+       the registry the extension was registered in. Copy the actions without them and every *conditional* action
+       stays permanently un-initialized, with no error: `delete`, `edit-content`, `edit-settings` and
+       `expose-content` all have conditions and silently vanish, while `copy-to-clipboard` (the only one with none)
+       renders — so the action bar looks present but nearly empty. The aliases are derived from the copied
+       manifests, not hard-coded, so an extension that gains a condition in a later Umbraco version needs no change.
+  3. **Elements from the outer realm need their stylesheets copied** (`cross-document-stylesheets.ts`, installed
+     from `init_instance_callback`). A custom view registered from a bundle has `element: () => import(...)`, a
+     function created in the outer realm, so its element module loads *there* and the element is placed in the
+     iframe's document. Lit then sets `adoptedStyleSheets` to the outer document's constructed stylesheets, which the
+     browser refuses ("Sharing constructed stylesheets in multiple documents is not allowed"): the render throws and
+     the view stays empty. `allowStyleSheetsAcrossDocuments()` retries only such an assignment with copies made in the
+     shadow root's own document. A view with `element` as a URL string loads in the inner realm and never needs it.
+     The TestSite fixture `wwwroot/App_Plugins/test-block-custom-view` registers the bundle kind for H Block.
+     Conditions on custom views work in the iframe too, but **a custom view whose condition says no leaves the block
+     blank** rather than falling back to the standard look. That is Umbraco's own slot (17.8+ and 18.3+; seen in inline mode, with
+     no iframe involved), so a condition can't be used to show the standard look on some pages.
+- **Custom elements that Umbraco's components render must be *defined* in the inner realm.** Element
+  registration is per-realm just like module singletons, and an undefined custom element is inert
+  rather than an error: lit property bindings (`.name=${...}`) still set their expandos, so the element
+  looks correctly configured in DevTools while rendering nothing. `umb-ref-rte-block` renders
+  `<umb-icon>` for the block's element-type icon, and `block-rte` does **not** pull it in transitively,
+  so the injected script imports `@umbraco-cms/backoffice/components` — the whole barrel, because the
+  export map exposes no narrower path (`./icon` is the icon *registry*, and the deep
+  `packages/core/components/icon` path is not exported, so it cannot resolve through the importmap).
+  Note this is unrelated to the `UUIIconRequestEvent` proxy below, which works correctly: `uui-icon`
+  *is* defined in the inner realm, and the action-bar icons resolve through that proxy fine. A blank
+  icon means a missing element definition, not a failed icon request.
+- **The `ufm-*` elements need a different mechanism — a barrel import will not reach them.** A block
+  label written as `{=alias}` (also `{#term}`, `{umbValue:…}`) parses correctly and emits
+  `<ufm-label-value alias="…">`, which then never upgrades and renders nothing. Unlike `umb-icon`, these
+  are not exported from any importable barrel: the outer document defines them lazily by running the
+  `api()` closure on each `ufmComponent` manifest. The injected script therefore imports
+  `/umbraco/backoffice/packages/ufm/umbraco-package.js` — a stable URL whose `api()` closures resolve
+  their own hashed chunks relative to whichever realm imports the module — and awaits each one. Three
+  things to know before touching it:
+  1. The manifests are on that package's **`manifests`** export, **not `extensions`**, which is a single
+     `bundle` wrapper. Filtering `extensions` for `ufmComponent` matches nothing and fails silently.
+  2. **These must be defined before the block components.** `block-rte` is therefore not a static import
+     but an `await import()` at the very end of the script, after this loop and outside its try. Since
+     Umbraco 17.8 (and on the 18 line, 18.1) a block's name (the delete dialog, clipboard entries) comes only from the
+     `umb-ufm-resolved` event of the label's `<umb-ufm-render>`, which picks up its children's shadow roots
+     as they are inserted. A `<ufm-label-value>` that is inserted undefined and upgraded later gets its
+     shadow root after that: the label still shows, but the event never carries it, so `getName()` stays
+     `""` - on most blocks, depending on timing (F-G2, fixed 2026-11-14). "Upgrade is retroactive, so
+     define them last" was true before 17.8 and is not any more. The registry syncs above don't wait for
+     any of this; only block rendering does, by the time the ufm chunks take to load.
+  3. It is wrapped in try/catch at both levels, so a restructured `ufm` package degrades labels back to
+     blank rather than breaking the editor. **That means a regression here is silent** — see the testing
+     note in the checklist below.
+  Contributed as PR #228 (fixes #227); the surrounding `umb-icon` and condition-sync fixes were developed
+  here independently and kept in this branch's form.
 - If new Umbraco versions introduce other per-realm singletons that components inside the iframe need, apply the same pattern: expose on `window`, read via `window.parent` in the injected script.
 
+**Umbraco 17.8 check (2026-11)**, from diffing Umbraco's 17.6.2 and 17.8.1 sources:
+- No new `localize.term(` keys in `block-rte`/`block`. `blockEditor_confirmDeleteBlockMessage` now wraps its
+  argument in `escapeHTML`, which happens in the outer-realm `block-entry.context.ts` and doesn't change the key.
+- The `@customElement` set in `block-rte` (including `umb-rte-block`) is identical to 17.6.2.
+- **Block names now come from `<umb-ref-rte-block>`'s `umb-ufm-resolved` event** (`setName`), not a hidden renderer
+  in the entry context. That is what made the `ufm-*` definition order matter; see point 2 of the `ufm-*` notes above.
+- `blockAction`'s API interface gained only the optional `getHrefObservable` / `getValidationDataPathObservable`.
+  Conditions are covered by the alias-derived copy.
+- The `ufm` package still exports `manifests`, with the same five `ufmComponent`s.
+
+**Umbraco 18.3 check (2026-11, feature 005)**, from diffing Umbraco's 17.8.0/18.0.0 and 18.3.1 sources: `block-rte`,
+`block`, `rte`, interaction memory and the router are byte-identical between 17.8.0 and 18.3.1, so every 17.8
+statement above holds on 18.3. No new `localize.term` keys; `blockAction` conditions unchanged; `umb-rte-block`'s
+element set unchanged. The `ufm` package exports **six** `ufmComponent`s on 18.x (`element-name`,
+`Umb.Markdown.ElementName`, arrived in 18.1); the loop picks it up without changes.
+- **English users' `documentLanguage` is now `en-gb`** for "English (UK)" (Umbraco #23899). Re-test the language
+  bridge with an English (UK) user, not only a non-English one.
+
+**Upgrade checklist for this section.** Every failure mode here is silent — blank UI, missing chrome,
+or English text, never an exception — so none of it surfaces without deliberate checking. On each
+Umbraco minor, for anything rendered inside the editor:
+1. New `localize.term(` calls in Umbraco's `block-rte`/`block` packages → add keys to `BLOCK_LOC_KEYS`.
+2. New or changed `conditions` on `blockAction` manifests → confirmed covered by the alias-derived copy.
+3. New custom elements rendered by block components → confirm they are defined in the inner realm.
+4. New `ufmComponent` manifests in Umbraco's `ufm` package → nothing to change (the loop takes whatever
+   the package exports), but confirm the export is still called `manifests` and still carries `api()`
+   closures. 17.8.x ships **five**: `label-value`, `localize`, `content-name`, `link`, `member-name`; 18.x ships
+   **six** (plus `element-name`, since 18.1).
+5. Test with a **non-English** backoffice. An English-only pass cannot distinguish a working
+   localization bridge from a broken one.
+6. **Test block labels with `{=alias}` on a *classic* data type.** This one cost two false passes during
+   the 17.6.2 upgrade, because two near-identical-looking tests exercise none of this code:
+   - a `${ … }` label resolves through `umb-ufm-js-expression`, which **is** in `block-rte`'s static
+     import graph and was never broken; and
+   - an **inline** data type has no iframe at all, so `init_instance_callback` returns at its first line
+     and not one of these bridges runs (see *Inline Mode and Shadow DOM* below).
+
+   Only `{=alias}` in classic mode touches the iframe's custom element registry. Checking the label
+   merely *appears* is not enough either — confirm the element upgraded **and** resolved its value, e.g.
+   `editor.iframeElement.contentWindow.customElements.get('ufm-label-value')` is defined and the
+   rendered text is the property's value, not empty. Then check the block *name* too, on a fresh page load:
+   a block's Delete action must ask "Are you sure you want to delete this <label>?", not "… this ?". A
+   visible label does not prove it (see point 2 above).
+
+   Use Test Block (*Full Configuration*): the TestSite's custom view fixture gives H Block a custom view, which
+   replaces the standard look (`umb-ref-rte-block`) and its visible label.
+7. **Custom block views in classic mode** (#206): *H Child 1* must show H Block as the fixture's dashed "Custom
+   view" box with the block's text (registered from a bundle, so this needs both the manifest copy and the
+   stylesheet copies), and the action bar must keep all its actions. Test Block on *Full Configuration* must still
+   show the standard look.
+
 **Context proxy** (`UMB_CONTEXT_REQUEST_EVENT_TYPE`): events bubble from the iframe's document, the proxy re-dispatches them on `editor.iframeElement` in the outer document, allowing block components to consume contexts (clipboard, property editor, etc.) that are provided in the outer document's DOM tree.
+
+## Inline Mode and Shadow DOM
+
+**CRITICAL, and the mirror image of the iframe section above.** Everything above applies to *classic*
+mode, where the content area is an iframe and the problem is that the iframe is a separate realm. Inline
+mode (`mode: "Inline"` on the Data Type) has **no iframe**: the target element itself becomes the editable
+body, so none of the realm bridging applies — and a different problem takes its place.
+
+The back-office renders each property editor inside deeply nested shadow DOM — the editable element sits
+**more than twenty shadow roots** below the document (`umb-input-tiny-mce` → … → `umb-app`). TinyMCE's
+shadow DOM support covers iframe mode; several of the DOM APIs it relies on internally do not cross a
+shadow boundary, and each failure is **silent** — no exception, just an editor that looks fine and does
+nothing. Three are bridged in `src/components/input-tiny-mce/shadow-dom-selection.ts`, applied from
+`#onInit` in `input-tiny-mce.element.ts` and **only for inline editors**:
+
+1. **`window.getSelection()`** — TinyMCE reads the caret through `win.getSelection()` (`getSel` in
+   `Selection.getRng`). A window selection never descends into a shadow root, so it returns a range
+   anchored at the host document's `<body>`. Symptom: the field takes focus and shows its toolbar, but
+   nothing can be typed or pasted into it. Bridged with `ShadowRoot.getSelection()`, and **only while an
+   inline editor actually holds focus** — resolved live via `root.activeElement === body` on each call,
+   never cached from a focus/blur event. TinyMCE moves the selection at moments when its own focus
+   bookkeeping is mid-flight, and a stale flag there sends `setRng` to the wrong selection.
+2. **`document.contains()`** — `setRng` guards with `isValidRange` → `isAttachedToDom`, which asks
+   `contains(node.ownerDocument, node)`; Sugar's `contains` is a plain `d1.contains(d2)`. Every range
+   inside the editor is therefore judged *detached*, and `setRng` returns on its first line without even
+   dispatching `SetSelectionRange`. Symptom: nothing that repositions the caret works — pressing Enter
+   builds the new paragraph but leaves the caret on the old line. Overridden on the `document` object
+   (not `Node.prototype`), turning only `false` into `true`, only for nodes inside a live inline editor.
+3. **`DOMUtils.get(id)`** — this is `doc.getElementById(id)`, which cannot see into a shadow root. It
+   breaks bookmarks: operations that restructure the DOM drop `<span data-mce-type="bookmark">` markers,
+   rebuild, then call `moveToBookmark`, whose `restoreEndPoint` resolves them with `dom.get`. Symptom is
+   twofold — the caret is not restored, **and the markers are never removed**, so they accumulate in the
+   content one pair per edit and get saved into the field. Patched per-editor to look inside the editor
+   body first, falling back to the native lookup.
+
+**Consequences to keep in mind:**
+
+- **Browser support: Chromium and Firefox yes, Safari no.** The three engines differ in how selection
+  interacts with shadow DOM, and the bridge's fallback is load-bearing rather than a safety net:
+  Chromium's `window.getSelection()` is shadow-blind but it implements `ShadowRoot.getSelection()`, which
+  is the branch the bridge takes. **Firefox is the opposite** — no `ShadowRoot.getSelection()`, but its
+  `window.getSelection()` already pierces shadow roots, so the `?? nativeGetSelection()` fallback returns
+  the correct selection and the bridge effectively no-ops. Safari has neither, so nothing can bridge it.
+  Do not "simplify" the fallback away: it is what makes Firefox work.
+  `Selection.getComposedRanges()` is the standardised replacement for both branches and would likely
+  cover Safari too — worth considering if Safari support is ever required.
+- `init_instance_callback` in `input-tiny-mce.defaults.ts` **must** keep its `if (!editor.iframeElement)
+  return;` guard. Its whole body bootstraps the iframe realm via `editor.dom.doc.head`, and in inline mode
+  `editor.dom.doc` **is the back-office document** — without the guard it injects a duplicate import map
+  and re-registers the `blockAction` manifests into the live registry, producing a wall of "import map
+  rule … was removed" warnings and "Extension with alias … is already registered" errors.
+- `height`/`width` (the **Dimensions** setting) are dropped for inline mode — TinyMCE ignores them without
+  an editor chrome, and an unstyled empty target collapses to 0px. Sizing comes from the `.editor.inline`
+  CSS rule in the component instead.
+- `content_css` is never loaded in inline mode (no iframe document), and `body_class` is not applied — the
+  component adds `umb-rte` to the element by hand to stand in for it.
+
+**Upgrade checklist for this section.** All three bridges patch TinyMCE *internals*, so a TinyMCE major
+bump (v7/v8, which this package supports via `tinyMceVersion`) can move them without any build error.
+On each TinyMCE upgrade, re-check that `Selection.getRng`/`setRng` still route through `win.getSelection()`
+and `isValidRange`, and that `DOMUtils.get` is still `doc.getElementById`. The only reliable test is manual
+and in a browser: type, paste, press Enter twice, apply a list and a block format, then confirm
+`editor.getBody().querySelectorAll('[data-mce-type="bookmark"]').length === 0`. Nothing here throws when it
+regresses.
+
+### The inline toolbar renders into our own container
+
+TinyMCE's **floating** inline toolbar cannot work this deep in shadow DOM, so `#setTinyConfig` passes
+`fixed_toolbar_container_target` (the `.inline-toolbar` div rendered just before the editable) and TinyMCE renders
+the toolbar there instead. Its whole floating-toolbar machinery assumes at most one shadow boundary, and fails here
+in three compounding ways, all silent:
+
+1. **Position.** With the default `ui_mode: 'combined'`, `updateChromePosition` writes page coordinates
+   (`left = targetBounds.x`), assuming the toolbar's containing block is `<body>`. It is really the nearest positioned
+   flat-tree ancestor, Umbraco's `div#editor` (`position: relative`) in `umb-property-layout`, so the offset is
+   applied twice. Removing that one does not help: a stack of `umb-router-slot`s (all `position: relative`) is next.
+2. **Wrapping.** At a doubled `left`, the absolutely positioned toolbar shrinks to fit what is left of the
+   containing block (179px in a 752px field), and a full toolbar wraps into a column several hundred pixels tall.
+3. **Fade-out.** Inline mode forces a sticky toolbar. Docking's visibility check (`lazyContext`) subtracts the header
+   height from the content area's height; with an empty editor (100px) that is negative, the toolbar is judged
+   off screen, and `.tox-editor-header` gets `tox-editor-dock-fadeout`. Symptom: **the toolbar appears for a moment on
+   focus, then disappears**, reliably on a short editor and only sometimes on a long one. Note the outer
+   `.tox-tinymce-inline` keeps an inline `visibility: hidden` throughout; that is normal (the skin's
+   `visibility: inherit !important` overrides it), so check the header's class and opacity, not the container's.
+
+**Why not `ui_mode: 'split'`.** Split mode positions against `offsetParent` and does work once `:host` is
+`position: relative` (without that, Chromium retargets `offsetParent` across the slot to a different element than the
+real containing block). But its scroll-container detection (`detect`) crosses only one shadow boundary and its scroll
+listener sits on the editor's own root node, so it never finds `uui-scroll-container`, never docks, and a page-level
+editor's top toolbar row is clipped behind the workspace header.
+
+**Consequences of the fixed container.** TinyMCE turns its sticky docking off for a fixed container
+(`isStickyToolbar`); `.inline-toolbar { position: sticky }` replaces it, and works because CSS layout follows the flat
+tree. The toolbar is in the document flow, so **the editable moves down by the toolbar's height while focused**. The
+container also becomes TinyMCE's UI container (`getUiContainer`), so the dialog/popup sink now lives inside
+`.inline-toolbar` - still in our shadow root, so the #238 rule below still matches.
+
+**Checklist** (manual, in the TestSite's *Test Empty* and *Inline Test* documents): on focus the full toolbar shows
+above the editable and stays; scrolling keeps it pinned at the top of the workspace; on blur it hides; the Format
+and Table menus open directly under their buttons; Word count (a modal dialog) is centred; Ask AI (an inline
+dialog) opens under the toolbar, no wider than the editor, with its send button on screen. Then the bookmark check
+above.
+
+That last check guards against inline dialogs running off the right edge. TinyMCE never lets one start left of
+the editor (inline mode: layout `northwest` inside the editable area, whose bounds restriction pins it; classic
+mode: anchored to the editor container), so a dialog wider than the editor - Ask AI is 800px - ran off the right of
+the window, or of a block side panel, in **both** modes. `:host` is therefore a size container (`container-type:
+inline-size`, which needs `display: block`; the host used to be inline) and `.tox-dialog-inline` is capped at
+`100cqw`. The host, not an inner wrapper, because it is the only ancestor both sinks share: classic mode attaches
+its sink straight to the shadow root, inline mode inside `.inline-toolbar`.
+
+Clicks on links. Umbraco's router (`ensureAnchorHistory` in router-slot) listens on `window` and turns a plain click
+on any same-origin `<a>` in the composed path into a `pushState`, without checking for editable content. A document
+link in inline content (`/{localLink:...}`) counts as same-origin, so clicking it to edit it took the backoffice to a
+blank page. The inline editable stops plain link clicks from propagating (`#keepLinkClicksInEditor`), only for links
+in its own content: a block's Edit link reaches that listener retargeted to the block element, so it still goes to
+the router and opens the block. Classic mode's iframe never needed this. Check: click a link in a focused inline
+editor - the page must not change - then use a block's Edit action in the same editor.
+
+A second side effect: TinyMCE's sink (dialogs and menus) now sits *inside* `.inline-toolbar`, and a sticky element
+is always a stacking context, so everything in the sink is stacked at the toolbar's `z-index` (1) rather than the
+sink's own (1300). Menus and inline dialogs stay within the editor's column and are unaffected; a wide modal
+dialog, pinned to the viewport by the #238 rule and centred, reaches over the content tree (`umb-section-sidebar`,
+`z-index: 10`) and was drawn underneath it. `.inline-toolbar:has(.tox-dialog-wrap)` lifts the toolbar to 1300
+while a modal is open. Check: Insert template in a window about 600px wide must cover the tree and dim it.
+
+### TinyMCE's UI sink lives inside the side panel (#238, both modes)
+
+TinyMCE attaches its UI sink (`.tox-silver-sink`: dialogs, the dropdowns inside them and, with the default
+`ui_mode`, toolbar menus and context toolbars) to the editor's **content container, which is
+`umb-input-tiny-mce`'s shadow root**, not the document body. A block side panel wraps that in scroll
+containers (`uui-scroll-container#main`, the native `<dialog>`), so anything positioned inside the sink is
+clipped at the panel's edge. TinyMCE dialogs themselves escape (they are `position: fixed`), but the
+dropdowns inside them did not: every dialog dropdown opening left of the panel was unusable.
+
+The fix pins the sink to the viewport **only while it holds a modal dialog**: a
+`.tox-silver-sink…:has(.tox-dialog-wrap)` rule sets `position: fixed !important` (TinyMCE writes
+`position: relative` inline). Three approaches that look right and are not:
+- **`ui_mode: 'split'`** doesn't help: dialog dropdowns stay in the dialog sink in both modes. It also moves
+  the *inline* toolbar next to the editable element, where a page-level inline editor's top toolbar row ends
+  up under the workspace header (why: *The inline toolbar renders into our own container*, above). In inline
+  mode the sink now sits inside `.inline-toolbar` rather than directly in the shadow root; the rule is unaffected.
+- **Pinning the sink permanently** detaches toolbar menus and context toolbars from content that scrolls
+  inside the panel, because with `combined` they share that sink.
+- **Pinning while *any* dialog is open** (`OpenWindow`/`CloseWindow`, the first version of this fix) throws
+  *inline* dialogs (`.tox-dialog-inline`, no `.tox-dialog-wrap`; Ask AI is one) off screen: TinyMCE places them
+  with coordinates computed against the sink's normal position.
+
+Separately: **Escape in a TinyMCE dialog inside a side panel used to close the panel too**, with "Discard unsaved
+changes" if the block had been edited (F-D, fixed in 17.8.1). TinyMCE closes its dialogs on Escape *keyup* (the
+`exit` rule in its keying's `getKeyupRules`), so the keydown went uncancelled, Chromium turned it into a close
+request, and the panel's native `<dialog>` fired `cancel`, which `uui-modal-*` closes on. `preventEscapeCloseRequest`
+(`escape-close-request.ts`, a keydown listener on the host) cancels Escape keydowns from inside the sink
+(`.tox-tinymce-aux`), which is what Umbraco's own `umb-persistent-modal-dialog` does. Escape anywhere else, the
+editable content included, still closes the panel. `escape-close-request.test.ts` reproduces it with a real
+TinyMCE and real key presses (`sendKeys`; a synthetic event never makes a close request). Its assertions are booleans
+on purpose: a failing Chai assertion on a live TinyMCE element hung the test browser while serialising it. Check on
+each TinyMCE upgrade that Escape still closes a dialog in a block panel without closing the panel, and that the sink
+still carries `tox-tinymce-aux`.
+Check on each TinyMCE upgrade that modal dialogs still render a `.tox-dialog-wrap` inside a sink carrying
+`tox-silver-sink tox-tinymce-aux`; the tests are quickstart D1 in a small block panel and opening Ask AI (an inline
+dialog), which must appear under the toolbar.
+
+### Plugins insert with `insertAtCaret`, never `selection.setContent` (both modes)
+
+After a block is inserted the caret sits on TinyMCE's **fake caret** beside it, a
+`<p data-mce-caret data-mce-bogus="all">` that serialisation strips. `editor.selection.setContent()` - and
+`selection.setNode()`, which is the same thing - writes into that element as if it were content, so whatever a plugin
+inserted next (a second block, an image, an embed) showed in the editor and was silently left out of the saved value.
+`editor.insertContent()` turns the fake caret into a real paragraph first. `plugins/core/insert-at-caret.ts` wraps it,
+and the block, media and embed plugins use it; `insert-at-caret.test.ts` boots a real TinyMCE and reproduces the loss.
+Any new plugin that inserts markup should use it too.
+
+The same switch fixed F-A2: with the caret inside the end of a link (TinyMCE's inline-boundary caret, e.g. End then
+Left after making a link), `selection.setContent()` put a block inside the `<a>`, where the schema doesn't allow it,
+so it was dropped on save. `insertContent()` places it after the paragraph and leaves the link alone. The link cases
+in `insert-at-caret.test.ts` cover it. Note `CreateLink` leaves the linked word *selected*, and inserting then
+replaces it, as typing would; that is expected, not F-A2.
+
+The media picker then finds the image it inserted by a temporary id, to size it. That id is unique per insert
+(`newImageMarkerId` in `plugins/core/new-image-marker.ts`) and a serializer filter keeps every `__mcenew*` id out of
+the saved value. It used to be the fixed `__mcenew`, and inline content saved before the 17.6.2 shadow-DOM fixes still
+carries it (inline mode could not find the image again, so never removed the id). With a fixed id the lookup found
+that old image first: it was resized to the new image's proportions and the new image kept the id, so the next insert
+did the same. `new-image-marker.test.ts` reproduces it with a leftover `__mcenew` image (the *Inline Test* fixture
+carried one until 2026-11-14).
 
 ## Working with Components
 
@@ -221,10 +617,28 @@ All components use Lit web components with Umbraco's extension system:
 4. **Rebuild C# Project**: The C# project includes the wwwroot as static assets
 5. **Test in Umbraco**: Run the TestSite and navigate to backoffice
 
+## Tests
+
+`npm test` runs the in-browser tests with `@web/test-runner` in Playwright's Chromium, using the same libraries as
+Umbraco's own backoffice tests (`@open-wc/testing`: Mocha, Chai, `fixture`/`html`). Run
+`npx playwright install chromium` once per machine. Tests sit next to the code they test, as `src/**/*.test.ts`.
+`npm run build` type-checks them, and they are excluded from the Vite build and from the npm typings.
+
+**They cannot reach the editor's rendering.** A component test has no TinyMCE iframe (a separate module realm) and
+no backoffice shadow-DOM tree around an inline editor. So nothing in *TinyMCE iframe Module Scope* or *Inline Mode
+and Shadow DOM* is covered by them, and those sections' checklists, run by hand in the TestSite, remain the only
+defence there. One narrow exception: `input-tiny-mce.defaults.test.ts` checks the *text* of the module script the
+iframe bootstrap injects (the `ufm-*` definitions before the `block-rte` import, and the inline-mode guard). It
+proves the order, not that the iframe behaves, so the Delete-dialog check in that section's checklist still applies. The server-side tests are in `src/TinyMCE.Umbraco.Tests` (`dotnet test`); see
+`.github/CONTRIBUTING.md`.
+
 ## Publishing NPM Package
 
 1. Update version in `package.json`
-2. Run `npm run build:api` to build distributable
+2. Run `npm run build:api` to build distributable. It empties `dist-cms` and always does a full build (`incremental:
+   false` in `tsconfig.api.json`): with incremental state kept outside `dist-cms`, a build into an emptied folder used to
+   emit only the changed files, and the package shipped without `index.js`. Check `npm pack`'s file count (290 for
+   17.8.0, 302 for 18.3.1) before publishing
 3. Run `npm pack` to create tarball
 4. Publish to NPM registry
 
@@ -237,7 +651,7 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 - `tinymce-i18n` ^24.12.30 - Localization files
 
 **Peer Dependencies**:
-- `@umbraco-cms/backoffice` ^18.0.0
+- `@umbraco-cms/backoffice` ^18.3.0
 - `tinymce` and `tinymce-i18n` (ensures version compatibility)
 
 **Dev Dependencies**: Vite, TypeScript, Rollup plugins, OpenAPI generator, etc.
@@ -246,14 +660,43 @@ The package is consumed by developers extending TinyMCE with custom plugins.
 
 ### Adding a New Plugin
 
+For a **custom** Umbraco-specific plugin:
+
 1. Create plugin file in `src/plugins/`
 2. Extend base plugin class from `src/plugins/core/`
 3. Add manifest to `src/plugins/manifests.ts`
 4. Export in main `src/manifests.ts`
 
+For **exposing a plugin TinyMCE already ships** (fullscreen, help, searchreplace, …) there is no plugin
+file to write — only step 3. The `tinyMcePlugin` manifest is the entire mechanism: it is what puts the
+plugin in the Data Type's plugin picker and its button in the toolbar picker. Without one the plugin
+files are still on disk and still shipped to `wwwroot/.../lib/plugins/`, but nothing in the back office
+can select them, which is exactly how `fullscreen` came to be unavailable despite shipping (issue #223).
+
+Three things to get right in the manifest:
+
+- **`meta.plugins`** is the TinyMCE plugin name, and it must match a directory under
+  `node_modules/tinymce/plugins/` (they are copied to `lib/plugins/` by the Vite static-copy step).
+- **`meta.toolbar[].icon` is a *TinyMCE* icon name, not an Umbraco one.** The toolbar picker renders it
+  via `tinymce.IconManager.get('default')`, so `icon-fullscreen` (an Umbraco icon) shows nothing —
+  the correct value is `fullscreen`. Check names against `node_modules/tinymce/icons/default/icons.js`.
+- **Premium plugins must also be listed in `defaultPremiumPluginsList`** in `input-tiny-mce.defaults.ts`,
+  which is what strips them when no API key is present.
+
+Keep the open-source list in `.github/README.md` in step — it is the only place users can see what is
+selectable.
+
+### Adding a Localization Term
+
+Our `localization` manifests (`src/localizations/`) are merged into Umbraco's set for the same culture, and **ours
+win**, so redefining a key Umbraco already translates replaces Umbraco's text. Add only keys Umbraco doesn't have
+(ours live under `tinyMce`, plus `create_newRteStyleSheetFile`). The package used to redefine Umbraco's block-delete
+terms (#172), and the Danish heading's broken placeholder (`'Slet %0'`) showed as "Slet %0" in the delete dialog until
+17.8.1. `localizations.test.ts` fails for any key Umbraco's own file for that language already defines.
+
 ### Adding Configuration Option
 
-1. Update backend `TinyMceConfig.cs` or `RichTextEditorSettings.cs`
+1. Update backend `TinyMceConfig.cs` or `RichTextEditorSettings.cs` **and** add it to the response projection (`TinyMceClientConfigModel` / `TinyMceRichTextEditorClientModel` and its `From` mapper). The config endpoint sends only what the projection lists, so a setting not added there never reaches the editor
 2. Rebuild backend to update OpenAPI spec
 3. Run `npm run generate-client` to update TypeScript types
 4. Use new config in editor components

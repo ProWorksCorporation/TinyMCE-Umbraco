@@ -1,0 +1,115 @@
+# Releasing
+
+How a release of TinyMCE for Umbraco is made. Both packages share one version number: the NuGet package
+`TinyMCE.Umbraco` and the npm package `@tiny-mce-umbraco/backoffice`.
+
+**Both are published by hand.** `.github/workflows/release.yml` triggers only on a bare version tag (`18.3.1`), but
+releases are tagged `release-18.3.1`, so it has never run. Don't push a bare version tag: if the `NUGET_API_KEY`
+secret is set, the workflow would push to NuGet.
+
+## Release lines
+
+Two lines are maintained. Each release comes from its own line's branches, and the steps below are the same for both.
+
+| Line | Umbraco | Branches (pull requests in this order) | Release tag | npm dist-tag |
+|---|---|---|---|---|
+| **18.x** (newest major) | 18.3.0+ | feature → `v18/dev` → `v18/main` → `main` | `release-18.x.y` on the `v18/main` merge commit | `latest` (publish **without** `--tag`) |
+| **17.x** | 17.8.0+ | feature → `v17/dev` → `v17/main` | `release-17.x.y` on the `v17/main` merge commit | `version17` |
+
+**Fixes flow forward from 17 to 18 by merge.** After a 17.x release, merge its `release-17.x.y` tag into the 18 line
+(as `release-17.8.1` was), rather than cherry-picking. Resolve conflicts as "17.x for behaviour, 18.x for platform":
+the 18 line keeps its Umbraco version ranges, OpenAPI set-up and `uSync/v18` folder.
+
+## 1. Prepare
+
+1. **Set the version** in all three places:
+   - `src/TinyMCE.Umbraco/TinyMCE.Umbraco.csproj` (`<Version>`)
+   - `src/TinyMCE.Umbraco.Client/package.json` (`"version"`), then run `npm install --package-lock-only` in that folder
+     so `package-lock.json` follows
+   - `src/TinyMCE.Umbraco.Client/public/umbraco-package.json` (`"version"`), which the backoffice shows
+2. **Update `CHANGELOG.md`.** Rename `## [Unreleased]` to `## [X.Y.Z] - YYYY-MM-DD`.
+3. **If the minimum Umbraco version changed**, update it everywhere it's stated: the csproj `<Description>` and
+   `Umbraco.Cms.*` references, `docs/README_nuget.md`, `.github/README.md`, `.github/CONTRIBUTING.md` and the
+   `CLAUDE.md` files. The npm peer dependency on `@umbraco-cms/backoffice` is in `package.json`.
+4. **Draft the release notes** from the changelog entry: what's new, what's fixed, anything that needs action before
+   upgrading, and known issues.
+5. **Merge** through pull requests along the line's branches (see [Release lines](#release-lines)): for 18.x, the
+   feature branch into `v18/dev`, then `v18/dev` into `v18/main`, then `v18/main` into `main`; for 17.x, into `v17/dev`
+   and then `v17/main`. CI (`build-and-test`) must pass on each.
+
+## 2. Build and check
+
+From the merged `v18/main` commit (17.x: `v17/main`), with a clean working tree.
+
+```bash
+cd src/TinyMCE.Umbraco.Client
+npm ci
+npm run build                    # the editor's assets; wwwroot is not in git, so pack depends on this
+npx playwright install chromium  # once per machine
+npm test
+cd ../..
+dotnet test src/TinyMCE.Umbraco.sln -c Release
+dotnet pack src/TinyMCE.Umbraco/TinyMCE.Umbraco.csproj -c Release -o artifacts
+```
+
+Check the `.nupkg` (it's a zip):
+- the version, and `Umbraco.Cms.*` dependencies at the intended minimum
+- `staticwebassets/App_Plugins/TinyMCE.Umbraco/` is populated (several hundred files). If it is empty, `npm run build`
+  did not run first and the package would install with no editor
+- no keys: no `sk-` values and no Tiny Cloud key anywhere in it
+
+Then the npm package, in `src/TinyMCE.Umbraco.Client`:
+
+```bash
+npm run build:api   # always a clean, full build into dist-cms
+npm pack
+```
+
+`npm pack` prints the file count. Compare it with the previous release
+(`npm view @tiny-mce-umbraco/backoffice@<previous> dist.fileCount`): it should be similar, and the tarball must contain
+`dist-cms/index.js` and `dist-cms/external/tinymce/index.js`.
+
+## 3. Publish
+
+1. **NuGet:** `dotnet nuget push artifacts/TinyMCE.Umbraco.X.Y.Z.nupkg -k <api key> -s https://api.nuget.org/v3/index.json`.
+   NuGet validates and indexes a new version before it can be installed, which can take a while; it appears on the
+   package page as soon as it's listed.
+2. **npm:** publish the tarball checked in step 2, from a normal PowerShell or Windows Terminal window:
+
+   ```powershell
+   cd src/TinyMCE.Umbraco.Client
+   npm login     # once; an account that can publish @tiny-mce-umbraco (the package owner is proworkscorporation)
+   npm whoami
+   # 18.x, the newest major: it becomes `latest`
+   npm publish tiny-mce-umbraco-backoffice-X.Y.Z.tgz --access public
+   # 17.x: keep `latest` on 18.x
+   npm publish tiny-mce-umbraco-backoffice-X.Y.Z.tgz --access public --tag version17
+   ```
+
+   - **`--tag`**: use `version<major>` (e.g. `version17`) for any release that is not on the newest major line, so
+     `latest` stays on the newest major. Only a release of the newest major line takes `latest` (no `--tag`).
+   - **Two-factor authentication**: npm prints a `https://www.npmjs.com/login/...` link and waits. Open it while the
+     command is still waiting and approve with your security key. This only works in an interactive terminal; from an
+     IDE output panel or a chat tool's shell, npm can't wait and stops with `EOTP`. With an authenticator app instead,
+     add `--otp=<code>`.
+   - **Keep tokens out of the repository.** `npm login` saves the login in your user `.npmrc`. The project's
+     `src/TinyMCE.Umbraco.Client/.npmrc` is tracked (and committed empty): a token pasted there could be committed, and
+     it overrides your login, so an expired one makes publishing fail with a misleading `404 Not Found`.
+   - **Check:** `npm view @tiny-mce-umbraco/backoffice dist-tags` shows the new version on the intended tag.
+3. **GitHub release:** tag `release-X.Y.Z` on the line's merge commit (`v18/main` or `v17/main`), title `X.Y.Z`, and
+   the release notes as the body. For a 17.x release, then merge the tag forward into the 18 line (see
+   [Release lines](#release-lines)).
+
+The Umbraco Marketplace listing follows the NuGet package (tagged `umbraco-marketplace`). The listing's metadata is in
+`umbraco-marketplace-tinymce.umbraco.json` and its readme; they only need changing when the description, screenshots
+or supported versions change.
+
+## 4. After publishing
+
+- **Smoke test the published package** on a fresh site: create one from the Umbraco template at the newest supported
+  patch, add the package from NuGet, create a TinyMCE Data Type and a document that uses it, then edit, save and reload,
+  watching the browser console. Confirm the install changed no `Umbraco.Cms.*` version.
+- **Point the example at the release:** `examples/tinymce-mentions-plugin/package.json` pins
+  `@tiny-mce-umbraco/backoffice` and `@umbraco-cms/backoffice`. Move them to the new versions and run
+  `npm run typecheck` there.
+- **Reopen the changelog:** add an empty `## [Unreleased]` above the release entry.

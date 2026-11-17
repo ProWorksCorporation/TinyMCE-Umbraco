@@ -9,7 +9,7 @@ const swaggerUrl = process.argv[2];
 if (swaggerUrl === undefined) {
   console.error(chalk.red(`ERROR: Missing URL to OpenAPI spec`));
   console.error(`Please provide the URL to the OpenAPI spec as the first argument found in ${chalk.yellow('package.json')}`);
-  console.error(`Example: node generate-openapi.js ${chalk.yellow('https://localhost:44331/umbraco/openapi/REPLACE_ME.json')}`);
+  console.error(`Example: node generate-openapi.js ${chalk.yellow('https://localhost:44308/umbraco/openapi/tiny-mce.json')}`);
   process.exit();
 }
 
@@ -35,6 +35,7 @@ fetch(swaggerUrl).then(async (response) => {
     input: swaggerUrl,
     output: 'src/api',
     plugins: [
+      ...defaultPlugins,
       '@hey-api/client-fetch',
       {
         name: '@hey-api/typescript',
@@ -42,11 +43,16 @@ fetch(swaggerUrl).then(async (response) => {
       },
       {
         name: '@hey-api/sdk',
-        operations: {
-          strategy: 'byTags',
-          containerName: (info) => info.name ? `${info.name}Service` : 'TinyMceService',
-        },
-        responseStyle: 'fields',
+				// One `TinyMceService` class per OpenAPI tag, with static methods. This replaces the
+				// `asClass`/`classNameBuilder` options that @hey-api/openapi-ts 0.99 deprecates, and generates
+				// the same output (research R2).
+				operations: {
+					strategy: 'byTags',
+					container: 'class',
+					containerName: '{{name}}Service',
+					methods: 'static',
+				},
+				responseStyle: 'fields',
       }
     ],
   });

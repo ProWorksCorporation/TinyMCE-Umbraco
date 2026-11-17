@@ -1,28 +1,38 @@
-import { availableLanguages } from '@tiny-mce-umbraco/backoffice/core';
+import { addLanguagePackUrl, resolveTinyMceLanguage } from '@tiny-mce-umbraco/backoffice/core';
 import { defaultFallbackConfig, defaultPremiumPluginsList } from '@tiny-mce-umbraco/backoffice/core';
 import { pastePreProcessHandler } from '@tiny-mce-umbraco/backoffice/core';
 import { uriAttributeSanitizer } from '@tiny-mce-umbraco/backoffice/core';
 import { UmbStylesheetRuleManager } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbTinyMcePluginClass } from '@tiny-mce-umbraco/backoffice/core';
-import { css, customElement, html, property, query } from '@umbraco-cms/backoffice/external/lit';
+import { css, customElement, html, property, query, state } from '@umbraco-cms/backoffice/external/lit';
+import type { PropertyValues } from '@umbraco-cms/backoffice/external/lit';
 import { loadManifestApi } from '@umbraco-cms/backoffice/extension-api';
 import { getProcessedImageUrl, umbDeepMerge } from '@umbraco-cms/backoffice/utils';
-import { renderEditor } from '@umbraco-cms/backoffice/external/tinymce';
+import { preventEscapeCloseRequest } from './escape-close-request.js';
+import { loadTinyMce, renderEditor } from '@umbraco-cms/backoffice/external/tinymce';
 import { umbExtensionsRegistry } from '@umbraco-cms/backoffice/extension-registry';
 import { ImageCropModeModel } from '@umbraco-cms/backoffice/external/backend-api';
 import { UmbChangeEvent } from '@umbraco-cms/backoffice/event';
 import { UmbLitElement } from '@umbraco-cms/backoffice/lit-element';
 import { UmbStylesheetDetailRepository } from '@umbraco-cms/backoffice/stylesheet';
+import { UMB_SERVER_CONTEXT } from '@umbraco-cms/backoffice/server';
 import { UUIFormControlMixin } from '@umbraco-cms/backoffice/external/uui';
+import { UmbEntityInputInteractionMemoryManager } from '@umbraco-cms/backoffice/entity';
+import { UmbInteractionMemoryScopeContext } from '@umbraco-cms/backoffice/interaction-memory';
+import type { UmbInteractionMemoryModel } from '@umbraco-cms/backoffice/interaction-memory';
 //import type { ClassConstructor } from '@umbraco-cms/backoffice/extension-api';
 import type { EditorEvent, Editor, RawEditorOptions } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 import type { ManifestTinyMcePlugin } from '@tiny-mce-umbraco/backoffice/core';
 import type { UmbPropertyEditorConfigCollection } from '@umbraco-cms/backoffice/property-editor';
 
+import { bridgeInlineEditor } from './shadow-dom-selection.js';
+import { mergeArrays, parseJsonStringValues } from './input-tiny-mce.config-merge.js';
+import { DEFAULT_STYLESHEET_ROOT_PATH, resolveStylesheetHrefs } from './input-tiny-mce.stylesheet-href.js';
+
 import { TinyMceService } from '../../api/index.js';
 import { tryExecute } from '@umbraco-cms/backoffice/resources';
-// @ts-ignore
 import { umbHttpClient } from '@umbraco-cms/backoffice/http-client';
+import { UmbStringState } from '@umbraco-cms/backoffice/observable-api';
 
 /**
  * Handles the resize event
@@ -52,33 +62,6 @@ async function onResize(
 	e.target.setAttribute('data-mce-src', resizedPath);
 }
 
-function mergeArrays(arr1: string | string[] | undefined, arr2: string | string[] | undefined): string[] {
-	const a1 = Array.isArray(arr1) ? arr1 : arr1 ? [arr1] : [];
-	const a2 = Array.isArray(arr2) ? arr2 : arr2 ? [arr2] : [];
-
-	return Array.from(new Set([...a1, ...a2]));
-}
-
-// Some config paths (e.g. Umbraco:CMS:RichTextEditor:CustomConfig) can only store scalar string
-// values via the .NET config binder. Complex TinyMCE options like style_formats were historically
-// stored as JSON strings in Umbraco v13. This function parses those JSON strings back into real
-// objects/arrays so TinyMCE receives the correct types.
-function parseJsonStringValues(config: Record<string, unknown>): Record<string, unknown> {
-	const result: Record<string, unknown> = {};
-	for (const [key, value] of Object.entries(config)) {
-		if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {
-			try {
-				result[key] = JSON.parse(value);
-			} catch {
-				result[key] = value;
-			}
-		} else {
-			result[key] = value;
-		}
-	}
-	return result;
-}
-
 @customElement('umb-input-tiny-mce')
 export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '') {
 	@property({ attribute: false })
@@ -88,8 +71,44 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	#plugins: Array<UmbTinyMcePluginClass | undefined> = [];
 	#editorRef?: Editor | null = null;
 	#sanitizeTinyMce = true;
+
+	/**
+	 * Where the picked stylesheets are served from. Configurable as `Global:UmbracoCssPath`; `/css` is
+	 * the fallback Umbraco itself uses when there is no server connection. `undefined` until the server context
+	 * reports it: the editor configuration waits for it (see `resolveStylesheetHrefs`).
+	 */
+	readonly #stylesheetRootPath = new UmbStringState(undefined);
+
+	/**
+	 * The Umbraco server origin, so stylesheet URLs are absolute on the server: equal to `location.origin` in
+	 * production, different in split setups such as a dev client using `VITE_UMBRACO_API_URL`.
+	 */
+	#serverUrl = '';
 	readonly #stylesheetRepository = new UmbStylesheetDetailRepository(this);
 	readonly #umbStylesheetRuleManager = new UmbStylesheetRuleManager();
+
+	// Holds what the modals opened from this input remember between opens, such as the media picker's last folder
+	// (as Tiptap does since Umbraco 17.8 and 18.2). The modals render in the modal portal, not below this element, so
+	// context is the only channel that reaches them; upwards it is a property and an `interaction-memories-change`
+	// event, which the property editor UI stores per Data Type for the rest of the backoffice session.
+	readonly #interactionMemoryScope = new UmbInteractionMemoryScopeContext(this);
+	readonly #interactionMemoryBridge = new UmbEntityInputInteractionMemoryManager(
+		this,
+		this.#interactionMemoryScope.memory,
+	);
+
+	/**
+	 * The memories held by the modals opened from this input, e.g. the last-used folder in a media picker opened
+	 * from the editor toolbar. Bridged from the interaction-memory scope this input provides.
+	 * @type {(Array<UmbInteractionMemoryModel> | undefined)}
+	 */
+	@property({ type: Array, attribute: false })
+	public get interactionMemories(): Array<UmbInteractionMemoryModel> | undefined {
+		return this.#interactionMemoryBridge.getMemories();
+	}
+	public set interactionMemories(value: Array<UmbInteractionMemoryModel> | undefined) {
+		this.#interactionMemoryBridge.setMemories(value);
+	}
 
 	protected override getFormElement() {
 		return this._editorElement?.querySelector('iframe') ?? undefined;
@@ -131,12 +150,68 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	@query('.editor', true)
 	private readonly _editorElement?: HTMLElement;
 
+	/** Inline mode only: where TinyMCE renders its toolbar - see `fixed_toolbar_container_target` in `#setTinyConfig`. */
+	@query('.inline-toolbar', true)
+	private readonly _inlineToolbarElement?: HTMLElement;
+
+	@state()
+	private _inline = false;
+
 	getEditor() {
 		return this.#editorRef;
 	}
 
+	/**
+	 * Inline mode only. Umbraco's router (router-slot's `ensureAnchorHistory`) listens for clicks on the window and
+	 * turns a plain click on any same-origin link into a navigation, without checking whether the link is in editable
+	 * content. A document link in the text (`/{localLink:...}`) counts as same-origin, so clicking it - which is how an
+	 * editor selects a link to change it - took the backoffice to a blank page. Classic mode's iframe never had this.
+	 *
+	 * Only links in the editor's own content: a click on a block's Edit link reaches this listener retargeted to the
+	 * block element, so `closest('a')` misses it and the router still opens the block. Ctrl/Cmd clicks, which the
+	 * router ignores anyway, are left alone. TinyMCE's own click handling is bound on this same element, so it still
+	 * runs.
+	 * @param {MouseEvent} event The click on the editable element.
+	 */
+	readonly #keepLinkClicksInEditor = (event: MouseEvent) => {
+		if (event.ctrlKey || event.metaKey) return;
+		const anchor = (event.target as Element | null)?.closest?.('a[href]');
+		if (anchor && this._editorElement?.contains(anchor)) {
+			event.stopPropagation();
+		}
+	};
+
+	override willUpdate(changedProperties: PropertyValues) {
+		super.willUpdate(changedProperties);
+
+		// Resolved before the first render so the target element carries the right classes from the
+		// start - TinyMCE takes it over during init and `render()` cannot usefully re-run after that.
+		if (changedProperties.has('configuration')) {
+			this._inline = this.configuration?.getValueByAlias<string>('mode')?.toLocaleLowerCase() === 'inline';
+		}
+	}
+
 	override firstUpdated() {
+		// So Escape in a TinyMCE dialog doesn't also close the block side panel around the editor.
+		this.addEventListener('keydown', preventEscapeCloseRequest);
+		this.#loadStylesheetRootPath();
 		this.#loadEditor();
+	}
+
+	// Mirrors Umbraco 17.8's Tiptap (`tiptap-rte.context.ts`).
+	#loadStylesheetRootPath() {
+		this.consumeContext(UMB_SERVER_CONTEXT, (serverContext) => {
+			this.#serverUrl = serverContext?.getServerUrl() ?? '';
+
+			const serverConnection = serverContext?.getServerConnection();
+			if (!serverConnection) {
+				this.#stylesheetRootPath.setValue(DEFAULT_STYLESHEET_ROOT_PATH);
+				return;
+			}
+			this.observe(serverConnection.umbracoCssPath, (umbracoCssPath) => {
+				this.#stylesheetRootPath.setValue(umbracoCssPath ?? DEFAULT_STYLESHEET_ROOT_PATH);
+			});
+		});
 	}
 
 	async #loadEditor() {
@@ -234,7 +309,6 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	}
 
 	async #getTinyMceConfig() {
-		// @ts-ignore
 		const { data } = await tryExecute(this, TinyMceService.getConfig({ client: umbHttpClient }));
 		if (!data) return;
 
@@ -251,11 +325,15 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		const preValueCustomConfig = this.configuration?.getValueByAlias<JSON>('customConfig') ?? {};
 
-		// Map the stylesheets with server url
-		const stylesheets =
-			stylesheetPaths?.map((stylesheetPath: string) => `/css${stylesheetPath.replace(/\\/g, '/')}`) ?? [];
-
-		stylesheets.push('/umbraco/backoffice/css/rte-content.css');
+		// Resolve the stylesheets to absolute URLs on the Umbraco server, as Umbraco's own rich text editor does (17.8+, 18.3+)
+		// (`resolve-stylesheet-href.function.ts`, ported in `input-tiny-mce.stylesheet-href.ts`, which explains why
+		// the root path is not prefixed unconditionally). Waits for the configured root path first: TinyMCE takes
+		// `content_css` once, so building it early would silently fall back to `/css`.
+		const stylesheets = await resolveStylesheetHrefs(
+			stylesheetPaths,
+			this.#stylesheetRootPath.asObservable(),
+			() => this.#serverUrl,
+		);
 
 		const appSettingsConfig = await this.#getTinyMceConfig();
 
@@ -265,13 +343,11 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		let excludeList: string[] = [];
 		if (appSettingsConfig) {
 			this.#sanitizeTinyMce = appSettingsConfig.config?.sanitizeTinyMce ?? true;
-			// @ts-ignore
 			apiKey = appSettingsConfig.richTextEditor?.cloudApiKey || 'no-origin';
 			if (appSettingsConfig.config?.apikey) {
 				apiKey = appSettingsConfig.config?.apikey;
 			}
 			version = appSettingsConfig.config?.tinyMceVersion || '6';
-			// @ts-ignore
 			if (apiKey && apiKey != 'no-origin') {
 				url = appSettingsConfig.config?.tinyMceUrl || `https://cdn.tiny.cloud/1/${apiKey}/tinymce/${version}/`;
 			}
@@ -326,9 +402,24 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		}
 
 		// set the configured inline mode
-		const mode = this.configuration?.getValueByAlias<string>('mode');
-		if (mode?.toLocaleLowerCase() === 'inline') {
+		if (this._inline) {
 			configurationOptions.inline = true;
+
+			// Inline mode makes the target element itself the editable body, so there is no editor
+			// chrome to size and TinyMCE drops height/width on the floor. Left unset, the empty
+			// target div collapses to 0px and the editor is invisible until it happens to be
+			// clicked - so hand the sizing to our own CSS instead (see the `.editor.inline` rule).
+			delete configurationOptions.height;
+			delete configurationOptions.width;
+
+			// Render the toolbar into a container of our own instead of letting TinyMCE float it. Its floating
+			// toolbar cannot work this deep in the backoffice's shadow DOM: it is positioned in page coordinates
+			// against a containing block that is really an Umbraco element further in, so the offset is applied
+			// twice, the squeezed toolbar wraps into a tall column, and the sticky-toolbar check then judges it
+			// off screen and fades it out. A fixed container also turns off TinyMCE's own sticky docking; the
+			// container is made sticky in CSS instead (see `.inline-toolbar`). Details in the client CLAUDE.md,
+			// "Inline Mode and Shadow DOM".
+			configurationOptions.fixed_toolbar_container_target = this._inlineToolbarElement;
 		}
 
 		// set the maximum image size
@@ -338,6 +429,8 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		}
 
 		//console.log('#setTinyConfig 2', [configurationOptions]);
+
+		const language = resolveTinyMceLanguage(this.localize.lang());
 
 		// set the default values that will not be modified via configuration
 		let config: RawEditorOptions = {
@@ -354,7 +447,7 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 			setup: (editor: Editor) => this.#editorSetup(editor),
 			target: this._editorElement,
 			paste_data_images: false,
-			language: this.#getLanguage(),
+			language,
 			promotion: false,
 			convert_unsafe_embeds: true, // [JOV] Workaround for CVE-2024-29881
 			readonly: this.#readonly,
@@ -376,8 +469,22 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 		if (appSettingsConfig) {
 			if (appSettingsConfig.richTextEditor) {
-				const mergedPlugins = mergeArrays(appSettingsConfig.richTextEditor.plugins, config.plugins);
-				config = umbDeepMerge(parseJsonStringValues(appSettingsConfig.richTextEditor.customConfig), config);
+				// Plugins reach this section from two places: the dedicated `Plugins` setting, and a
+				// `plugins` entry inside `CustomConfig`. Both must be folded in before the assignment
+				// below, which overwrites whatever the deep merge produced. Miss the CustomConfig one
+				// and a plugin configured only there is silently dropped - the toolbar still lists its
+				// button, because the merged `toolbar` does survive, but TinyMCE never loaded the
+				// plugin so nothing renders for it.
+				const richTextEditorCustomConfig = parseJsonStringValues(appSettingsConfig.richTextEditor.customConfig);
+				const mergedPlugins = mergeArrays(
+					mergeArrays(
+						appSettingsConfig.richTextEditor.plugins,
+						richTextEditorCustomConfig['plugins']
+					),
+					config.plugins
+				);
+
+				config = umbDeepMerge(richTextEditorCustomConfig, config);
 				config.plugins = mergedPlugins;
 
 				if (appSettingsConfig.richTextEditor.validElements.length > 0) {
@@ -395,6 +502,20 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		if (preValueCustomConfig) {
 			config = umbDeepMerge(preValueCustomConfig, config);
 		}
+
+		// After every merge, so a `language` or `language_url` set in configuration still wins.
+		addLanguagePackUrl(config, language, this.#serverUrl);
+
+		// Ensure the TinyMCE core exists before any plugin's `extendEditorConfig` runs.
+		//
+		// `renderEditor` below loads it on demand, which would otherwise be the first thing to do so -
+		// leaving `extendEditorConfig` as the one extension point that runs with no core present. Before
+		// the core became lazily loaded, the `TinyMCE.Lib` bundle guaranteed `window.tinymce` at boot, so
+		// a third-party plugin reading the global here was safe. Loading it a few lines earlier keeps that
+		// contract: the core is loaded either way, this only fixes *when*, and the result is memoized so
+		// `renderEditor` does not load it twice. Without this, such a plugin gets `undefined` and fails
+		// silently - see `external/tinymce/index.ts` and the plugin docs in `.github/README.md`.
+		await loadTinyMce();
 
 		// Loop through plugins and call extendEditorConfig if it exists to allow plugins to
 		// setup some advanced config like javascript before the editor is initialized.
@@ -419,25 +540,6 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 		this.#editorRef = editors.pop();
 
 		//	console.log('#setTinyConfig end');
-	}
-
-	/**
-	 * Gets the language to use for TinyMCE
-	 */
-	#getLanguage() {
-		const localeId = this.localize.lang();
-		//try matching the language using full locale format
-		let languageMatch = availableLanguages.find((x) => localeId?.localeCompare(x) === 0);
-
-		//if no matches, try matching using only the language
-		if (!languageMatch) {
-			const localeParts = localeId?.split('_');
-			if (localeParts) {
-				languageMatch = availableLanguages.find((x) => x === localeParts[0]);
-			}
-		}
-
-		return languageMatch;
 	}
 
 	async #editorSetup(editor: Editor) {
@@ -506,6 +608,12 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	}
 
 	#onInit(editor: Editor) {
+		// Inline mode leaves the editable element in the backoffice's shadow DOM, which TinyMCE's
+		// document-scoped selection and id lookups cannot reach - see `shadow-dom-selection.ts`.
+		if (this._inline) {
+			bridgeInlineEditor(editor);
+		}
+
 		//enable browser based spell checking
 		editor.getBody().setAttribute('spellcheck', 'true');
 		uriAttributeSanitizer(editor);
@@ -523,6 +631,12 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 	 * a target div and binds the RTE to that element
 	 */
 	override render() {
+		// `umb-rte` stands in for `body_class`, which TinyMCE only applies to the iframe body - in
+		// inline mode this element *is* the editable body.
+		if (this._inline) {
+			return html`<div class="inline-toolbar"></div>
+				<div class="editor inline umb-rte" @click=${this.#keepLinkClicksInEditor}></div>`;
+		}
 		return html`<div class="editor"></div>`;
 	}
 
@@ -537,6 +651,79 @@ export class UmbInputTinyMceElement extends UUIFormControlMixin(UmbLitElement, '
 
 			.tox-tinymce-fullscreen {
 				position: absolute;
+			}
+
+			/* Inline mode edits this element directly - TinyMCE renders no chrome around it and
+			   ignores the configured height, so it needs to look like a field on its own. */
+			.editor.inline {
+				box-sizing: border-box;
+				min-height: 100px;
+				padding: var(--uui-size-space-3, 9px);
+				background-color: var(--uui-color-surface, #fff);
+				border: var(--uui-input-border-width, 1px) solid var(--uui-input-border-color, var(--uui-color-border, #d8d7d9));
+			}
+
+			.editor.inline:focus {
+				outline: none;
+				border-color: var(--uui-color-focus, #3544b1);
+			}
+
+			/* Inline mode's toolbar renders here (fixed_toolbar_container_target). TinyMCE shows it on focus and hides
+			   it on blur, so the editable moves down by the toolbar's height while focused. Sticky stands in for
+			   TinyMCE's own sticky toolbar, which a fixed container switches off: CSS layout follows the flat tree, so
+			   this finds the backoffice's scroll container that TinyMCE's scroll detection cannot. */
+			.inline-toolbar {
+				position: sticky;
+				top: 0;
+				z-index: 1;
+			}
+
+			/* Inline dialogs (Ask AI is 800px wide) are placed at the editor's left edge and may not start left of
+			   it, so one wider than the editor ran off the right edge of the window, taking its send button with it -
+			   in both modes. Cap them at this element's width. The host is the size container because it is the one
+			   ancestor both sinks share: classic mode attaches its sink straight to this shadow root, inline mode
+			   inside .inline-toolbar. A size container must be block-level; the host was inline by default and
+			   only ever held block content, so display: block changes nothing else. */
+			:host {
+				display: block;
+				container-type: inline-size;
+			}
+
+			/* Outweighs the skin's .tox .tox-dialog--width-md, whatever order the stylesheets end up in. */
+			.tox.tox-silver-sink .tox-dialog-inline {
+				max-width: 100cqw;
+			}
+
+			/* The min-height above is for the classic editor's chrome; the inline toolbar shares the .tox-tinymce
+			   class but is only as tall as its rows. */
+			.tox-tinymce.tox-tinymce-inline {
+				min-height: 0;
+			}
+
+			/* #238: TinyMCE attaches its dialog sink - dialogs and the dropdowns inside them - to this shadow root, so
+			   it sits inside whatever scrolls around the editor. In a block side panel that is a scroll container,
+			   which clipped every dialog dropdown opening past the panel's edge. While a modal dialog is open (its
+			   .tox-dialog-wrap is in the sink), pinning the sink to the viewport takes it out of those containers, as
+			   the modal dialogs themselves (position: fixed) already are.
+			   Only then: with the default ui_mode the same sink holds toolbar menus and context toolbars, which must
+			   keep scrolling with the content; and inline dialogs (.tox-dialog-inline, e.g. Ask AI) are placed by
+			   coordinates TinyMCE computes against the sink's normal position, so pinning for one of those threw it
+			   off screen. !important, because TinyMCE writes position: relative as an inline style on its sinks. The
+			   popup sink of ui_mode 'split' is never pinned. */
+			.tox.tox-silver-sink.tox-tinymce-aux:not(.tox-silver-popup-sink):has(.tox-dialog-wrap) {
+				position: fixed !important;
+				top: 0;
+				left: 0;
+			}
+
+			/* In inline mode that sink sits inside .inline-toolbar, which as a sticky element is a stacking context:
+			   the sink's own z-index then only counts inside it, and the modal dialog is stacked as low as the toolbar
+			   (z-index 1). Pinned to the viewport and centred, a wide one (Insert template) reaches over the content
+			   tree beside the workspace, which is stacked higher and covered it. While a modal dialog is open, lift
+			   the toolbar to the sink's own level (the skin's .tox-silver-sink z-index), where the sink stood before
+			   it moved in here. */
+			.inline-toolbar:has(.tox-dialog-wrap) {
+				z-index: 1300;
 			}
 
 			/* FIXME: Remove this workaround when https://github.com/tinymce/tinymce/issues/6431 has been fixed */
