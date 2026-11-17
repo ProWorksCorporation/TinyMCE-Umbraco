@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the **TinyMCE.Umbra
 
 ## Project Overview
 
-This is the main NuGet package project (.NET 10.0, Razor SDK) that provides the TinyMCE Rich Text Editor for Umbraco CMS v16+. It contains the backend API, configuration system, migrations, and hosts the compiled frontend assets from the TinyMCE.Umbraco.Client project.
+This is the main NuGet package project (.NET 10.0, Razor SDK) that provides the TinyMCE Rich Text Editor for Umbraco CMS. It requires Umbraco 18.3.0 or later and below 19 — for Umbraco 16 use the 16.x package versions, for Umbraco 17 use 17.x. It contains the backend API, configuration system, migrations, and hosts the compiled frontend assets from the TinyMCE.Umbraco.Client project.
 
 ## Building
 
@@ -19,7 +19,7 @@ dotnet build TinyMCE.Umbraco.csproj -c Release
 dotnet pack TinyMCE.Umbraco.csproj -c Release
 
 # Pack with specific version
-dotnet pack TinyMCE.Umbraco.csproj -c Release /p:Version=18.0.0
+dotnet pack TinyMCE.Umbraco.csproj -c Release /p:Version=18.3.1
 ```
 
 ## Project Structure
@@ -27,7 +27,7 @@ dotnet pack TinyMCE.Umbraco.csproj -c Release /p:Version=18.0.0
 ```
 TinyMCE.Umbraco/
 ├── Api/Management/           # Umbraco Management API integration
-│   ├── Configuration/        # Swagger/OpenAPI setup
+│   ├── Configuration/        # Versioned backoffice route attribute (the OpenAPI document is registered in Composing/)
 │   ├── Controllers/          # API controllers
 │   └── Models/              # API response models
 ├── Composing/               # Umbraco composer for DI registration
@@ -54,11 +54,16 @@ Both are registered and bound in TinyMceComposer.cs:14 using `IOptions<T>` patte
 ### API Controllers
 
 **TinyMceConfigApiController** (Api/Management/Controllers/TinyMceConfigApiController.cs:11):
-- Exposes GET `/umbraco/management/api/v1/tiny-mce/config` endpoint
-- Returns `TinyMceConfigResponseModel` containing both configuration objects
+- Exposes GET `/umbraco/management/api/v1/tiny-mce/config` endpoint (Management API, backoffice-authenticated)
+- Returns `TinyMceConfigResponseModel`: an **allow-list projection** of both configuration sections (`TinyMceClientConfigModel`, `TinyMceRichTextEditorClientModel`), never the options objects themselves, so `openAiApikey` cannot reach the browser (constitution 1.2.0)
 - Uses ASP.NET Core API versioning (v1.0)
-- Grouped under "TinyMCE" in OpenAPI UI (`/umbraco/openapi/`)
+- Listed as "TinyMCE Management API" in the OpenAPI UI (`/umbraco/openapi/`); document at `/umbraco/openapi/tiny-mce.json`, registered by `TinyMceComposer` via `AddBackOfficeOpenApiDocument(...).WithJsonOptions(BackOffice)` so the schema matches the backoffice JSON the controllers send (string enums). Umbraco 18 has no Swashbuckle: `TinyMceConfigureSwaggerGenOptions` and `TinyMceOperationIdHandler` were removed in 18.0.0
 - Authenticated via Umbraco's backoffice auth
+
+**TinyMceAiCompletionApiController** (Api/Management/Controllers/TinyMceAiCompletionApiController.cs):
+- Exposes POST `/umbraco/management/api/v1/tiny-mce/ai/completion`, the AI relay (CL-001): the editor's AI requests are completed on the server by `ITinyMceAiCompletionService` (`Services/OpenAiCompletionService.cs`), so the OpenAI key never reaches a browser
+- Returns only fixed strings and an error `category` on failure, never provider text (it can echo part of the key)
+- Logs one attribution entry per request (user, outcome, duration, category), never the prompt, the completion or the key
 
 **Base Controller**: All controllers inherit from `TinyMceManagementApiControllerBase` which applies:
 - `[TinyMceVersionedApiBackOfficeRoute]` attribute for routing
@@ -82,10 +87,10 @@ This line is essential for the package to work correctly. Without it, Umbraco wi
 
 ## Dependencies
 
-- `Umbraco.Cms.Web.Website` 18.0.0
-- `Umbraco.Cms.Web.Common` 18.0.0
-- `Umbraco.Cms.Api.Common` 18.0.0
-- `Umbraco.Cms.Api.Management` 18.0.0
+- `Umbraco.Cms.Web.Website` `[18.3.0, 19.0.0)`
+- `Umbraco.Cms.Web.Common` `[18.3.0, 19.0.0)`
+- `Umbraco.Cms.Api.Common` `[18.3.0, 19.0.0)`
+- `Umbraco.Cms.Api.Management` `[18.3.0, 19.0.0)`
 - Project reference to `TinyMCE.Umbraco.Client.esproj` (for asset compilation)
 
 ## Build Output
@@ -104,7 +109,7 @@ When adding new configuration options:
 
 1. Add property to `TinyMceConfig.cs` or `RichTextEditorSettings.cs`
 2. Ensure binding is correct in `TinyMceComposer.cs`
-3. Update `TinyMceConfigResponseModel.cs` if needed for API response
+3. If the browser needs it, add it to the projection model (`Api/Management/Models/TinyMceClientConfigModel.cs` or `TinyMceRichTextEditorClientModel.cs`) and its `From` mapper. A new setting is **not** sent until you do; never add a secret
 4. The frontend will receive changes via the `/config` endpoint
 
 For nested JSON in `customConfig`, the ConfigurationBinder automatically handles conversion to ExpandoObjects.

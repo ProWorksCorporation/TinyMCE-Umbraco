@@ -140,6 +140,23 @@ export const manifests: Array<ManifestTinyMcePlugin> = [
 	},
 	{
 		type: 'tinyMcePlugin',
+		alias: 'Umb.TinyMcePlugin.Fullscreen',
+		name: 'TinyMCE Fullscreen Plugin',
+		meta: {
+			plugins: ['fullscreen'],
+			toolbar: [
+				{
+					alias: 'fullscreen',
+					label: 'Fullscreen',
+					icon: 'fullscreen',
+					isplugin: true,
+					pluginAlias: 'fullscreen',
+				},
+			],
+		},
+	},
+	{
+		type: 'tinyMcePlugin',
 		alias: 'Umb.TinyMcePlugin.Help',
 		name: 'TinyMCE Help Plugin',
 		meta: {

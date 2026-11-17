@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with the **TinyMCE.Umbra
 
 ## Project Overview
 
-This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 18.0.0 with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
+This is a development test site (.NET 10.0, ASP.NET Core Web) running Umbraco CMS 18.3.1 (the latest 18.x patch; the package itself references the range `[18.3.0, 19.0.0)`) with the TinyMCE.Umbraco package installed. It's configured for unattended installation to streamline development and testing workflows.
 
 ## Running the Test Site
 
@@ -38,7 +38,7 @@ The appsettings.json includes:
 
 **Global Settings**:
 - Unattended install enabled
-- `SanitizeTinyMce: true` - Umbraco sanitizes TinyMCE content
+- (Umbraco 18 removed `Umbraco:CMS:Global:SanitizeTinyMce`; sanitizing is controlled by `TinyMceConfig:sanitizeTinyMce` below)
 
 **RichTextEditor Settings** (appsettings.json:25):
 - Custom `ValidElements` configuration
@@ -91,12 +91,22 @@ TinyMCE.Umbraco.TestSite/
     └── App_Plugins/             # Plugin assets (includes TinyMCE after build)
 ```
 
+`wwwroot/App_Plugins/tinymce-mentions-plugin/` is built from `examples/tinymce-mentions-plugin/` at the repository
+root (`npm run build` there); only its `umbraco-package.json` and `package.manifest` are maintained here by hand.
+
+`wwwroot/App_Plugins/test-block-custom-view/` is a test fixture for custom block views (#206): H Block (on the H
+pages) gets one, registered from a bundle, and renders as a dashed "Custom view" box. Test Block keeps the standard
+block look everywhere. Plain JavaScript, no build step. To try a view registered directly in `umbraco-package.json`
+instead, add a `blockEditorCustomView` entry there with `"element": "/App_Plugins/test-block-custom-view/test-block-custom-view.element.js"`
+and restart the site. Don't scope one with a condition to keep the standard look elsewhere: in Umbraco 17.8+ / 18.3+ a
+custom view whose condition isn't met leaves the block blank.
+
 ## Dependencies
 
-- `Umbraco.Cms` 18.0.0 - Main Umbraco CMS package
+- `Umbraco.Cms` 18.3.1 - Main Umbraco CMS package
 - Umbraco API packages (Common, Management, Website)
-- `Umbraco.Cms.DevelopmentMode.Backoffice` 18.0.0 - Development tools
-- `uSync` 18.0.0 - Content synchronization
+- `Umbraco.Cms.DevelopmentMode.Backoffice` 18.3.1 - Development tools
+- `uSync` 18.3.1 - Content synchronization
 - Project reference to `../TinyMCE.Umbraco/TinyMCE.Umbraco.csproj`
 
 ## Program.cs
@@ -143,9 +153,14 @@ The TinyMCE package is discovered via the project reference and its composer (`T
 ### Using uSync
 
 The test site includes uSync for content synchronization:
-- Export content, data types, and settings to `uSync/` folder
+- Export content, data types, and settings to the `uSync/v18/` folder (the 17 line uses `uSync/v17/`)
 - Commit to git for sharing test configurations
-- Import on other machines or after database reset
+- Import on other machines or after database reset (Settings → uSync → Import; first-boot import isn't configured)
+
+**Working database history**: the database in this working copy came from the 17.8 line and was upgraded in place to
+18.3.1 during feature 005. A byte-identical copy of the 17.8 database and its media is kept in
+`specs/005-upgrade-umbraco-18-3/baseline/db-17.8/` (specs/ is gitignored) as the restore point for 17.x work: an
+upgraded database can't be opened by 17.x again.
 
 ### Database Location
 
@@ -215,7 +230,7 @@ The nested JSON structure supports complex configurations as demonstrated in the
 The OpenAPI UI is available at:
 - `https://localhost:44308/umbraco/openapi/`
 
-TinyMCE endpoints are under the "TinyMCE" group (document selector: `tiny-mce`).
+Pick "TinyMCE Management API" in its definition list; the document itself is `https://localhost:44308/umbraco/openapi/tiny-mce.json`.
 
 ## Common Issues
 

@@ -10,7 +10,7 @@
     "SyncContributorsFromRepository": false
   },
   "Category": "Editor Tools",
-  "Description": "Enables access to the TinyMCE-based Rich Text Editor (RTE) in version 16 and above. Also, adds some enhanced config options.",
+  "Description": "Enables access to the TinyMCE-based Rich Text Editor (RTE) in version 16 and above. Also, adds some enhanced config options and access to premium plugins.",
   "DiscussionForumUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco/issues",
   "DocumentationUrl": "https://github.com/ProWorksCorporation/TinyMCE-Umbraco",
   "LicenseTypes": ["Free"],

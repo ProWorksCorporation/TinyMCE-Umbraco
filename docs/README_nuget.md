@@ -1,6 +1,6 @@
 ## TinyMCE for Umbraco CMS
 
-This package brings the TinyMCE Rich Text Editor (RTE) back to Umbraco CMS, (version 16+).
+This package brings the TinyMCE Rich Text Editor (RTE) back to Umbraco CMS. This version requires Umbraco 18.3.0 or later (below 19) — for Umbraco 17 use the 17.x package versions, for Umbraco 16 use 16.x. Upgrade `Umbraco.Cms` to 18.3.0 before installing: NuGet won't refuse an older 18.x site, but would leave it running a mix of Umbraco versions. Upgrading a site from Umbraco 17 to 18 together with this package hasn't been verified yet; back up the database and media first and check TinyMCE content afterwards.
 
 It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).
 
