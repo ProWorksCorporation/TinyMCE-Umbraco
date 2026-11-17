@@ -6,7 +6,7 @@ and the npm package (`@tiny-mce-umbraco/backoffice`) share a version number, and
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project's version numbers
 follow the Umbraco CMS major version they support.
 
-## [18.3.1] - 2026-11-16
+## [18.3.1] - 2026-11-17
 
 Brings the 18 line up to 17.8.1: every fix and feature from the 17.6.2, 17.6.3, 17.8.0 and 17.8.1 releases, on
 Umbraco 18.3. The version number follows Umbraco 18.3.1; the package requires Umbraco 18.3.0 or later.
@@ -14,8 +14,9 @@ Umbraco 18.3. The version number follows Umbraco 18.3.1; the package requires Um
 ### Breaking / upgrade notes
 
 - **Requires Umbraco 18.3.0 or later** (was 18.0.0); the Umbraco package range is `[18.3.0, 19.0.0)`, and the npm
-  package's peer is `@umbraco-cms/backoffice ^18.3.0`. Upgrade `Umbraco.Cms` first: NuGet refuses this release on an
-  older 18.x site (NU1605), and npm refuses it next to an older backoffice (ERESOLVE).
+  package's peer is `@umbraco-cms/backoffice ^18.3.0`. Upgrade `Umbraco.Cms` to 18.3.0 first: NuGet doesn't refuse
+  this release on an older 18.x site, but quietly lifts only the Umbraco packages it depends on, leaving a mix of
+  versions. npm does refuse it next to an older backoffice (ERESOLVE).
 - **AI assistant requests now leave from the web server**, not the browser. Allow outbound access to `api.openai.com`.
   `openAiApikey` and the `openAi` settings are no longer part of the configuration response the backoffice receives.
 - **npm package**: new exports `loadTinyMce()`, `resolveTinyMceLanguage()`, `addLanguagePackUrl()` and
