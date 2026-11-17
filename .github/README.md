@@ -428,7 +428,7 @@ itself. When you do — to read the icon set, a utility, or `tinymce.Env` — im
 import { tinymce, loadTinyMce } from '@tiny-mce-umbraco/backoffice/external/tinymce';
 ```
 
-> **Do not read properties off `tinymce` at module scope.** As of 17.6.3 the TinyMCE core is loaded on
+> **Do not read properties off `tinymce` at module scope.** As of 17.6.3 and 18.3.1 the TinyMCE core is loaded on
 > demand rather than up front, so it may not exist yet when your module is first evaluated. The `tinymce`
 > export is a live view of `window.tinymce`, so reading it from anywhere the package calls into your
 > plugin is safe — `extendEditorConfig`, the constructor and `init()` all run with a core present. It is
