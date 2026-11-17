@@ -10,8 +10,8 @@
     <Product>TinyMCE.Umbraco</Product>
     <PackageId>TinyMCE.Umbraco</PackageId>
     <Title>TinyMCE for Umbraco CMS</Title>
-    <Version>18.0.0</Version>
-    <Description>This Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE) in version 16 and above. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).</Description>
+    <Version>18.3.1</Version>
+    <Description>This Umbraco CMS package enables access to the TinyMCE-based Rich Text Editor (RTE). It requires Umbraco 18.3.0 or later - for Umbraco 16 use the 16.x package versions, for Umbraco 17 use 17.x. It also supports the use of TinyMCE Premium plugins with a valid subscription. Additional features include streamlined configuration for RTE Data Types in Umbraco and enhanced settings that support direct JSON-based configuration via .NET (appsettings.config).</Description>
     <PackageTags>umbraco;umbraco-marketplace;tinymce</PackageTags>
     <Authors>ProWorks</Authors>
     <Company>ProWorks Corporation</Company>
@@ -25,10 +25,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Umbraco.Cms.Web.Website" Version="[18.0.0, 19.0.0)" />
-    <PackageReference Include="Umbraco.Cms.Web.Common" Version="[18.0.0, 19.0.0)" />
-    <PackageReference Include="Umbraco.Cms.Api.Common" Version="[18.0.0, 19.0.0)" />
-    <PackageReference Include="Umbraco.Cms.Api.Management" Version="[18.0.0, 19.0.0)" />
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="[18.3.0, 19.0.0)" />
+    <PackageReference Include="Umbraco.Cms.Web.Common" Version="[18.3.0, 19.0.0)" />
+    <PackageReference Include="Umbraco.Cms.Api.Common" Version="[18.3.0, 19.0.0)" />
+    <PackageReference Include="Umbraco.Cms.Api.Management" Version="[18.3.0, 19.0.0)" />
     <ProjectReference Include="..\TinyMCE.Umbraco.Client\TinyMCE.Umbraco.Client.esproj">
       <ReferenceOutputAssembly>False</ReferenceOutputAssembly>
     </ProjectReference>
@@ -43,6 +43,10 @@
 
   <ItemGroup>
     <Folder Include="Migrations\Upgrade\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="TinyMCE.Umbraco.Tests" />
   </ItemGroup>
 
 </Project>

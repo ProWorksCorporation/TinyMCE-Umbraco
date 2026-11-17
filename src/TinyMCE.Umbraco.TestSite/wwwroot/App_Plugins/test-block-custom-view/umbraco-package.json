@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../umbraco-package-schema.json",
+  "id": "TinyMCE.Umbraco.TestSite.BlockCustomView",
+  "name": "TinyMCE.Umbraco.TestSite.BlockCustomView",
+  "version": "1.0.0",
+  "extensions": [
+    {
+      "type": "bundle",
+      "alias": "TinyMCE.Umbraco.TestSite.BlockCustomView.Bundle",
+      "name": "TinyMCE TestSite custom block view bundle",
+      "js": "/App_Plugins/test-block-custom-view/test-block-custom-view.bundle.js"
+    }
+  ]
+}

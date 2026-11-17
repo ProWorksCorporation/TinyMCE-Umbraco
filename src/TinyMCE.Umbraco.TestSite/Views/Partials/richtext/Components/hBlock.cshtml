@@ -1,0 +1,8 @@
+@inherits Umbraco.Cms.Web.Common.Views.UmbracoViewPage<Umbraco.Cms.Core.Models.Blocks.RichTextBlockItem<ContentModels.HBlock>>
+@using ContentModels = Umbraco.Cms.Web.Common.PublishedModels;
+
+@* Front-end view for the H Block used in the multilingual H Parent / H Child fixtures. Without it, publishing a page
+   whose rich text contains an H Block fails with "hBlock.cshtml does not match any available view". *@
+<div style="border: 1px solid black; padding: 10px; margin: 10px;">
+    @Model.Content.Text
+</div>

@@ -1,11 +1,14 @@
 using System.Dynamic;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using TinyMCE.Umbraco.Api.Management;
+using TinyMCE.Umbraco.Services;
 using Umbraco.Cms.Api.Common.OpenApi;
 using Umbraco.Cms.Api.Management.OpenApi;
 using Umbraco.Cms.Core.Composing;
 using Umbraco.Cms.Core.Configuration.Models;
 using Umbraco.Cms.Core.DependencyInjection;
+using UmbConstants = Umbraco.Cms.Core.Constants;
 
 namespace TinyMCE.Umbraco.Composing;
 
@@ -25,6 +28,11 @@ internal sealed class TinyMceComposer : IComposer
                 Constants.ProjectAlias,
                 doc => doc
                     .WithTitle($"{Constants.ProjectName} Management API")
+                    // The controllers respond with the backoffice JSON options ([JsonOptionsName] on
+                    // TinyMceManagementApiControllerBase), so the schema must be generated with them too. Without this,
+                    // enums such as RichTextEditorCommand.Mode are described as integers but sent as strings. Umbraco
+                    // registers its own Management API document the same way.
+                    .WithJsonOptions(UmbConstants.JsonOptionsNames.BackOffice)
                     .ConfigureOpenApiOptions(opts => opts.AddBackofficeSecurityRequirements()));
 
             builder
@@ -75,6 +83,11 @@ internal sealed class TinyMceComposer : IComposer
                         options.customConfig = customConfigKeys;
                     });
                     //.AddTransient<IConfigureOptions<TinyMceConfig>, TinyMceConfigPostConfigure>()
+
+            // The AI relay (CL-001): the editor's AI requests are completed on the server, so the provider key never
+            // reaches a browser. 60 s covers a long completion; past that the editor is told the provider timed out.
+            builder.Services.AddHttpClient(TinyMceAiConstants.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(60));
+            builder.Services.AddScoped<ITinyMceAiCompletionService, OpenAiCompletionService>();
         }
         catch (Exception ex)
         {
