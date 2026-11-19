@@ -6,6 +6,8 @@ and the npm package (`@tiny-mce-umbraco/backoffice`) share a version number, and
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project's version numbers
 follow the Umbraco CMS major version they support.
 
+## [Unreleased]
+
 ## [18.3.1] - 2026-11-17
 
 Brings the 18 line up to 17.8.1: every fix and feature from the 17.6.2, 17.6.3, 17.8.0 and 17.8.1 releases, on
