@@ -8,6 +8,13 @@ follow the Umbraco CMS major version they support.
 
 ## [Unreleased]
 
+### Changed
+
+- **Upgrading from Umbraco 17 is now verified.** A site on Umbraco 17.8 with this package's 17.8.1 upgrades to Umbraco
+  18.3 with 18.3.1 with its TinyMCE Data Types, text and blocks unchanged, including single-mode Block Lists inside
+  TinyMCE blocks, which Umbraco 18 converts to its Single Block editor. The README and NuGet readme no longer say this
+  path is unverified.
+
 ## [18.3.1] - 2026-11-17
 
 Brings the 18 line up to 17.8.1: every fix and feature from the 17.6.2, 17.6.3, 17.8.0 and 17.8.1 releases, on

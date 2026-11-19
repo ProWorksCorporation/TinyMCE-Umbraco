@@ -32,11 +32,14 @@ In addition, you can install packages via the Visual Studio NuGet Package Manage
 
 ### Upgrading from Umbraco 17
 
-Upgrading a site from Umbraco 17 to Umbraco 18 together with this package **hasn't been verified yet**. Upgrading an
-existing Umbraco 18.0.x site to 18.3 with this release has been verified. If you plan a 17 → 18 upgrade, back up
-the database and media first, and check your TinyMCE Data Types and rich text content (including blocks) afterwards;
-the package still prevents Umbraco from converting TinyMCE properties to its default editor. Until then, the 17.x
-versions of this package remain supported on Umbraco 17.8.
+Upgrading a site from Umbraco 17.8 to Umbraco 18.3 together with this package has been verified, as has upgrading an
+existing Umbraco 18.0.x site to 18.3. TinyMCE Data Types and rich text content, including blocks, come through
+unchanged, and the package still prevents Umbraco from converting TinyMCE properties to its default editor. Umbraco 18
+turns Block Lists set to single block mode into its new Single Block editor; it updates those inside TinyMCE blocks
+too, and leaves the TinyMCE text itself as it was.
+
+Update the packages together: `Umbraco.Cms` to 18.3.0 or later and this package to 18.3.1 or later. As with any major
+upgrade, back up the database and media first. The 17.x versions of this package remain supported on Umbraco 17.8.
 
 ### Upgrading from v15
 
